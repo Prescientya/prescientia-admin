@@ -17,21 +17,30 @@ class MarkAbsentForMissingAttendance extends Command
      *
      * @var string
      */
-    protected $signature = 'attendance:mark-absent';
+    protected $signature = 'attendance:mark-absent {--date= : (optional) simulate today date in YYYY-MM-DD format}';
 
     /**
      * The description of the console command.
      *
      * @var string
      */
-    protected $description = 'Automatically mark students and teachers as alpa (absent) if they have no attendance record for yesterday';
+    protected $description = 'Automatically mark students and teachers as alpa (absent) if they have no attendance record for yesterday. Use --date=YYYY-MM-DD to simulate today.';
 
     /**
      * Execute the console command.
      */
     public function handle()
     {
-        $yesterday = now()->subDay()->toDateString();
+        if ($this->option('date')) {
+            try {
+                $yesterday = \Carbon\Carbon::parse($this->option('date'))->subDay()->toDateString();
+            } catch (\Exception $e) {
+                $this->error('Invalid --date value. Use YYYY-MM-DD.');
+                return 1;
+            }
+        } else {
+            $yesterday = now()->subDay()->toDateString();
+        }
         
         // Check if yesterday was a school day (aktif)
         $calendar = SchoolCalendar::where('date', $yesterday)->first();
@@ -81,7 +90,7 @@ class MarkAbsentForMissingAttendance extends Command
                     'check_in_time' => null,
                     'check_out_time' => null,
                     'status' => 'alpa',
-                    'source' => 'wali_kelas',
+                    'source' => null,
                 ]);
 
                 $this->line("  ✓ Student {$student->name} (NIS: {$student->nis}) marked as alpa");
@@ -118,7 +127,7 @@ class MarkAbsentForMissingAttendance extends Command
                     'check_in_time' => null,
                     'check_out_time' => null,
                     'status' => 'alpa',
-                    'source' => 'manual',
+                    'source' => null,
                 ]);
 
                 $this->line("  ✓ Teacher {$teacher->name} (NIP: {$teacher->nip}) marked as alpa");

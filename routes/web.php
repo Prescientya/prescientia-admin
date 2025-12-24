@@ -44,6 +44,10 @@ Route::prefix('admin')->middleware(AdminMiddleware::class)->name('admin.')->grou
     
     // Attendances
     Route::get('attendances', [AttendanceController::class, 'index'])->name('attendances.index');
+    Route::get('attendances/history', [AttendanceController::class, 'history'])->name('attendances.history');
+    // Show and update specific attendance (role = students|teachers)
+    Route::get('attendances/{role}/{id}', [AttendanceController::class, 'show'])->name('attendances.show');
+    Route::put('attendances/{role}/{id}', [AttendanceController::class, 'update'])->name('attendances.update');
     Route::get('attendances/students', [AttendanceController::class, 'students'])->name('attendances.students');
     Route::get('attendances/teachers', [AttendanceController::class, 'teachers'])->name('attendances.teachers');
     Route::post('attendances/record', [AttendanceController::class, 'record'])->name('attendances.record');

@@ -43,6 +43,27 @@ return new class extends Migration
                 $table->dropColumn('class_code');
             }
         });
+
+        // Make attendance `source` columns nullable (safe change)
+        // Using raw statements for compatibility across DB engines
+        try {
+            DB::statement('ALTER TABLE student_attendances ALTER COLUMN source DROP NOT NULL');
+        } catch (\Throwable $e) {
+            // ignore if column doesn't exist yet or DB engine differs
+        }
+
+        try {
+            DB::statement('ALTER TABLE teacher_attendances ALTER COLUMN source DROP NOT NULL');
+        } catch (\Throwable $e) {
+            // ignore if column doesn't exist yet or DB engine differs
+        }
+
+        // Ensure any existing teacher attendance rows with status 'alpa' have NULL source
+        try {
+            DB::statement("UPDATE teacher_attendances SET source = NULL WHERE status = 'alpa'");
+        } catch (\Throwable $e) {
+            // ignore if table/column doesn't exist
+        }
     }
 
     /**
@@ -85,5 +106,20 @@ return new class extends Migration
                 $table->string('class_code')->nullable();
             }
         });
+
+        // Revert attendance `source` nullability: set NULLs to safe defaults before adding NOT NULL back
+        try {
+            DB::statement("UPDATE student_attendances SET source = 'wali_kelas' WHERE source IS NULL");
+            DB::statement('ALTER TABLE student_attendances ALTER COLUMN source SET NOT NULL');
+        } catch (\Throwable $e) {
+            // ignore if column/constraint doesn't exist
+        }
+
+        try {
+            DB::statement("UPDATE teacher_attendances SET source = 'manual' WHERE source IS NULL");
+            DB::statement('ALTER TABLE teacher_attendances ALTER COLUMN source SET NOT NULL');
+        } catch (\Throwable $e) {
+            // ignore if column/constraint doesn't exist
+        }
     }
 };

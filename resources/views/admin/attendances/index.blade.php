@@ -140,11 +140,14 @@
 <div class="card">
     <div class="card-body">
         <div class="attendance-tabs">
-            <button class="tab-button active" onclick="switchTab('students')">
+            <button class="tab-button active" onclick="switchTab('students', event)">
                 👨‍🎓 Absensi Siswa
             </button>
-            <button class="tab-button" onclick="switchTab('teachers')">
+            <button class="tab-button" onclick="switchTab('teachers', event)">
                 👨‍🏫 Absensi Guru
+            </button>
+            <button class="tab-button" onclick="switchTab('history', event)">
+                📜 History / Filter
             </button>
         </div>
 
@@ -181,30 +184,44 @@
                         <thead class="table-light">
                             <tr>
                                 <th style="width: 50px;">No</th>
-                                <th>NIS</th>
                                 <th>Nama Siswa</th>
                                 <th>Kelas</th>
-                                <th>Check In</th>
-                                <th>Check Out</th>
                                 <th>Status</th>
                                 <th>Sumber</th>
+                                <th style="width:80px;">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($studentAttendances as $key => $attendance)
                                 <tr>
                                     <td>{{ $studentAttendances->firstItem() + $key }}</td>
-                                    <td><strong>{{ $attendance->student->nis }}</strong></td>
                                     <td>{{ $attendance->student->name }}</td>
                                     <td>{{ $attendance->class->class ?? '-' }} {{ $attendance->class->major ?? '' }}</td>
-                                    <td>{{ $attendance->check_in_time ? \Carbon\Carbon::parse($attendance->check_in_time)->format('H:i') : '-' }}</td>
-                                    <td>{{ $attendance->check_out_time ? \Carbon\Carbon::parse($attendance->check_out_time)->format('H:i') : '-' }}</td>
                                     <td>
                                         <span class="status-badge status-{{ $attendance->status }}">
                                             {{ ucfirst($attendance->status) }}
                                         </span>
                                     </td>
-                                    <td><small>{{ str_replace('_', ' ', ucfirst($attendance->source)) }}</small></td>
+                                    <td><small>{{ $attendance->source ? str_replace('_', ' ', ucfirst($attendance->source)) : '-' }}</small></td>
+                                    <td>
+                                        <div class="action-menu-container">
+                                            <button class="action-menu-btn" type="button" onclick="toggleDropdown(event, this)" title="Pengaturan aksi">
+                                                <img src="{{ asset('assets/icons/setting.png') }}" alt="Setting" width="20" height="20">
+                                            </button>
+                                            <ul class="dropdown-menu" style="display: none;">
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('admin.attendances.show', ['role' => 'students', 'id' => $attendance->id]) }}">
+                                                        Lihat Detail
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('admin.attendances.show', ['role' => 'students', 'id' => $attendance->id]) }}">
+                                                        Edit
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -254,28 +271,42 @@
                         <thead class="table-light">
                             <tr>
                                 <th style="width: 50px;">No</th>
-                                <th style="width: 150px;">NIP</th>
                                 <th>Nama Guru</th>
-                                <th>Check In</th>
-                                <th>Check Out</th>
                                 <th>Status</th>
                                 <th>Sumber</th>
+                                <th style="width:80px;">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($teacherAttendances as $key => $attendance)
                                 <tr>
                                     <td>{{ $teacherAttendances->firstItem() + $key }}</td>
-                                    <td><strong>{{ $attendance->teacher->nip }}</strong></td>
                                     <td>{{ $attendance->teacher->name }}</td>
-                                    <td>{{ $attendance->check_in_time ? \Carbon\Carbon::parse($attendance->check_in_time)->format('H:i') : '-' }}</td>
-                                    <td>{{ $attendance->check_out_time ? \Carbon\Carbon::parse($attendance->check_out_time)->format('H:i') : '-' }}</td>
                                     <td>
                                         <span class="status-badge status-{{ $attendance->status }}">
                                             {{ ucfirst($attendance->status) }}
                                         </span>
                                     </td>
-                                    <td><small>{{ str_replace('_', ' ', ucfirst($attendance->source)) }}</small></td>
+                                    <td><small>{{ $attendance->source ? str_replace('_', ' ', ucfirst($attendance->source)) : '-' }}</small></td>
+                                    <td>
+                                        <div class="action-menu-container">
+                                            <button class="action-menu-btn" type="button" onclick="toggleDropdown(event, this)" title="Pengaturan aksi">
+                                                <img src="{{ asset('assets/icons/setting.png') }}" alt="Setting" width="20" height="20">
+                                            </button>
+                                            <ul class="dropdown-menu" style="display: none;">
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('admin.attendances.show', ['role' => 'teachers', 'id' => $attendance->id]) }}">
+                                                        Lihat Detail
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('admin.attendances.show', ['role' => 'teachers', 'id' => $attendance->id]) }}">
+                                                        Edit
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -291,13 +322,122 @@
                 </div>
             @endif
         </div>
+
+        <!-- History Tab Content -->
+        <div id="history-tab" class="tab-content">
+            <div class="mb-3">
+                <form method="GET" action="{{ route('admin.attendances.history') }}" class="row g-2">
+                    <div class="col-md-2">
+                        <label class="form-label">Role</label>
+                        <select name="role" class="form-select">
+                            <option value="students" {{ (isset($role) && $role == 'students') ? 'selected' : '' }}>Siswa</option>
+                            <option value="teachers" {{ (isset($role) && $role == 'teachers') ? 'selected' : '' }}>Guru</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Dari</label>
+                        <input type="date" name="date_from" class="form-control" value="{{ $dateFrom ?? '' }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Sampai</label>
+                        <input type="date" name="date_to" class="form-control" value="{{ $dateTo ?? '' }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="">Semua</option>
+                            <option value="hadir" {{ (isset($status) && $status == 'hadir') ? 'selected' : '' }}>Hadir</option>
+                            <option value="sakit" {{ (isset($status) && $status == 'sakit') ? 'selected' : '' }}>Sakit</option>
+                            <option value="izin" {{ (isset($status) && $status == 'izin') ? 'selected' : '' }}>Izin</option>
+                            <option value="alpa" {{ (isset($status) && $status == 'alpa') ? 'selected' : '' }}>Alpa</option>
+                            <option value="dinas" {{ (isset($status) && $status == 'dinas') ? 'selected' : '' }}>Dinas</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Cari (nama / NIS / NIP)</label>
+                        <input type="text" name="keyword" class="form-control" placeholder="Ketik nama atau NIS/NIP" value="{{ $keyword ?? '' }}">
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">Filter</button>
+                    </div>
+                </form>
+            </div>
+
+            @if(isset($results) && $results->count() > 0)
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:50px;">No</th>
+                                @if((isset($role) && $role=='teachers') || (!isset($role) && request('role')=='teachers'))
+                                    <th>Nama Guru</th>
+                                    <th>Tanggal</th>
+                                    <th>Status</th>
+                                @else
+                                    <th>Nama Siswa</th>
+                                    <th>Kelas</th>
+                                    <th>Tanggal</th>
+                                    <th>Status</th>
+                                @endif
+                                <th>Sumber</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($results as $k => $r)
+                                <tr>
+                                    <td>{{ $results->firstItem() + $k }}</td>
+                                    @if((isset($role) && $role=='teachers') || (!isset($role) && request('role')=='teachers'))
+                                        <td>{{ $r->teacher->name }}</td>
+                                        <td>{{ optional($r->calendar)->date ? \Carbon\Carbon::parse($r->calendar->date)->format('Y-m-d') : '-' }}</td>
+                                        <td><span class="status-badge status-{{ $r->status }}">{{ ucfirst($r->status) }}</span></td>
+                                    @else
+                                        <td>{{ $r->student->name }}</td>
+                                        <td>{{ $r->class->class ?? '-' }} {{ $r->class->major ?? '' }}</td>
+                                        <td>{{ optional($r->calendar)->date ? \Carbon\Carbon::parse($r->calendar->date)->format('Y-m-d') : '-' }}</td>
+                                        <td><span class="status-badge status-{{ $r->status }}">{{ ucfirst($r->status) }}</span></td>
+                                    @endif
+                                    <td><small>{{ $r->source ? str_replace('_', ' ', ucfirst($r->source)) : '-' }}</small></td>
+                                    <td>
+                                        <div class="action-menu-container">
+                                            <button class="action-menu-btn" type="button" onclick="toggleDropdown(event, this)" title="Pengaturan aksi">
+                                                <img src="{{ asset('assets/icons/setting.png') }}" alt="Setting" width="20" height="20">
+                                            </button>
+                                            <ul class="dropdown-menu" style="display: none;">
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('admin.attendances.show', ['role' => $role ?? 'students', 'id' => $r->id]) }}">
+                                                        Lihat Detail
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('admin.attendances.show', ['role' => $role ?? 'students', 'id' => $r->id]) }}">
+                                                        Edit
+                                                    </a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex justify-content-center mt-3">
+                    {{ $results->appends(request()->except('history_page'))->links() }}
+                </div>
+            @else
+                <div class="alert alert-info text-center">
+                    <p class="mb-0">Belum ada data history absensi untuk filter ini</p>
+                </div>
+            @endif
+        </div>
     </div>
 </div>
 @endsection
 
 @section('scripts')
 <script>
-function switchTab(tabName) {
+function switchTab(tabName, evt) {
     // Remove active class from all tabs
     document.querySelectorAll('.tab-button').forEach(btn => {
         btn.classList.remove('active');
@@ -308,8 +448,14 @@ function switchTab(tabName) {
     });
     
     // Add active class to clicked tab
-    event.target.classList.add('active');
+    if (evt && evt.currentTarget) {
+        evt.currentTarget.classList.add('active');
+    } else if (evt && evt.target) {
+        evt.target.classList.add('active');
+    }
     document.getElementById(tabName + '-tab').classList.add('active');
 }
 </script>
+<script src="{{ asset('js/action-dropdown.js') }}"></script>
 @endsection
+
