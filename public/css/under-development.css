@@ -1,0 +1,14 @@
+/* Under Development Pages Styles */
+.under-dev-card-body {
+    padding: 40px;
+    text-align: center;
+}
+
+.under-dev-text {
+    color: #666;
+    margin-top: 16px;
+}
+
+.under-dev-back-btn {
+    margin-top: 20px;
+}

@@ -7,6 +7,7 @@ use App\Models\HistoryLogin;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use Jenssegers\Agent\Agent;
 
 class LoginController extends Controller
 {
@@ -37,12 +38,22 @@ class LoginController extends Controller
         if (Auth::attempt($credentials, $remember)) {
             $request->session()->regenerate();
 
+            // Detect device information
+            $agent = new Agent();
+            $agent->setUserAgent($request->userAgent());
+            
+            $deviceInfo = $agent->device() ?: 'Unknown';
+            $platform = $agent->platform();
+            $browser = $agent->browser();
+            $deviceId = sprintf('%s - %s (%s)', $deviceInfo, $platform, $browser);
+
             // Create login history record
             HistoryLogin::create([
                 'user_id' => Auth::id(),
                 'login_at' => Carbon::now(),
                 'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
+                'device_id' => $deviceId,
+                'status' => 'success',
             ]);
 
             return redirect()->intended(route('admin.dashboard'));
@@ -66,7 +77,7 @@ class LoginController extends Controller
 
         if ($lastLogin) {
             $logoutAt = Carbon::now();
-            $duration = $logoutAt->diffInMinutes($lastLogin->login_at);
+            $duration = (int) $logoutAt->diffInMinutes($lastLogin->login_at);
             
             $lastLogin->update([
                 'logout_at' => $logoutAt,

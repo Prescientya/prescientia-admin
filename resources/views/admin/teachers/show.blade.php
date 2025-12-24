@@ -1,103 +1,179 @@
 @extends('layouts.app')
 
-@section('content')
-<div class="content-header">
-    <h1>Detail Guru</h1>
-    <div class="breadcrumb">
-        <a href="{{ route('admin.dashboard') }}">Dashboard</a> / 
-        <a href="{{ route('admin.teachers.index') }}">Data Guru</a> / 
-        Detail
-    </div>
-</div>
+@section('title', 'Detail Guru - SekolahKu Admin')
 
+@section('page-title', 'Detail Guru')
+
+@section('css')
+<link rel="stylesheet" href="{{ asset('css/teachers-show.css') }}">
+@endsection
+
+@section('content')
 <div class="row">
     <div class="col-md-8">
         <div class="card">
-            <div class="card-header">
-                <h3>Informasi Guru</h3>
-                <div class="card-actions">
-                    <a href="{{ route('admin.teachers.edit', $teacher->id) }}" class="btn btn-warning">Edit</a>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Informasi Lengkap Guru</h5>
+                <div>
+                    <a href="{{ route('admin.teachers.edit', $teacher->id) }}" class="btn btn-warning btn-sm">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                    <a href="{{ route('admin.teachers.index') }}" class="btn btn-secondary btn-sm">
+                        <i class="bi bi-arrow-left"></i> Kembali
+                    </a>
                 </div>
             </div>
             <div class="card-body">
-                <table class="detail-table">
-                    <tr>
-                        <th>NIP</th>
-                        <td>{{ $teacher->nip }}</td>
-                    </tr>
-                    <tr>
-                        <th>Nama Lengkap</th>
-                        <td>{{ $teacher->name }}</td>
-                    </tr>
-                    <tr>
-                        <th>Jenis Kelamin</th>
-                        <td>
-                            <span class="badge {{ $teacher->gender == 'L' ? 'badge-primary' : 'badge-danger' }}">
-                                {{ $teacher->gender == 'L' ? 'Laki-laki' : 'Perempuan' }}
-                            </span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>No. Telepon</th>
-                        <td>{{ $teacher->phone_number ?? '-' }}</td>
-                    </tr>
-                    <tr>
-                        <th>Alamat</th>
-                        <td>{{ $teacher->address ?? '-' }}</td>
-                    </tr>
-                    <tr>
-                        <th>Email</th>
-                        <td>{{ $teacher->user->email }}</td>
-                    </tr>
-                    <tr>
-                        <th>Status Akun</th>
-                        <td>
-                            <span class="badge {{ $teacher->user->is_active ? 'badge-success' : 'badge-secondary' }}">
-                                {{ $teacher->user->is_active ? 'Aktif' : 'Non-aktif' }}
-                            </span>
-                        </td>
-                    </tr>
-                </table>
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        @if($teacher->photo_profile)
+                            <img src="{{ asset('storage/' . $teacher->photo_profile) }}" alt="Foto Profil" class="teacher-photo">
+                        @else
+                            <div class="teacher-photo-placeholder">
+                                <i class="bi bi-person-circle"></i>
+                            </div>
+                        @endif
+                    </div>
+                    <div class="col-md-9">
+                        <h4>{{ $teacher->name }}</h4>
+                        <p class="text-muted">NIP: <strong>{{ $teacher->nip }}</strong></p>
+                        <p class="mb-2">
+                            <span class="badge bg-info">{{ $teacher->department ?? 'Belum ada bidang studi' }}</span>
+                        </p>
+                    </div>
+                </div>
+
+                <hr>
+
+                <h6 class="mb-3"><strong>Data Pribadi</strong></h6>
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <p class="mb-2">
+                            <strong>Nama Lengkap:</strong> {{ $teacher->name }}<br>
+                            <strong>NIP:</strong> {{ $teacher->nip }}<br>
+                            <strong>Jenis Kelamin:</strong> {{ $teacher->gender === 'L' ? 'Laki-laki' : 'Perempuan' }}<br>
+                            <strong>Tanggal Lahir:</strong> {{ $teacher->date_of_birth ? \Carbon\Carbon::parse($teacher->date_of_birth)->format('d F Y') : '-' }}<br>
+                            <strong>Umur:</strong> {{ $teacher->date_of_birth ? \Carbon\Carbon::parse($teacher->date_of_birth)->age : '-' }} tahun
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-2">
+                            <strong>No. Telepon:</strong> {{ $teacher->phone_number ?? '-' }}<br>
+                            <strong>Bidang Studi:</strong> {{ $teacher->department ?? '-' }}<br>
+                            <strong>Alamat:</strong> {{ $teacher->address ?? '-' }}<br>
+                        </p>
+                    </div>
+                </div>
+
+                <hr>
+
+                <h6 class="mb-3"><strong>Informasi Akun</strong></h6>
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <p class="mb-2">
+                            <strong>Email:</strong> {{ $teacher->user->email }}<br>
+                            @php
+                                $currentRoleRaw = optional($teacher->classRoles->first())->role;
+                                $roleLabel = $currentRoleRaw === 'pengajar' ? 'Pengajar' : ($currentRoleRaw === 'wali_kelas' ? 'Walikelas' : '-');
+                            @endphp
+                            <strong>Role:</strong> {{ $roleLabel }}<br>
+                            <strong>Status:</strong> 
+                            @if ($teacher->user->is_active)
+                                <span class="badge bg-success">Aktif</span>
+                            @else
+                                <span class="badge bg-secondary">Tidak Aktif</span>
+                            @endif
+                            <br>
+                            <strong>Dibuat:</strong> {{ $teacher->created_at->format('d/m/Y H:i') }}
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-2">
+                            <strong>Device ID:</strong> {{ $teacher->user->device_id ?? '-' }}<br>
+                            <strong>WiFi MAC:</strong> {{ $teacher->user->wifi_mac ?? '-' }}<br>
+                            <strong>Terakhir Diperbarui:</strong> {{ $teacher->updated_at->format('d/m/Y H:i') }}
+                        </p>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="action-buttons">
+                    <a href="{{ route('admin.teachers.edit', $teacher->id) }}" class="btn btn-warning">
+                        <i class="bi bi-pencil"></i> Edit Data
+                    </a>
+                    <a href="{{ route('admin.teachers.index') }}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left"></i> Kembali ke Daftar
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 
     <div class="col-md-4">
-        <div class="card">
+        <!-- Kelas yang Diampu (untuk semua guru) -->
+        @php
+            // Get teaching classes (not homeroom) - use DB values (lowercase)
+            $teachingClasses = $teacher->classRoles->where('role', 'pengajar')->map(function($role) {
+                return $role->class;
+            });
+            
+            // Get homeroom class
+            $homeroomClass = $teacher->homeroomClasses->first();
+        @endphp
+        
+        @if($teachingClasses->count() > 0)
+        <div class="card mb-3">
             <div class="card-header">
-                <h3>Statistik Kehadiran</h3>
+                <h5 class="mb-0">Kelas yang Diampu</h5>
             </div>
             <div class="card-body">
-                @if($teacher->attendanceSummary)
-                <div class="stat-item">
-                    <div class="stat-label">Total Hadir</div>
-                    <div class="stat-value text-success">{{ $teacher->attendanceSummary->total_present }}</div>
+                <div class="list-group">
+                    @foreach($teachingClasses as $class)
+                        <a href="{{ route('admin.classes.show', $class->id) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">{{ $class->class }}</h6>
+                                    <small class="text-muted">{{ $class->major ?? 'Umum' }}</small>
+                                </div>
+                            </div>
+                        </a>
+                    @endforeach
                 </div>
-                <div class="stat-item">
-                    <div class="stat-label">Total Izin</div>
-                    <div class="stat-value text-warning">{{ $teacher->attendanceSummary->total_permission }}</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Total Sakit</div>
-                    <div class="stat-value text-info">{{ $teacher->attendanceSummary->total_sick }}</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Total Alfa</div>
-                    <div class="stat-value text-danger">{{ $teacher->attendanceSummary->total_absent }}</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Total Terlambat</div>
-                    <div class="stat-value text-warning">{{ $teacher->attendanceSummary->total_late }}</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Persentase Kehadiran</div>
-                    <div class="stat-value text-primary">{{ number_format($teacher->attendanceSummary->attendance_percentage, 1) }}%</div>
-                </div>
-                @else
-                <p class="text-muted">Belum ada data kehadiran</p>
-                @endif
             </div>
         </div>
+        @endif
+
+        <!-- Kelas yang Diampu sebagai Walikelas (hanya jika ada homeroom) -->
+        @if($homeroomClass)
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Kelas yang Diampu sebagai Walikelas</h5>
+            </div>
+            <div class="card-body">
+                <a href="{{ route('admin.classes.show', $homeroomClass->id) }}" class="list-group-item list-group-item-action">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="mb-1">{{ $homeroomClass->class }}</h6>
+                            <small class="text-muted">{{ $homeroomClass->major ?? 'Umum' }}</small>
+                        </div>
+                        <span class="badge bg-primary">Walikelas</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+        @endif
+
+        @if($teachingClasses->count() == 0 && !$homeroomClass)
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Kelas yang Diampu</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted text-center">Belum ada kelas yang diampu</p>
+            </div>
+        </div>
+        @endif
     </div>
 </div>
 @endsection

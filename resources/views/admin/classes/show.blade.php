@@ -1,43 +1,57 @@
 @extends('layouts.app')
 
-@section('content')
-<div class="content-header">
-    <h1>Detail Kelas</h1>
-    <div class="breadcrumb">
-        <a href="{{ route('admin.dashboard') }}">Dashboard</a> / 
-        <a href="{{ route('admin.classes.index') }}">Data Kelas</a> / 
-        Detail
-    </div>
-</div>
+@section('title', 'Detail Kelas - SekolahKu Admin')
 
+@section('page-title', 'Detail Kelas')
+
+@section('css')
+<link rel="stylesheet" href="{{ asset('css/classes-show.css') }}">
+@endsection
+
+@section('content')
 <div class="row">
     <div class="col-md-4">
         <div class="card">
             <div class="card-header">
-                <h3>Informasi Kelas</h3>
-                <div class="card-actions">
-                    <a href="{{ route('admin.classes.edit', $class->id) }}" class="btn btn-warning">Edit</a>
-                </div>
+                <h5 class="mb-0">Informasi Kelas</h5>
             </div>
             <div class="card-body">
-                <table class="detail-table">
-                    <tr>
-                        <th>Nama Kelas</th>
-                        <td><strong>{{ $class->name }}</strong></td>
-                    </tr>
-                    <tr>
-                        <th>Wali Kelas</th>
-                        <td>{{ $class->homeroomTeacher->name ?? 'Belum ada' }}</td>
-                    </tr>
-                    <tr>
-                        <th>NIP Wali Kelas</th>
-                        <td>{{ $class->homeroomTeacher->nip ?? '-' }}</td>
-                    </tr>
-                    <tr>
-                        <th>Jumlah Siswa</th>
-                        <td><span class="badge badge-info">{{ $class->students->count() }} siswa</span></td>
-                    </tr>
-                </table>
+                <h4 class="mb-3">{{ $class->class }}</h4>
+                
+                <div class="info-item mb-3">
+                    <label class="text-muted small">Jurusan/Program</label>
+                    <p class="mb-0"><strong>{{ $class->major ?? '-' }}</strong></p>
+                </div>
+
+                <div class="info-item mb-3">
+                    <label class="text-muted small">Wali Kelas</label>
+                    @if($class->homeroomTeacher)
+                        <p class="mb-0"><strong>{{ $class->homeroomTeacher->name }}</strong></p>
+                        <small class="text-muted">{{ $class->homeroomTeacher->nip }}</small>
+                    @else
+                        <p class="mb-0 text-muted">Belum ada wali kelas</p>
+                    @endif
+                </div>
+
+                <hr>
+
+                <div class="info-item">
+                    <label class="text-muted small">Total Siswa</label>
+                    <p class="mb-0">
+                        <span class="badge bg-secondary badge-large">{{ $class->students->count() }} Siswa</span>
+                    </p>
+                </div>
+
+                <hr>
+
+                <div class="action-buttons">
+                    <a href="{{ route('admin.classes.edit', $class->id) }}" class="btn btn-warning btn-sm w-50">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                    <a href="{{ route('admin.classes.index') }}" class="btn btn-secondary btn-sm w-50">
+                        <i class="bi bi-arrow-left"></i> Kembali
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -45,42 +59,44 @@
     <div class="col-md-8">
         <div class="card">
             <div class="card-header">
-                <h3>Daftar Siswa</h3>
+                <h5 class="mb-0">Daftar Siswa Kelas {{ $class->class }}</h5>
             </div>
             <div class="card-body">
                 @if($class->students->count() > 0)
-                <div class="table-responsive">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>No</th>
-                                <th>NIS</th>
-                                <th>Nama</th>
-                                <th>Jenis Kelamin</th>
-                                <th>Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($class->students as $index => $student)
-                            <tr>
-                                <td>{{ $index + 1 }}</td>
-                                <td>{{ $student->nis }}</td>
-                                <td>{{ $student->name }}</td>
-                                <td>
-                                    <span class="badge {{ $student->gender == 'L' ? 'badge-primary' : 'badge-danger' }}">
-                                        {{ $student->gender == 'L' ? 'L' : 'P' }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <a href="{{ route('admin.students.show', $student->id) }}" class="btn btn-sm btn-info">Detail</a>
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 40px;">No</th>
+                                    <th>NIS</th>
+                                    <th>Nama Siswa</th>
+                                    <th>Jenis Kelamin</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($class->students as $key => $student)
+                                    <tr>
+                                        <td>{{ $key + 1 }}</td>
+                                        <td><strong>{{ $student->nis }}</strong></td>
+                                        <td>
+                                            <a href="{{ route('admin.students.show', $student->id) }}">{{ $student->name }}</a>
+                                        </td>
+                                        <td>
+                                            @if ($student->gender === 'L')
+                                                <span class="badge bg-primary">Laki-laki</span>
+                                            @else
+                                                <span class="badge bg-danger">Perempuan</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 @else
-                <p class="text-muted">Belum ada siswa di kelas ini</p>
+                    <div class="alert alert-info text-center mb-0">
+                        <p class="mb-0">Belum ada siswa di kelas ini</p>
+                    </div>
                 @endif
             </div>
         </div>

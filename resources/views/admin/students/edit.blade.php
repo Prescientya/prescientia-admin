@@ -1,58 +1,51 @@
 @extends('layouts.app')
 
-@section('content')
-<div class="content-header">
-    <h1>Edit Siswa</h1>
-    <div class="breadcrumb">
-        <a href="{{ route('admin.dashboard') }}">Dashboard</a> / 
-        <a href="{{ route('admin.students.index') }}">Data Siswa</a> / 
-        Edit
-    </div>
-</div>
+@section('title', 'Edit Siswa - SekolahKu Admin')
 
+@section('page-title', 'Edit Siswa')
+
+@section('css')
+<link rel="stylesheet" href="{{ asset('css/form-pages.css') }}">
+@endsection
+
+@section('content')
 <div class="card">
-    <div class="card-header">
-        <h3>Form Edit Siswa</h3>
+    <div class="card-header card-header-form">
+        <h4>Form Edit Data Siswa</h4>
     </div>
-    <div class="card-body">
+    <div class="card-body card-body-form">
         <form action="{{ route('admin.students.update', $student->id) }}" method="POST">
             @csrf
             @method('PUT')
             
             <div class="form-section">
-                <h4>Informasi Akun</h4>
+                <h5 class="form-section-title">Informasi Akun</h5>
                 
                 <div class="form-group">
-                    <label for="email">Email <span class="required">*</span></label>
+                    <label for="email">Email <span class="required-field">*</span></label>
                     <input type="email" id="email" name="email" class="form-control @error('email') is-invalid @enderror" value="{{ old('email', $student->user->email) }}" required>
                     @error('email')
                     <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
                 </div>
 
-                <div class="form-group">
-                    <label for="password">Password Baru</label>
-                    <input type="password" id="password" name="password" class="form-control @error('password') is-invalid @enderror">
-                    @error('password')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                    <small class="form-text">Kosongkan jika tidak ingin mengubah password</small>
-                </div>
+
             </div>
 
             <div class="form-section">
-                <h4>Informasi Pribadi</h4>
+                <h5 class="form-section-title-spacing">Informasi Pribadi</h5>
                 
                 <div class="form-group">
-                    <label for="nis">NIS <span class="required">*</span></label>
-                    <input type="text" id="nis" name="nis" class="form-control @error('nis') is-invalid @enderror" value="{{ old('nis', $student->nis) }}" required>
-                    @error('nis')
+                    <label for="nish">NISH <span class="required-field">*</span></label>
+                    <input type="text" id="nish" name="nish" class="form-control @error('nish') is-invalid @enderror" value="{{ old('nish', $student->nis) }}" required>
+                    @error('nish')
                     <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
+                    <small class="form-text text-muted">Mengubah NISH akan mengubah password siswa menjadi NISH baru</small>
                 </div>
 
                 <div class="form-group">
-                    <label for="name">Nama Lengkap <span class="required">*</span></label>
+                    <label for="name">Nama Lengkap <span class="required-field">*</span></label>
                     <input type="text" id="name" name="name" class="form-control @error('name') is-invalid @enderror" value="{{ old('name', $student->name) }}" required>
                     @error('name')
                     <div class="invalid-feedback">{{ $message }}</div>
@@ -60,7 +53,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="gender">Jenis Kelamin <span class="required">*</span></label>
+                    <label for="gender">Jenis Kelamin <span class="required-field">*</span></label>
                     <select id="gender" name="gender" class="form-control @error('gender') is-invalid @enderror" required>
                         <option value="">Pilih Jenis Kelamin</option>
                         <option value="L" {{ old('gender', $student->gender) == 'L' ? 'selected' : '' }}>Laki-laki</option>
@@ -72,7 +65,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="date_of_birth">Tanggal Lahir <span class="required">*</span></label>
+                    <label for="date_of_birth">Tanggal Lahir <span class="required-field">*</span></label>
                     <input type="date" id="date_of_birth" name="date_of_birth" class="form-control @error('date_of_birth') is-invalid @enderror" value="{{ old('date_of_birth', $student->date_of_birth) }}" required>
                     @error('date_of_birth')
                     <div class="invalid-feedback">{{ $message }}</div>
@@ -96,12 +89,12 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="class_id">Kelas</label>
-                    <select id="class_id" name="class_id" class="form-control @error('class_id') is-invalid @enderror">
-                        <option value="">Belum ada kelas</option>
+                    <label for="class_id">Kelas <span class="required-field">*</span></label>
+                    <select id="class_id" name="class_id" class="form-control @error('class_id') is-invalid @enderror" required>
+                        <option value="">Pilih Kelas</option>
                         @foreach($classes as $class)
                         <option value="{{ $class->id }}" {{ old('class_id', $student->class_id) == $class->id ? 'selected' : '' }}>
-                            {{ $class->name }}
+                            {{ $class->class }} {{ $class->major ? '- ' . $class->major : '' }}
                         </option>
                         @endforeach
                     </select>
@@ -109,10 +102,25 @@
                     <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
                 </div>
+
+                <div class="form-group">
+                    <label for="photo_profile">Foto Profil</label>
+                    @if($student->photo_profile)
+                        <div class="mb-2">
+                            <img src="{{ asset('storage/' . $student->photo_profile) }}" alt="Foto Profil" class="photo-preview">
+                            <p class="text-muted small mt-2">Foto saat ini</p>
+                        </div>
+                    @endif
+                    <input type="file" id="photo_profile" name="photo_profile" class="form-control @error('photo_profile') is-invalid @enderror" accept="image/*">
+                    @error('photo_profile')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                    <small class="form-text text-muted">Format: JPG, PNG (Maksimal 2MB)</small>
+                </div>
             </div>
 
             <div class="form-actions">
-                <button type="submit" class="btn btn-primary">Update</button>
+                <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
                 <a href="{{ route('admin.students.index') }}" class="btn btn-secondary">Batal</a>
             </div>
         </form>

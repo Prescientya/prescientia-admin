@@ -2,88 +2,79 @@
 
 @section('title', 'Dashboard - SekolahKu Admin')
 
+@section('page-title', 'Dashboard')
+
+@section('css')
+    <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
+@endsection
+
 @section('content')
-<div class="content-header">
-    <h1 class="content-title">Dashboard</h1>
-    <p class="breadcrumb">Beranda / Dashboard</p>
+<div class="dashboard-welcome">
+    <h2>Selamat Datang, {{ Auth::user()->admin->name ?? Auth::user()->email }}!</h2>
+    <p>Sistem Manajemen Sekolah Terpadu</p>
 </div>
 
 <div class="stats-grid">
     <div class="stat-card">
-        <div class="stat-icon blue">
-            🎓
+        <div class="stat-icon">
+            <img src="{{ asset('assets/icons/Siswa.png') }}" alt="Siswa">
         </div>
         <div class="stat-info">
-            <h3>{{ $totalStudents }}</h3>
+            <h3>{{ \App\Models\Student::count() }}</h3>
             <p>Total Siswa</p>
         </div>
     </div>
 
     <div class="stat-card">
-        <div class="stat-icon green">
-            👥
+        <div class="stat-icon">
+            <img src="{{ asset('assets/icons/teacher.png') }}" alt="Guru">
         </div>
         <div class="stat-info">
-            <h3>{{ $totalTeachers }}</h3>
+            <h3>{{ \App\Models\Teacher::count() }}</h3>
             <p>Total Guru</p>
         </div>
     </div>
 
     <div class="stat-card">
-        <div class="stat-icon orange">
-            📚
+        <div class="stat-icon">
+            <img src="{{ asset('assets/icons/open-book.png') }}" alt="Kelas">
         </div>
         <div class="stat-info">
-            <h3>{{ $totalClasses }}</h3>
+            <h3>{{ \App\Models\ClassModel::count() }}</h3>
             <p>Total Kelas</p>
         </div>
     </div>
 
     <div class="stat-card">
-        <div class="stat-icon purple">
-            ✅
+        <div class="stat-icon">
+            <img src="{{ asset('assets/icons/wifi.png') }}" alt="WiFi">
         </div>
         <div class="stat-info">
-            <h3>{{ $studentPresentToday }}</h3>
-            <p>Hadir Hari Ini</p>
+            <h3>{{ \App\Models\WifiNetwork::count() }}</h3>
+            <p>Jaringan WiFi</p>
         </div>
     </div>
 </div>
 
 <div class="card">
     <div class="card-header">
-        <h2 class="card-title">Informasi Hari Ini</h2>
-        <span class="badge {{ $todayStatus == 'aktif' ? 'badge-success' : 'badge-danger' }}">
-            {{ ucfirst($todayStatus) }}
-        </span>
+        <h5>Aksi Cepat</h5>
     </div>
     <div class="card-body">
-        <div class="stats-grid">
-            <div>
-                <p style="color: #666; margin-bottom: 8px;">Tanggal</p>
-                <h3 style="font-size: 20px;">{{ $todayDate }}</h3>
-            </div>
-            <div>
-                <p style="color: #666; margin-bottom: 8px;">Siswa Hadir</p>
-                <h3 style="font-size: 20px; color: #4CAF50;">{{ $studentPresentToday }} Siswa</h3>
-            </div>
-            <div>
-                <p style="color: #666; margin-bottom: 8px;">Guru Hadir</p>
-                <h3 style="font-size: 20px; color: #2196F3;">{{ $teacherPresentToday }} Guru</h3>
-            </div>
+        <div class="quick-actions-grid">
+            <a href="{{ route('admin.students.create') }}" class="btn btn-primary">
+                Tambah Siswa
+            </a>
+            <a href="{{ route('admin.teachers.create') }}" class="btn btn-primary">
+                Tambah Guru
+            </a>
+            <a href="{{ route('admin.classes.create') }}" class="btn btn-primary">
+                Tambah Kelas
+            </a>
+            <a href="{{ route('admin.attendances.index') }}" class="btn btn-primary">
+                Lihat Absensi
+            </a>
         </div>
-    </div>
-</div>
-
-<div class="card">
-    <div class="card-header">
-        <h2 class="card-title">Selamat Datang, {{ Auth::user()->admin->name ?? Auth::user()->email }}</h2>
-    </div>
-    <div class="card-body">
-        <p>Sistem Manajemen Sekolah - SekolahKu Admin Panel</p>
-        <p style="color: #666; margin-top: 10px;">
-            Gunakan menu di sebelah kiri untuk mengakses berbagai fitur sistem.
-        </p>
     </div>
 </div>
 @endsection

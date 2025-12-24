@@ -55,4 +55,70 @@ return [
         'end_month' => 6,    // Juni
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Titik 3: Fitur dan Aksi Menu Admin
+    |--------------------------------------------------------------------------
+    | Daftar lengkap semua fitur dan aksi CRUD yang tersedia di aplikasi
+    */
+
+    'features' => [
+        'mbg_officers' => [
+            'name' => 'Petugas MBG',
+            'icon' => 'assets/icons/list.png',
+            'description' => 'Kelola data petugas pembagian MBG (Makan Bersama Gratis)',
+            'actions' => [
+                'index' => [
+                    'name' => 'Lihat Daftar',
+                    'route' => 'admin.mbg-officers.index',
+                    'method' => 'GET',
+                    'icon' => 'bi bi-list',
+                    'description' => 'Menampilkan daftar semua petugas MBG'
+                ],
+                'create' => [
+                    'name' => 'Tambah Petugas',
+                    'route' => 'admin.mbg-officers.create',
+                    'method' => 'GET',
+                    'icon' => 'bi bi-plus-circle',
+                    'description' => 'Menambahkan petugas MBG baru'
+                ],
+                'store' => [
+                    'name' => 'Simpan Petugas',
+                    'route' => 'admin.mbg-officers.store',
+                    'method' => 'POST',
+                    'icon' => 'bi bi-save',
+                    'description' => 'Menyimpan data petugas MBG baru ke database'
+                ],
+                'show' => [
+                    'name' => 'Lihat Detail',
+                    'route' => 'admin.mbg-officers.show',
+                    'method' => 'GET',
+                    'icon' => 'bi bi-eye',
+                    'description' => 'Menampilkan detail lengkap petugas MBG'
+                ],
+                'edit' => [
+                    'name' => 'Edit Data',
+                    'route' => 'admin.mbg-officers.edit',
+                    'method' => 'GET',
+                    'icon' => 'bi bi-pencil',
+                    'description' => 'Membuka form edit untuk mengubah data petugas'
+                ],
+                'update' => [
+                    'name' => 'Perbarui Data',
+                    'route' => 'admin.mbg-officers.update',
+                    'method' => 'PUT',
+                    'icon' => 'bi bi-check-circle',
+                    'description' => 'Memperbarui data petugas MBG di database'
+                ],
+                'destroy' => [
+                    'name' => 'Hapus Data',
+                    'route' => 'admin.mbg-officers.destroy',
+                    'method' => 'DELETE',
+                    'icon' => 'bi bi-trash',
+                    'description' => 'Menghapus data petugas MBG dari database'
+                ]
+            ]
+        ]
+    ],
+
 ];

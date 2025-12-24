@@ -2,6 +2,10 @@
 
 @section('title', 'Login - SekolahKu Admin')
 
+@section('css')
+<link rel="stylesheet" href="{{ asset('css/login.css') }}">
+@endsection
+
 @section('content')
 <div class="login-container">
     <div class="login-box">

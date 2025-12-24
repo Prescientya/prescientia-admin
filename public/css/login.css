@@ -1,0 +1,381 @@
+/* ========================================
+   LOGIN PAGE STYLES
+   ======================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+:root {
+    --primary-color: #007bff;
+    --primary-dark: #0056b3;
+    --primary-light: #0d6efd;
+    --secondary-color: #6c757d;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #17a2b8;
+    --light-bg: #f8f9fa;
+    --dark-text: #212529;
+    --border-color: #dee2e6;
+    --shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    --shadow-md: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    --shadow-lg: 0 1rem 3rem rgba(0, 0, 0, 0.175);
+    --transition: all 0.3s ease;
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --primary-color: #0d6efd;
+        --primary-dark: #0a58ca;
+        --primary-light: #31a3ff;
+        --secondary-color: #adb5bd;
+        --dark-text: #e9ecef;
+        --light-bg: #1e1e1e;
+        --border-color: #495057;
+    }
+}
+
+/* ========================================
+   LOGIN CONTAINER
+   ======================================== */
+
+.login-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    width: 100vw;
+    padding: 20px;
+    background: #f0f2f5;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* ========================================
+   LOGIN BOX
+   ======================================== */
+
+.login-box {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+    padding: 40px;
+    width: 100%;
+    max-width: 400px;
+    animation: slideUp 0.5s ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .login-box {
+        padding: 30px;
+        max-width: 100%;
+        margin: 0 20px;
+    }
+}
+
+/* ========================================
+   LOGIN HEADER
+   ======================================== */
+
+.login-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.login-logo {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 15px;
+    animation: bounce 2s ease infinite;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.login-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--dark-text);
+    margin: 0 0 8px 0;
+    letter-spacing: -0.5px;
+}
+
+@media (prefers-color-scheme: dark) {
+    .login-title {
+        color: #ffffff;
+    }
+}
+
+.login-subtitle {
+    font-size: 14px;
+    color: var(--secondary-color);
+    margin: 0;
+    font-weight: 400;
+}
+
+/* ========================================
+   FORM GROUPS
+   ======================================== */
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--dark-text);
+    margin-bottom: 8px;
+    text-transform: capitalize;
+}
+
+@media (prefers-color-scheme: dark) {
+    .form-label {
+        color: #e0e0e0;
+    }
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: white;
+    color: var(--dark-text);
+    transition: var(--transition);
+    font-family: inherit;
+}
+
+@media (prefers-color-scheme: dark) {
+    .form-control {
+        background-color: #3a3a3a;
+        color: #ffffff;
+        border-color: #555;
+    }
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+    background-color: white;
+}
+
+@media (prefers-color-scheme: dark) {
+    .form-control:focus {
+        background-color: #3a3a3a;
+        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
+    }
+}
+
+.form-control::placeholder {
+    color: #adb5bd;
+}
+
+@media (prefers-color-scheme: dark) {
+    .form-control::placeholder {
+        color: #666;
+    }
+}
+
+/* ========================================
+   FORM CHECK (REMEMBER ME)
+   ======================================== */
+
+.form-check {
+    display: flex;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.form-check input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin-right: 8px;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+}
+
+.form-check label {
+    font-size: 14px;
+    color: var(--dark-text);
+    cursor: pointer;
+    margin: 0;
+    user-select: none;
+}
+
+@media (prefers-color-scheme: dark) {
+    .form-check label {
+        color: #e0e0e0;
+    }
+}
+
+/* ========================================
+   ALERTS
+   ======================================== */
+
+.alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    border: 1px solid;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+@media (prefers-color-scheme: dark) {
+    .alert-danger {
+        background-color: #3a1f20;
+        border-color: #6b2c2c;
+        color: #ff8a8a;
+    }
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+@media (prefers-color-scheme: dark) {
+    .alert-success {
+        background-color: #1a3a1a;
+        border-color: #2d5a2d;
+        color: #8aff8a;
+    }
+}
+
+.alert div {
+    margin-bottom: 4px;
+}
+
+.alert div:last-child {
+    margin-bottom: 0;
+}
+
+/* ========================================
+   BUTTONS
+   ======================================== */
+
+.btn {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 16px;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: var(--transition);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+    font-family: inherit;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-dark);
+}
+
+@media (prefers-color-scheme: dark) {
+    .btn-primary {
+        background-color: #0d6efd;
+    }
+
+    .btn-primary:hover {
+        background-color: #0a58ca;
+    }
+}
+
+.btn-secondary {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #5a6268;
+}
+
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+
+@media (max-width: 480px) {
+    .login-box {
+        padding: 20px;
+    }
+
+    .login-title {
+        font-size: 24px;
+    }
+
+    .login-logo {
+        font-size: 40px;
+    }
+
+    .form-control,
+    .btn {
+        font-size: 16px;
+    }
+}

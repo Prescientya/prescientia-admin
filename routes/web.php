@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\WifiController;
 use App\Http\Controllers\Admin\CalendarController;
 use App\Http\Controllers\Admin\LoginHistoryController;
+use App\Http\Controllers\Admin\MbgOfficerController;
 use App\Http\Controllers\Admin\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -23,7 +24,9 @@ Route::post('/login', [LoginController::class, 'login']);
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 // Admin Routes
-Route::prefix('admin')->middleware('admin')->name('admin.')->group(function () {
+use App\Http\Middleware\AdminMiddleware;
+
+Route::prefix('admin')->middleware(AdminMiddleware::class)->name('admin.')->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
@@ -52,6 +55,10 @@ Route::prefix('admin')->middleware('admin')->name('admin.')->group(function () {
     
     // Login History
     Route::get('login-history', [LoginHistoryController::class, 'index'])->name('login-history.index');
+    
+    // MBG Officers
+    Route::post('mbg-officers/verify-password', [MbgOfficerController::class, 'verifyPassword'])->name('mbg-officers.verify-password');
+    Route::resource('mbg-officers', MbgOfficerController::class);
     
     // Profile
     Route::get('profile', [ProfileController::class, 'index'])->name('profile.index');

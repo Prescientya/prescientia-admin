@@ -1,0 +1,5 @@
+/* MBG Officers Show Page Styles */
+.action-buttons {
+    display: flex;
+    gap: 8px;
+}

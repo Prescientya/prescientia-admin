@@ -13,13 +13,13 @@ return new class extends Migration
     {
         Schema::create('classes', function (Blueprint $table) {
             $table->id();
-            $table->string('class_name', 50);
+            $table->integer('class');
             $table->string('major', 100)->nullable();
             $table->foreignId('homeroom_teacher_id')->nullable()->constrained('teachers')->onDelete('set null');
             $table->timestamps();
             
             // Indexes
-            $table->index('class_name');
+            $table->index('class');
             $table->index('major');
         });
     }

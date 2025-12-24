@@ -14,8 +14,9 @@ class ClassController extends Controller
      */
     public function index()
     {
-        $classes = ClassModel::with('homeroomTeacher')->paginate(20);
-        return view('admin.classes.index', compact('classes'));
+        $classes = ClassModel::with('homeroomTeacher')->paginate(10);
+        $totalClasses = ClassModel::count();
+        return view('admin.classes.index', compact('classes', 'totalClasses'));
     }
 
     /**
@@ -23,7 +24,11 @@ class ClassController extends Controller
      */
     public function create()
     {
-        $teachers = Teacher::all();
+        // Get only teachers with wali_kelas role (from teacher_class_roles)
+        $teachers = Teacher::whereHas('classRoles', function ($query) {
+            $query->where('role', 'wali_kelas');
+        })->with(['homeroomClasses'])->get();
+
         return view('admin.classes.create', compact('teachers'));
     }
 
@@ -33,11 +38,16 @@ class ClassController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:50|unique:classes,name',
+            'class' => 'required|integer',
+            'major' => 'nullable|string|max:100',
             'homeroom_teacher_id' => 'nullable|exists:teachers,id',
         ]);
 
-        ClassModel::create($request->all());
+        ClassModel::create([
+            'class' => $request->class,
+            'major' => $request->major,
+            'homeroom_teacher_id' => $request->homeroom_teacher_id,
+        ]);
 
         return redirect()->route('admin.classes.index')
             ->with('success', 'Data kelas berhasil ditambahkan');
@@ -58,7 +68,11 @@ class ClassController extends Controller
     public function edit(string $id)
     {
         $class = ClassModel::findOrFail($id);
-        $teachers = Teacher::all();
+        // Get only teachers with wali_kelas role (from teacher_class_roles)
+        $teachers = Teacher::whereHas('classRoles', function ($query) {
+            $query->where('role', 'wali_kelas');
+        })->with(['homeroomClasses'])->get();
+
         return view('admin.classes.edit', compact('class', 'teachers'));
     }
 
@@ -70,11 +84,16 @@ class ClassController extends Controller
         $class = ClassModel::findOrFail($id);
 
         $request->validate([
-            'name' => 'required|string|max:50|unique:classes,name,' . $id,
+            'class' => 'required|integer',
+            'major' => 'nullable|string|max:100',
             'homeroom_teacher_id' => 'nullable|exists:teachers,id',
         ]);
 
-        $class->update($request->all());
+        $class->update([
+            'class' => $request->class,
+            'major' => $request->major,
+            'homeroom_teacher_id' => $request->homeroom_teacher_id,
+        ]);
 
         return redirect()->route('admin.classes.index')
             ->with('success', 'Data kelas berhasil diperbarui');

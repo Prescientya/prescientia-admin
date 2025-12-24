@@ -26,6 +26,7 @@ class HistoryLogin extends Model
     protected $casts = [
         'login_at' => 'datetime',
         'logout_at' => 'datetime',
+        'duration_minutes' => 'integer',
     ];
 
     /**

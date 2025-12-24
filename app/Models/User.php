@@ -77,6 +77,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the MBG officer profile for the user.
+     */
+    public function petugasMbg()
+    {
+        return $this->hasOne(PetugasMbg::class);
+    }
+
+    /**
      * Get all login history for the user.
      */
     public function loginHistory()

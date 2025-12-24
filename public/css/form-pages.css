@@ -1,0 +1,35 @@
+/* Form Pages Styles (Create/Edit for Teachers, Students, Classes, etc) */
+.card-header-form {
+    padding: 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.card-body-form {
+    padding: 30px;
+}
+
+.form-section-title {
+    margin-bottom: 20px;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 10px;
+}
+
+.form-section-title-spacing {
+    margin-bottom: 20px;
+    margin-top: 20px;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 10px;
+}
+
+.required-field {
+    color: red;
+}
+
+.form-actions {
+    margin-top: 30px;
+}
+
+.photo-preview {
+    max-width: 150px;
+    border-radius: 5px;
+}

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('teacher_class_roles', function (Blueprint $table) {
             $table->id();
             $table->foreignId('teacher_id')->constrained('teachers')->onDelete('cascade');
-            $table->foreignId('class_id')->constrained('classes')->onDelete('cascade');
+            $table->foreignId('class_id')->nullable()->constrained('classes')->onDelete('cascade');
             $table->enum('role', ['pengajar', 'wali_kelas']);
             $table->timestamps();
             

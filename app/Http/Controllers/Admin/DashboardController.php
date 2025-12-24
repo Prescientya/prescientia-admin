@@ -25,11 +25,15 @@ class DashboardController extends Controller
         $totalTeachers = Teacher::count();
         $totalClasses = ClassModel::count();
         
+        // Determine today's status and date
+        $todayStatus = $todayCalendar ? $todayCalendar->status : 'libur';
+        $todayDate = $today->format('d F Y');
+
         // Count today's attendance (only if it's a school day)
         $studentPresentToday = 0;
         $teacherPresentToday = 0;
-        
-        if ($todayCalendar && $todayCalendar->status === 'school_day') {
+
+        if ($todayCalendar && $todayCalendar->status === 'aktif') {
             $studentPresentToday = StudentAttendance::where('calendar_id', $todayCalendar->id)
                 ->whereIn('status', ['present', 'late'])
                 ->count();
@@ -45,7 +49,9 @@ class DashboardController extends Controller
             'totalClasses',
             'studentPresentToday',
             'teacherPresentToday',
-            'todayCalendar'
+            'todayCalendar',
+            'todayStatus',
+            'todayDate'
         ));
     }
 }

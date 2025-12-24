@@ -1,75 +1,100 @@
 @extends('layouts.app')
 
+@section('title', 'Data Siswa - SekolahKu Admin')
+
+@section('page-title', 'Data Siswa')
+
+@section('css')
+<link rel="stylesheet" href="{{ asset('css/action-dropdown.css') }}">
+@endsection
+
 @section('content')
-<div class="content-header">
-    <h1>Data Siswa</h1>
-    <div class="breadcrumb">
-        <a href="{{ route('admin.dashboard') }}">Dashboard</a> / Data Siswa
-    </div>
-</div>
-
-@if(session('success'))
-<div class="alert alert-success">
-    {{ session('success') }}
-</div>
-@endif
-
 <div class="card">
-    <div class="card-header">
-        <h3>Daftar Siswa</h3>
-        <a href="{{ route('admin.students.create') }}" class="btn btn-primary">Tambah Siswa</a>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Daftar Data Siswa</h5>
+        <a href="{{ route('admin.students.create') }}" class="btn btn-primary btn-sm">
+            Tambah Siswa
+        </a>
     </div>
     <div class="card-body">
-        <div class="table-responsive">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>NIS</th>
-                        <th>Nama</th>
-                        <th>Jenis Kelamin</th>
-                        <th>Kelas</th>
-                        <th>Email</th>
-                        <th>No. Telepon</th>
-                        <th>Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($students as $student)
-                    <tr>
-                        <td>{{ $student->nis }}</td>
-                        <td>{{ $student->name }}</td>
-                        <td>
-                            <span class="badge {{ $student->gender == 'L' ? 'badge-primary' : 'badge-danger' }}">
-                                {{ $student->gender == 'L' ? 'Laki-laki' : 'Perempuan' }}
-                            </span>
-                        </td>
-                        <td>{{ $student->class->name ?? '-' }}</td>
-                        <td>{{ $student->user->email }}</td>
-                        <td>{{ $student->phone_number ?? '-' }}</td>
-                        <td>
-                            <div class="btn-group">
-                                <a href="{{ route('admin.students.show', $student->id) }}" class="btn btn-sm btn-info">Detail</a>
-                                <a href="{{ route('admin.students.edit', $student->id) }}" class="btn btn-sm btn-warning">Edit</a>
-                                <form action="{{ route('admin.students.destroy', $student->id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Yakin ingin menghapus siswa ini?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-danger">Hapus</button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="7" style="text-align: center;">Tidak ada data siswa</td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="pagination-wrapper">
-            {{ $students->links() }}
-        </div>
+        @if ($students->count() > 0)
+            <div class="table-responsive">
+                <table class="table table-hover table-compact">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 50px;">No</th>
+                            <th>NIS</th>
+                            <th>Nama Siswa</th>
+                            <th style="text-align: center">Email</th>
+                            <th style="text-align: center">Kelas</th>
+                            <th style="text-align: center">Jenis Kelamin</th>
+                            <th style="width: 100px; text-align: center;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($students as $key => $student)
+                            <tr>
+                                <td>{{ $students->firstItem() + $key }}</td>
+                                <td><strong>{{ $student->nis }}</strong></td>
+                                <td>{{ $student->name }}</td>
+                                <td>
+                                    @if($student->user?->email)
+                                        {{ preg_replace('/^(.{5}).+(@.+)$/', '$1...$2', $student->user->email) }}
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                                <td>{{ $student->class ? $student->class->class . ' ' . $student->class->major : '-' }}</td>
+                                <td class="text-center">{{ $student->gender === 'L' ? 'L' : 'P' }}</td>
+                                <td>
+                                    <div class="action-menu-container">
+                                        <button class="action-menu-btn" type="button" onclick="toggleDropdown(event, this)" title="Pengaturan aksi">
+                                            <img src="{{ asset('assets/icons/setting.png') }}" alt="Setting" width="20" height="20">
+                                        </button>
+                                        <ul class="dropdown-menu" style="display: none;">
+                                            <li>
+                                                <a class="dropdown-item" href="{{ route('admin.students.show', $student->id) }}">
+                                                    Lihat Detail
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{{ route('admin.students.edit', $student->id) }}">
+                                                    Edit
+                                                </a>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <form method="POST" action="{{ route('admin.students.destroy', $student->id) }}" class="dropdown-delete-form">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Apakah Anda yakin ingin menghapus siswa ini?')">
+                                                        Hapus
+                                                    </button>
+                                                </form>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex justify-content-center mt-3">
+                {{ $students->links() }}
+            </div>
+
+            <div class="text-center mt-3">
+                <p class="text-muted mb-0">Total Siswa: <strong>{{ $totalStudents }}</strong></p>
+            </div>
+        @else
+            <div class="alert alert-info text-center">
+                <p class="mb-0">Belum ada data siswa. <a href="{{ route('admin.students.create') }}">Tambah sekarang</a></p>
+            </div>
+        @endif
     </div>
 </div>
+
+<script src="{{ asset('js/action-dropdown.js') }}"></script>
 @endsection
