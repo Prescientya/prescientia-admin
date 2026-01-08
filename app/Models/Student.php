@@ -50,6 +50,19 @@ class Student extends Model
         return $this->hasMany(StudentClassRole::class);
     }
 
+    protected static function booted()
+    {
+        static::created(function ($student) {
+            // assign default role via service to enforce class assignment and future logic
+            try {
+                $service = new \App\Services\StudentRoleService();
+                $service->assignDefaultRole($student);
+            } catch (\Throwable $e) {
+                // swallow errors so student creation doesn't fail; logging may be added later
+            }
+        });
+    }
+
     /**
      * Get all attendances for the student.
      */

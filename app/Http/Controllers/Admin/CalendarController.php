@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\SchoolCalendar;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Artisan;
 
 class CalendarController extends Controller
 {
@@ -21,7 +24,8 @@ class CalendarController extends Controller
             ->whereMonth('date', $month)
             ->get()
             ->keyBy(function($item) {
-                return $item->date;
+                // key by Y-m-d to match the date string used in the view
+                return optional($item->date)->toDateString();
             });
         
         // Statistics
@@ -70,5 +74,34 @@ class CalendarController extends Controller
 
         return redirect()->route('admin.calendar.index')
             ->with('success', 'Kalender berhasil diperbarui');
+    }
+
+    /**
+     * Run calendar seeder from admin UI (protected by admin middleware).
+     */
+    public function seed(Request $request)
+    {
+        // small confirmation guard (optional)
+        // Run seeder in-process using Artisan::call to avoid spawning a separate PHP process
+        // which can have different environment and cause DB/socket issues.
+        try {
+            // allow longer execution time within this request
+            if (function_exists('set_time_limit')) {
+                @set_time_limit(240);
+            }
+
+            Artisan::call('db:seed', [
+                '--class' => 'Database\\Seeders\\SchoolCalendarSeeder',
+                '--force' => true,
+            ]);
+
+            $output = Artisan::output();
+            return redirect()->route('admin.calendar.index')
+                ->with('success', 'Seeder executed successfully.');
+        } catch (\Throwable $e) {
+            Log::error('Calendar seeder error: '.$e->getMessage());
+            return redirect()->route('admin.calendar.index')
+                ->with('error', 'Seeder failed: '.$e->getMessage());
+        }
     }
 }

@@ -66,4 +66,12 @@ class ClassModel extends Model
     {
         return $this->hasMany(StudentAttendance::class, 'class_id');
     }
+
+    /**
+     * Get the teached classes (teachers assigned to this class).
+     */
+    public function teachedClasses()
+    {
+        return $this->hasMany(TeachedClass::class, 'class_id');
+    }
 }

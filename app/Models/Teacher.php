@@ -24,6 +24,7 @@ class Teacher extends Model
 
     protected $casts = [
         'date_of_birth' => 'date',
+        'department' => 'array',
     ];
 
     /**
@@ -50,6 +51,21 @@ class Teacher extends Model
         return $this->hasMany(TeacherClassRole::class);
     }
 
+    protected static function booted()
+    {
+        static::created(function ($teacher) {
+            // ensure a default teacher_class_roles row exists with role 'pengajar'
+            try {
+                \App\Models\TeacherClassRole::firstOrCreate([
+                    'teacher_id' => $teacher->id,
+                    'role' => 'pengajar',
+                ]);
+            } catch (\Throwable $e) {
+                // ignore failures to avoid breaking creation flow
+            }
+        });
+    }
+
     /**
      * Get all attendances for the teacher.
      */
@@ -66,5 +82,13 @@ class Teacher extends Model
         return $this->belongsToMany(ClassModel::class, 'teacher_class_roles')
             ->withPivot('role')
             ->withTimestamps();
+    }
+
+    /**
+     * Get the teached classes for the teacher.
+     */
+    public function teachedClasses()
+    {
+        return $this->hasMany(TeachedClass::class);
     }
 }

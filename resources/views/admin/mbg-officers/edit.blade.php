@@ -4,54 +4,70 @@
 
 @section('page-title', 'Edit Petugas MBG')
 
+@section('css')
+<link rel="stylesheet" href="{{ asset('css/form-pages.css') }}">
+@endsection
+
 @section('content')
 <div class="card">
-    <div class="card-header">
-        <h5 class="mb-0">Form Edit Petugas MBG</h5>
+    <div class="card-header card-header-form">
+        <h4>Form Edit Petugas MBG</h4>
     </div>
-    <div class="card-body">
+    <div class="card-body card-body-form">
         <form method="POST" action="{{ route('admin.mbg-officers.update', $officer->id) }}">
             @csrf
             @method('PUT')
 
-            <div class="mb-3">
-                <label for="username" class="form-label">Username <span class="text-danger">*</span></label>
-                <input type="text" class="form-control @error('username') is-invalid @enderror" 
-                       id="username" name="username" value="{{ old('username', $officer->username) }}" required>
-                @error('username')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
-            </div>
+            <x-forms.section title="Kredensial Akun">
+                <x-forms.row-2>
+                    <x-forms.field-input 
+                        label="Username" 
+                        name="username" 
+                        required 
+                        :value="old('username', $officer->username)"
+                        :error="$errors->first('username')"
+                    />
+                </x-forms.row-2>
 
-            <div class="mb-3">
-                <label for="password" class="form-label">Password Baru</label>
-                <input type="password" class="form-control @error('password') is-invalid @enderror" 
-                       id="password" name="password" placeholder="Kosongkan jika tidak ingin mengubah password">
-                @error('password')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
-                <small class="form-text text-muted">Minimal 6 karakter. Kosongkan jika tidak ingin mengubah password</small>
-            </div>
+                <x-forms.row-2>
+                    <x-forms.field-input 
+                        label="Password Baru" 
+                        name="password" 
+                        type="password"
+                        placeholder="Kosongkan jika tidak ingin mengubah password"
+                        help="Minimal 6 karakter. Kosongkan jika tidak ingin mengubah password"
+                        :error="$errors->first('password')"
+                    />
+                    <x-forms.field-input 
+                        label="Konfirmasi Password Baru" 
+                        name="password_confirmation" 
+                        type="password"
+                        placeholder="Kosongkan jika tidak ingin mengubah password"
+                        :error="$errors->first('password_confirmation')"
+                    />
+                </x-forms.row-2>
+            </x-forms.section>
 
-            <div class="mb-3">
-                <label for="password_confirmation" class="form-label">Konfirmasi Password Baru</label>
-                <input type="password" class="form-control" 
-                       id="password_confirmation" name="password_confirmation" 
-                       placeholder="Kosongkan jika tidak ingin mengubah password">
-            </div>
+            <x-forms.section title="Informasi Akun">
+                <div style="display: grid; gap: 12px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div>
+                            <strong style="font-size: 0.9rem;">ID:</strong>
+                            <p style="font-size: 0.9rem; color: #495057; margin-top: 4px;">{{ $officer->id }}</p>
+                        </div>
+                        <div>
+                            <strong style="font-size: 0.9rem;">Dibuat:</strong>
+                            <p style="font-size: 0.9rem; color: #495057; margin-top: 4px;">{{ $officer->created_at->format('d/m/Y H:i') }}</p>
+                        </div>
+                    </div>
+                    <div>
+                        <strong style="font-size: 0.9rem;">Terakhir Diperbarui:</strong>
+                        <p style="font-size: 0.9rem; color: #495057; margin-top: 4px;">{{ $officer->updated_at->format('d/m/Y H:i') }}</p>
+                    </div>
+                </div>
+            </x-forms.section>
 
-            <hr>
-
-            <div class="alert alert-info">
-                <small><strong>Informasi:</strong></small>
-                <ul class="mb-0" style="font-size: 0.9rem;">
-                    <li>ID: <strong>{{ $officer->id }}</strong></li>
-                    <li>Tanggal Dibuat: <strong>{{ $officer->created_at->format('d/m/Y H:i:s') }}</strong></li>
-                    <li>Terakhir Diperbarui: <strong>{{ $officer->updated_at->format('d/m/Y H:i:s') }}</strong></li>
-                </ul>
-            </div>
-
-            <div class="action-buttons">
+            <div class="form-actions">
                 <button type="submit" class="btn btn-primary">
                     <i class="bi bi-save"></i> Simpan Perubahan
                 </button>

@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use App\Enums\StudentRole;
+use App\Services\StudentRoleService;
 
 class StudentController extends Controller
 {
@@ -48,6 +50,7 @@ class StudentController extends Controller
             'address' => 'nullable|string',
             'class_id' => 'required|exists:classes,id',
             'photo_profile' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'role' => ['nullable','string', Rule::in(StudentRole::all())],
         ]);
 
         DB::transaction(function () use ($request) {
@@ -84,8 +87,13 @@ class StudentController extends Controller
      */
     public function show(string $id)
     {
-        $student = Student::with(['user', 'class', 'attendanceSummary'])->findOrFail($id);
-        return view('admin.students.show', compact('student'));
+        $student = Student::with(['user', 'class', 'attendanceSummary', 'classRoles'])->findOrFail($id);
+
+        $currentRole = $student->classRoles()
+            ->where('class_id', $student->class_id)
+            ->value('role') ?? StudentRole::PELAJAR;
+
+        return view('admin.students.show', compact('student', 'currentRole'));
     }
 
     /**
@@ -93,9 +101,16 @@ class StudentController extends Controller
      */
     public function edit(string $id)
     {
-        $student = Student::with('user')->findOrFail($id);
+        $student = Student::with(['user', 'classRoles'])->findOrFail($id);
         $classes = ClassModel::all();
-        return view('admin.students.edit', compact('student', 'classes'));
+
+        $currentRole = $student->classRoles()
+            ->where('class_id', $student->class_id)
+            ->value('role') ?? StudentRole::PELAJAR;
+
+        $roles = StudentRole::all();
+
+        return view('admin.students.edit', compact('student', 'classes', 'currentRole', 'roles'));
     }
 
     /**
@@ -156,6 +171,12 @@ class StudentController extends Controller
             }
 
             $student->update($studentData);
+            // handle role update if provided
+            if ($request->has('role')) {
+                $service = new StudentRoleService();
+                // will throw ValidationException if invalid or quota exceeded
+                $service->updateRole($student, $request->get('role'));
+            }
         });
 
         return redirect()->route('admin.students.index')

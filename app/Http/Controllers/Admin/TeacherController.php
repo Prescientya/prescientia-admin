@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreTeacherRequest;
+use App\Http\Requests\UpdateTeacherRequest;
 use App\Models\Teacher;
 use App\Models\TeacherClassRole;
+use App\Models\ClassModel;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -35,20 +38,8 @@ class TeacherController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StoreTeacherRequest $request)
     {
-        $request->validate([
-            'email' => 'required|email|unique:users,email',
-            'nip' => 'required|unique:teachers,nip',
-            'name' => 'required|string|max:100',
-            'gender' => 'required|in:L,P',
-            'date_of_birth' => 'required|date',
-            'role' => 'required|in:Pengajar,Walikelas',
-            'phone_number' => 'nullable|string|max:20',
-            'department' => 'nullable|string|max:100',
-            'address' => 'nullable|string',
-            'photo_profile' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-        ]);
 
         try {
             DB::transaction(function () use ($request) {
@@ -70,7 +61,7 @@ class TeacherController extends Controller
                     'gender' => $request->gender,
                     'date_of_birth' => $request->date_of_birth,
                     'phone_number' => $request->phone_number,
-                    'department' => $request->department,
+                    'department' => $request->departments ? array_filter($request->departments) : null,
                     'address' => $request->address,
                     'photo_profile' => $photoPath,
                 ]);
@@ -103,8 +94,11 @@ class TeacherController extends Controller
                     if (isset($request->name) && mb_strlen($request->name) > 100) {
                         $over[] = 'Nama (maks 100 karakter)';
                     }
-                    if (isset($request->department) && mb_strlen($request->department) > 100) {
-                        $over[] = 'Bidang Studi (maks 100 karakter)';
+                    if (isset($request->departments)) {
+                        $depts = array_filter($request->departments);
+                        if (count($depts) > 0) {
+                            $over[] = 'Bidang Studi (jumlah atau karakter melebihi batas)';
+                        }
                     }
 
                     if (!empty($over)) {
@@ -159,29 +153,9 @@ class TeacherController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(UpdateTeacherRequest $request, string $id)
     {
         $teacher = Teacher::findOrFail($id);
-
-        $request->validate([
-            'email' => [
-                'required',
-                'email',
-                Rule::unique('users', 'email')->ignore($teacher->user_id),
-            ],
-            'nip' => [
-                'required',
-                Rule::unique('teachers', 'nip')->ignore($teacher->id),
-            ],
-            'name' => 'required|string|max:100',
-            'gender' => 'required|in:L,P',
-            'date_of_birth' => 'required|date',
-            'role' => 'required|in:Pengajar,Walikelas',
-            'phone_number' => 'nullable|string|max:20',
-            'department' => 'nullable|string|max:100',
-            'address' => 'nullable|string',
-            'photo_profile' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-        ]);
 
         DB::transaction(function () use ($request, $teacher) {
             $userData = [
@@ -203,7 +177,7 @@ class TeacherController extends Controller
                 'gender' => $request->gender,
                 'date_of_birth' => $request->date_of_birth,
                 'phone_number' => $request->phone_number,
-                'department' => $request->department,
+                'department' => $request->departments ? array_filter($request->departments) : null,
                 'address' => $request->address,
             ];
 
@@ -224,6 +198,12 @@ class TeacherController extends Controller
                 'class_id' => null, // Akan diisi saat assign ke kelas
                 'role' => $dbRole,
             ]);
+
+            // Jika guru tidak lagi berperan sebagai wali_kelas, hapus penugasan wali kelas pada tabel classes
+            if ($dbRole !== 'wali_kelas') {
+                ClassModel::where('homeroom_teacher_id', $teacher->id)
+                    ->update(['homeroom_teacher_id' => null]);
+            }
         });
 
         return redirect()->route('admin.teachers.index')

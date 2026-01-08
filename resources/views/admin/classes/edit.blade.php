@@ -18,65 +18,52 @@
             @csrf
             @method('PUT')
             
-            <div class="form-section">
-                <h5 class="form-section-title">Informasi Kelas</h5>
-                
-                <div class="form-group">
-                    <label for="class">Kelas <span class="required-field">*</span></label>
-                    <select id="class" name="class" class="form-control @error('class') is-invalid @enderror" required>
-                        <option value="">Pilih Kelas</option>
-                        <option value="10" {{ old('class', $class->class) == 10 ? 'selected' : '' }}>10</option>
-                        <option value="11" {{ old('class', $class->class) == 11 ? 'selected' : '' }}>11</option>
-                        <option value="12" {{ old('class', $class->class) == 12 ? 'selected' : '' }}>12</option>
-                    </select>
-                    @error('class')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
+            <x-forms.section title="Informasi Kelas">
+                <x-forms.row-3>
+                    <x-forms.field-select 
+                        label="Kelas" 
+                        name="class" 
+                        required 
+                        :value="old('class', $class->class)"
+                        :options="['10' => '10', '11' => '11', '12' => '12']"
+                        :error="$errors->first('class')"
+                    />
+                    <x-forms.field-select 
+                        label="Jurusan/Program Keahlian" 
+                        name="major" 
+                        :value="old('major', $class->major)"
+                        :options="[
+                            '' => 'Pilih Jurusan (opsional)',
+                            'Kuliner 1' => 'Kuliner 1',
+                            'Kuliner 2' => 'Kuliner 2',
+                            'Kuliner 3' => 'Kuliner 3',
+                            'Kuliner 4' => 'Kuliner 4',
+                            'Kuliner 5' => 'Kuliner 5'
+                        ]"
+                        help="Bidang keahlian atau program studi (opsional)"
+                        :error="$errors->first('major')"
+                    />
+                </x-forms.row-3>
 
-                <div class="form-group">
-                    <label for="major">Jurusan/Program Keahlian</label>
-                    <select id="major" name="major" class="form-control @error('major') is-invalid @enderror">
-                        <option value="">Pilih Jurusan (opsional)</option>
-                        <option value="Kuliner 1" {{ old('major', $class->major) == 'Kuliner 1' ? 'selected' : '' }}>Kuliner 1</option>
-                        <option value="Kuliner 2" {{ old('major', $class->major) == 'Kuliner 2' ? 'selected' : '' }}>Kuliner 2</option>
-                        <option value="Kuliner 3" {{ old('major', $class->major) == 'Kuliner 3' ? 'selected' : '' }}>Kuliner 3</option>
-                        <option value="Kuliner 4" {{ old('major', $class->major) == 'Kuliner 4' ? 'selected' : '' }}>Kuliner 4</option>
-                        <option value="Kuliner 5" {{ old('major', $class->major) == 'Kuliner 5' ? 'selected' : '' }}>Kuliner 5</option>
-                    </select>
-                    @error('major')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                    <small class="form-text text-muted">Bidang keahlian atau program studi (opsional)</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="homeroom_teacher_id">Wali Kelas</label>
-                    <select id="homeroom_teacher_id" name="homeroom_teacher_id" class="form-control @error('homeroom_teacher_id') is-invalid @enderror">
-                        <option value="">Belum ditentukan</option>
-                        @foreach($teachers as $teacher)
-                            @php
-                                $homeroomCount = $teacher->homeroomClasses->count();
-                                $hasClass = $homeroomCount > 0;
-                                $className = $hasClass ? $teacher->homeroomClasses->first()->class : '';
-                                
-                                if ($hasClass) {
-                                    $label = $teacher->name . ' ' . $teacher->nip . ' (sudah memiliki Kelas ' . $className . ')';
-                                } else {
-                                    $label = $teacher->name . ' ' . $teacher->nip . ' (Belum Memiliki Kelas)';
-                                }
-                            @endphp
-                            <option value="{{ $teacher->id }}" {{ old('homeroom_teacher_id', $class->homeroom_teacher_id) == $teacher->id ? 'selected' : '' }}>
-                                {{ $label }}
-                            </option>
-                        @endforeach
-                    </select>
-                    @error('homeroom_teacher_id')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                    <small class="form-text text-muted">Guru yang bertugas sebagai wali kelas</small>
-                </div>
-            </div>
+                <x-forms.row-full>
+                    <x-forms.field-select 
+                        label="Wali Kelas" 
+                        name="homeroom_teacher_id" 
+                        :value="old('homeroom_teacher_id', $class->homeroom_teacher_id)"
+                        :options="$teachers->mapWithKeys(function($teacher) {
+                            $homeroomCount = $teacher->homeroomClasses->count();
+                            $hasClass = $homeroomCount > 0;
+                            $className = $hasClass ? $teacher->homeroomClasses->first()->class : '';
+                            $label = $hasClass 
+                                ? $teacher->name . ' ' . $teacher->nip . ' (sudah memiliki Kelas ' . $className . ')' 
+                                : $teacher->name . ' ' . $teacher->nip . ' (Belum Memiliki Kelas)';
+                            return [$teacher->id => $label];
+                        })->prepend('Belum ditentukan', '')->toArray()"
+                        help="Guru yang bertugas sebagai wali kelas"
+                        :error="$errors->first('homeroom_teacher_id')"
+                    />
+                </x-forms.row-full>
+            </x-forms.section>
 
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">

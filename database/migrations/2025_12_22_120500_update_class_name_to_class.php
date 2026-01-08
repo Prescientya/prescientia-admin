@@ -12,22 +12,34 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Add new integer column `class` (nullable for safe migration)
-        Schema::table('classes', function (Blueprint $table) {
-            $table->integer('class')->nullable()->after('class_name');
-        });
+        // Add new integer column `class` only when migrating from old schema that has `class_name`.
+        // This avoids duplicate column errors if the base `classes` migration already created `class`.
+        try {
+            $hasClassColumn = Schema::hasColumn('classes', 'class');
+            $hasClassName = Schema::hasColumn('classes', 'class_name');
 
-        // Migrate existing values: extract leading number from class_name
-        $rows = DB::table('classes')->select('id', 'class_name')->get();
-        foreach ($rows as $row) {
-            $num = null;
-            if (is_string($row->class_name) && preg_match('/(\d+)/', $row->class_name, $m)) {
-                $num = (int) $m[1];
+            if (! $hasClassColumn && $hasClassName) {
+                Schema::table('classes', function (Blueprint $table) {
+                    $table->integer('class')->nullable();
+                });
             }
+        } catch (\Throwable $e) {
+            // If schema introspection fails for any reason, skip adding to avoid crash.
+        }
 
-            DB::table('classes')->where('id', $row->id)->update([
-                'class' => $num,
-            ]);
+        // Migrate existing values: extract leading number from class_name (only if column exists)
+        if (Schema::hasColumn('classes', 'class_name')) {
+            $rows = DB::table('classes')->select('id', 'class_name')->get();
+            foreach ($rows as $row) {
+                $num = null;
+                if (is_string($row->class_name) && preg_match('/(\d+)/', $row->class_name, $m)) {
+                    $num = (int) $m[1];
+                }
+
+                DB::table('classes')->where('id', $row->id)->update([
+                    'class' => $num,
+                ]);
+            }
         }
 
         // Drop the old text column

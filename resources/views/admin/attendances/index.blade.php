@@ -136,325 +136,100 @@
     @endif
 </div>
 
-<!-- Tabs Navigation -->
-<div class="card">
+<!-- Unified Attendance view: single table with filters -->
+        <div class="card">
     <div class="card-body">
-        <div class="attendance-tabs">
-            <button class="tab-button active" onclick="switchTab('students', event)">
-                👨‍🎓 Absensi Siswa
-            </button>
-            <button class="tab-button" onclick="switchTab('teachers', event)">
-                👨‍🏫 Absensi Guru
-            </button>
-            <button class="tab-button" onclick="switchTab('history', event)">
-                📜 History / Filter
-            </button>
+        <div class="mb-3">
+            <form id="filter-form" class="row g-2">
+                <div class="col-md-2">
+                    <label class="form-label">Role</label>
+                    <select name="role" class="form-select">
+                        <option value="">Semua</option>
+                        <option value="students" {{ request('role')=='students' ? 'selected' : '' }}>Siswa</option>
+                        <option value="teachers" {{ request('role')=='teachers' ? 'selected' : '' }}>Guru</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Dari</label>
+                    <input type="date" name="date_from" class="form-control" value="{{ request('date_from') ?? '' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Sampai</label>
+                    <input type="date" name="date_to" class="form-control" value="{{ request('date_to') ?? '' }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">Semua</option>
+                        <option value="hadir" {{ request('status')=='hadir' ? 'selected' : '' }}>Hadir</option>
+                        <option value="sakit" {{ request('status')=='sakit' ? 'selected' : '' }}>Sakit</option>
+                        <option value="izin" {{ request('status')=='izin' ? 'selected' : '' }}>Izin</option>
+                        <option value="alpa" {{ request('status')=='alpa' ? 'selected' : '' }}>Alpa</option>
+                        <option value="dinas" {{ request('status')=='dinas' ? 'selected' : '' }}>Dinas</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Cari (nama / NIS / NIP)</label>
+                    <input type="text" name="keyword" class="form-control" placeholder="Ketik nama atau NIS/NIP" value="{{ request('keyword') ?? '' }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="button" id="clear-filters" class="btn btn-outline-secondary w-100">Clear</button>
+                </div>
+            </form>
         </div>
 
-        <!-- Students Tab Content -->
-        <div id="students-tab" class="tab-content active">
-            <!-- Statistics -->
-            <div class="stats-grid">
-                <div class="stat-card success">
-                    <h4>{{ $studentStats['hadir'] }}</h4>
-                    <p>Hadir</p>
-                </div>
-                <div class="stat-card warning">
-                    <h4>{{ $studentStats['sakit'] }}</h4>
-                    <p>Sakit</p>
-                </div>
-                <div class="stat-card info">
-                    <h4>{{ $studentStats['izin'] }}</h4>
-                    <p>Izin</p>
-                </div>
-                <div class="stat-card danger">
-                    <h4>{{ $studentStats['alpa'] }}</h4>
-                    <p>Alpa</p>
-                </div>
-                <div class="stat-card">
-                    <h4>{{ $totalStudents - ($studentStats['hadir'] + $studentStats['sakit'] + $studentStats['izin'] + $studentStats['alpa']) }}</h4>
-                    <p>Belum Absen</p>
-                </div>
-            </div>
-
-            <!-- Students Table -->
-            @if($studentAttendances->count() > 0)
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead class="table-light">
-                            <tr>
-                                <th style="width: 50px;">No</th>
-                                <th>Nama Siswa</th>
-                                <th>Kelas</th>
-                                <th>Status</th>
-                                <th>Sumber</th>
-                                <th style="width:80px;">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($studentAttendances as $key => $attendance)
-                                <tr>
-                                    <td>{{ $studentAttendances->firstItem() + $key }}</td>
-                                    <td>{{ $attendance->student->name }}</td>
-                                    <td>{{ $attendance->class->class ?? '-' }} {{ $attendance->class->major ?? '' }}</td>
-                                    <td>
-                                        <span class="status-badge status-{{ $attendance->status }}">
-                                            {{ ucfirst($attendance->status) }}
-                                        </span>
-                                    </td>
-                                    <td><small>{{ $attendance->source ? str_replace('_', ' ', ucfirst($attendance->source)) : '-' }}</small></td>
-                                    <td>
-                                        <div class="action-menu-container">
-                                            <button class="action-menu-btn" type="button" onclick="toggleDropdown(event, this)" title="Pengaturan aksi">
-                                                <img src="{{ asset('assets/icons/setting.png') }}" alt="Setting" width="20" height="20">
-                                            </button>
-                                            <ul class="dropdown-menu" style="display: none;">
-                                                <li>
-                                                    <a class="dropdown-item" href="{{ route('admin.attendances.show', ['role' => 'students', 'id' => $attendance->id]) }}">
-                                                        Lihat Detail
-                                                    </a>
-                                                </li>
-                                                <li>
-                                                    <a class="dropdown-item" href="{{ route('admin.attendances.show', ['role' => 'students', 'id' => $attendance->id]) }}">
-                                                        Edit
-                                                    </a>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="d-flex justify-content-center mt-3">
-                    {{ $studentAttendances->links() }}
-                </div>
-            @else
-                <div class="alert alert-info text-center">
-                    <p class="mb-0">Belum ada data absensi siswa untuk hari ini</p>
-                </div>
-            @endif
-        </div>
-
-        <!-- Teachers Tab Content -->
-        <div id="teachers-tab" class="tab-content">
-            <!-- Statistics -->
-            <div class="stats-grid">
-                <div class="stat-card success">
-                    <h4>{{ $teacherStats['hadir'] }}</h4>
-                    <p>Hadir</p>
-                </div>
-                <div class="stat-card warning">
-                    <h4>{{ $teacherStats['sakit'] }}</h4>
-                    <p>Sakit</p>
-                </div>
-                <div class="stat-card info">
-                    <h4>{{ $teacherStats['izin'] }}</h4>
-                    <p>Izin</p>
-                </div>
-                <div class="stat-card" style="border-left-color: #6c757d;">
-                    <h4>{{ $teacherStats['dinas'] }}</h4>
-                    <p>Dinas</p>
-                </div>
-                <div class="stat-card danger">
-                    <h4>{{ $totalTeachers - ($teacherStats['hadir'] + $teacherStats['sakit'] + $teacherStats['izin'] + $teacherStats['dinas']) }}</h4>
-                    <p>Belum Absen</p>
-                </div>
-            </div>
-
-            <!-- Teachers Table -->
-            @if($teacherAttendances->count() > 0)
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead class="table-light">
-                            <tr>
-                                <th style="width: 50px;">No</th>
-                                <th>Nama Guru</th>
-                                <th>Status</th>
-                                <th>Sumber</th>
-                                <th style="width:80px;">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($teacherAttendances as $key => $attendance)
-                                <tr>
-                                    <td>{{ $teacherAttendances->firstItem() + $key }}</td>
-                                    <td>{{ $attendance->teacher->name }}</td>
-                                    <td>
-                                        <span class="status-badge status-{{ $attendance->status }}">
-                                            {{ ucfirst($attendance->status) }}
-                                        </span>
-                                    </td>
-                                    <td><small>{{ $attendance->source ? str_replace('_', ' ', ucfirst($attendance->source)) : '-' }}</small></td>
-                                    <td>
-                                        <div class="action-menu-container">
-                                            <button class="action-menu-btn" type="button" onclick="toggleDropdown(event, this)" title="Pengaturan aksi">
-                                                <img src="{{ asset('assets/icons/setting.png') }}" alt="Setting" width="20" height="20">
-                                            </button>
-                                            <ul class="dropdown-menu" style="display: none;">
-                                                <li>
-                                                    <a class="dropdown-item" href="{{ route('admin.attendances.show', ['role' => 'teachers', 'id' => $attendance->id]) }}">
-                                                        Lihat Detail
-                                                    </a>
-                                                </li>
-                                                <li>
-                                                    <a class="dropdown-item" href="{{ route('admin.attendances.show', ['role' => 'teachers', 'id' => $attendance->id]) }}">
-                                                        Edit
-                                                    </a>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="d-flex justify-content-center mt-3">
-                    {{ $teacherAttendances->links() }}
-                </div>
-            @else
-                <div class="alert alert-info text-center">
-                    <p class="mb-0">Belum ada data absensi guru untuk hari ini</p>
-                </div>
-            @endif
-        </div>
-
-        <!-- History Tab Content -->
-        <div id="history-tab" class="tab-content">
-            <div class="mb-3">
-                <form method="GET" action="{{ route('admin.attendances.history') }}" class="row g-2">
-                    <div class="col-md-2">
-                        <label class="form-label">Role</label>
-                        <select name="role" class="form-select">
-                            <option value="students" {{ (isset($role) && $role == 'students') ? 'selected' : '' }}>Siswa</option>
-                            <option value="teachers" {{ (isset($role) && $role == 'teachers') ? 'selected' : '' }}>Guru</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Dari</label>
-                        <input type="date" name="date_from" class="form-control" value="{{ $dateFrom ?? '' }}">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Sampai</label>
-                        <input type="date" name="date_to" class="form-control" value="{{ $dateTo ?? '' }}">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Status</label>
-                        <select name="status" class="form-select">
-                            <option value="">Semua</option>
-                            <option value="hadir" {{ (isset($status) && $status == 'hadir') ? 'selected' : '' }}>Hadir</option>
-                            <option value="sakit" {{ (isset($status) && $status == 'sakit') ? 'selected' : '' }}>Sakit</option>
-                            <option value="izin" {{ (isset($status) && $status == 'izin') ? 'selected' : '' }}>Izin</option>
-                            <option value="alpa" {{ (isset($status) && $status == 'alpa') ? 'selected' : '' }}>Alpa</option>
-                            <option value="dinas" {{ (isset($status) && $status == 'dinas') ? 'selected' : '' }}>Dinas</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Cari (nama / NIS / NIP)</label>
-                        <input type="text" name="keyword" class="form-control" placeholder="Ketik nama atau NIS/NIP" value="{{ $keyword ?? '' }}">
-                    </div>
-                    <div class="col-md-1 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary w-100">Filter</button>
-                    </div>
-                </form>
-            </div>
-
-            @if(isset($results) && $results->count() > 0)
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead class="table-light">
-                            <tr>
-                                <th style="width:50px;">No</th>
-                                @if((isset($role) && $role=='teachers') || (!isset($role) && request('role')=='teachers'))
-                                    <th>Nama Guru</th>
-                                    <th>Tanggal</th>
-                                    <th>Status</th>
-                                @else
-                                    <th>Nama Siswa</th>
-                                    <th>Kelas</th>
-                                    <th>Tanggal</th>
-                                    <th>Status</th>
-                                @endif
-                                <th>Sumber</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($results as $k => $r)
-                                <tr>
-                                    <td>{{ $results->firstItem() + $k }}</td>
-                                    @if((isset($role) && $role=='teachers') || (!isset($role) && request('role')=='teachers'))
-                                        <td>{{ $r->teacher->name }}</td>
-                                        <td>{{ optional($r->calendar)->date ? \Carbon\Carbon::parse($r->calendar->date)->format('Y-m-d') : '-' }}</td>
-                                        <td><span class="status-badge status-{{ $r->status }}">{{ ucfirst($r->status) }}</span></td>
-                                    @else
-                                        <td>{{ $r->student->name }}</td>
-                                        <td>{{ $r->class->class ?? '-' }} {{ $r->class->major ?? '' }}</td>
-                                        <td>{{ optional($r->calendar)->date ? \Carbon\Carbon::parse($r->calendar->date)->format('Y-m-d') : '-' }}</td>
-                                        <td><span class="status-badge status-{{ $r->status }}">{{ ucfirst($r->status) }}</span></td>
-                                    @endif
-                                    <td><small>{{ $r->source ? str_replace('_', ' ', ucfirst($r->source)) : '-' }}</small></td>
-                                    <td>
-                                        <div class="action-menu-container">
-                                            <button class="action-menu-btn" type="button" onclick="toggleDropdown(event, this)" title="Pengaturan aksi">
-                                                <img src="{{ asset('assets/icons/setting.png') }}" alt="Setting" width="20" height="20">
-                                            </button>
-                                            <ul class="dropdown-menu" style="display: none;">
-                                                <li>
-                                                    <a class="dropdown-item" href="{{ route('admin.attendances.show', ['role' => $role ?? 'students', 'id' => $r->id]) }}">
-                                                        Lihat Detail
-                                                    </a>
-                                                </li>
-                                                <li>
-                                                    <a class="dropdown-item" href="{{ route('admin.attendances.show', ['role' => $role ?? 'students', 'id' => $r->id]) }}">
-                                                        Edit
-                                                    </a>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="d-flex justify-content-center mt-3">
-                    {{ $results->appends(request()->except('history_page'))->links() }}
-                </div>
-            @else
-                <div class="alert alert-info text-center">
-                    <p class="mb-0">Belum ada data history absensi untuk filter ini</p>
-                </div>
-            @endif
+        <div id="attendance-table-container">
+            @include('admin.attendances._table', ['attendances' => $paginator])
         </div>
     </div>
-</div>
+
 @endsection
 
 @section('scripts')
 <script>
-function switchTab(tabName, evt) {
-    // Remove active class from all tabs
-    document.querySelectorAll('.tab-button').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.remove('active');
-    });
-    
-    // Add active class to clicked tab
-    if (evt && evt.currentTarget) {
-        evt.currentTarget.classList.add('active');
-    } else if (evt && evt.target) {
-        evt.target.classList.add('active');
+// Debounced AJAX filter: submit filters and update table in realtime
+(() => {
+    const form = document.getElementById('filter-form');
+    const container = document.getElementById('attendance-table-container');
+    let timeout = null;
+
+    function fetchTable() {
+        const params = new URLSearchParams(new FormData(form));
+        params.set('ajax', '1');
+        fetch(window.location.pathname + '?' + params.toString(), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.text())
+        .then(html => { container.innerHTML = html; })
+        .catch(() => { /* ignore errors for now */ });
     }
-    document.getElementById(tabName + '-tab').classList.add('active');
-}
+
+    // Delegate pagination clicks inside the container to use AJAX
+    container.addEventListener('click', function(e) {
+        const a = e.target.closest('a');
+        if (!a) return;
+        // only intercept pagination / last-button links
+        if (a.closest('.pagination') || a.hasAttribute('data-last-page')) {
+            e.preventDefault();
+            const url = new URL(a.href);
+            url.searchParams.set('ajax', '1');
+            fetch(url.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(r => r.text())
+                .then(html => { container.innerHTML = html; window.scrollTo({ top: 0, behavior: 'smooth' }); })
+                .catch(() => {});
+        }
+    });
+
+    form.addEventListener('input', () => {
+        clearTimeout(timeout);
+        timeout = setTimeout(fetchTable, 350);
+    });
+
+    document.getElementById('clear-filters').addEventListener('click', () => {
+        form.reset();
+        fetchTable();
+    });
+})();
 </script>
 <script src="{{ asset('js/action-dropdown.js') }}"></script>
 @endsection

@@ -7,7 +7,6 @@ use App\Models\HistoryLogin;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
-use Jenssegers\Agent\Agent;
 
 class LoginController extends Controller
 {
@@ -38,21 +37,11 @@ class LoginController extends Controller
         if (Auth::attempt($credentials, $remember)) {
             $request->session()->regenerate();
 
-            // Detect device information
-            $agent = new Agent();
-            $agent->setUserAgent($request->userAgent());
-            
-            $deviceInfo = $agent->device() ?: 'Unknown';
-            $platform = $agent->platform();
-            $browser = $agent->browser();
-            $deviceId = sprintf('%s - %s (%s)', $deviceInfo, $platform, $browser);
-
             // Create login history record
             HistoryLogin::create([
                 'user_id' => Auth::id(),
                 'login_at' => Carbon::now(),
                 'ip_address' => $request->ip(),
-                'device_id' => $deviceId,
                 'status' => 'success',
             ]);
 
@@ -77,8 +66,22 @@ class LoginController extends Controller
 
         if ($lastLogin) {
             $logoutAt = Carbon::now();
-            $duration = (int) $logoutAt->diffInMinutes($lastLogin->login_at);
-            
+
+            // Ensure we have a Carbon instance for login_at
+            try {
+                $loginAt = $lastLogin->login_at ? Carbon::parse($lastLogin->login_at) : null;
+            } catch (\Throwable $e) {
+                $loginAt = null;
+            }
+
+            // Calculate duration in whole minutes and guard against negative/float values
+            if ($loginAt) {
+                $rawMinutes = $logoutAt->diffInMinutes($loginAt);
+                $duration = (int) max(0, floor($rawMinutes));
+            } else {
+                $duration = 0;
+            }
+
             $lastLogin->update([
                 'logout_at' => $logoutAt,
                 'duration_minutes' => $duration,

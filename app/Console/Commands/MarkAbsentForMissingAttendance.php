@@ -9,6 +9,7 @@ use App\Models\StudentAttendance;
 use App\Models\TeacherAttendance;
 use Illuminate\Console\Command;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class MarkAbsentForMissingAttendance extends Command
 {
@@ -46,24 +47,28 @@ class MarkAbsentForMissingAttendance extends Command
         $calendar = SchoolCalendar::where('date', $yesterday)->first();
         
         if (!$calendar || $calendar->status === 'libur') {
-            $this->info("Yesterday ({$yesterday}) was not a school day. No action taken.");
+            $message = "Yesterday ({$yesterday}) was not a school day. No action taken.";
+            $this->info($message);
+            Log::info('[Attendance Automation] ' . $message);
             return 0;
         }
 
         // Mark students as alpa
-        $this->markStudentsAbsent($yesterday, $calendar->id);
+        $studentCount = $this->markStudentsAbsent($yesterday, $calendar->id);
         
         // Mark teachers as alpa
-        $this->markTeachersAbsent($yesterday, $calendar->id);
+        $teacherCount = $this->markTeachersAbsent($yesterday, $calendar->id);
 
-        $this->info("Attendance records updated for {$yesterday}");
+        $summary = "Attendance records updated for {$yesterday}: {$studentCount} students, {$teacherCount} teachers marked as alpa";
+        $this->info($summary);
+        Log::info('[Attendance Automation] ' . $summary);
         return 0;
     }
 
     /**
      * Mark students without attendance records as alpa
      */
-    private function markStudentsAbsent(string $date, int $calendarId): void
+    private function markStudentsAbsent(string $date, int $calendarId): int
     {
         // Get all active students
         $allStudents = Student::whereHas('class')->get();
@@ -76,6 +81,7 @@ class MarkAbsentForMissingAttendance extends Command
         // Find students without attendance records
         $absentStudents = $allStudents->whereNotIn('id', $attendedStudents);
 
+        $count = 0;
         foreach ($absentStudents as $student) {
             // Check if record already exists (to avoid duplicates)
             $exists = StudentAttendance::where('calendar_id', $calendarId)
@@ -93,15 +99,17 @@ class MarkAbsentForMissingAttendance extends Command
                     'source' => null,
                 ]);
 
+                $count++;
                 $this->line("  ✓ Student {$student->name} (NIS: {$student->nis}) marked as alpa");
             }
         }
+        return $count;
     }
 
     /**
      * Mark teachers without attendance records as alpa
      */
-    private function markTeachersAbsent(string $date, int $calendarId): void
+    private function markTeachersAbsent(string $date, int $calendarId): int
     {
         // Get all active teachers (not deleted)
         $allTeachers = Teacher::get();
@@ -114,6 +122,7 @@ class MarkAbsentForMissingAttendance extends Command
         // Find teachers without attendance records
         $absentTeachers = $allTeachers->whereNotIn('id', $attendedTeachers);
 
+        $count = 0;
         foreach ($absentTeachers as $teacher) {
             // Check if record already exists (to avoid duplicates)
             $exists = TeacherAttendance::where('calendar_id', $calendarId)
@@ -130,8 +139,10 @@ class MarkAbsentForMissingAttendance extends Command
                     'source' => null,
                 ]);
 
+                $count++;
                 $this->line("  ✓ Teacher {$teacher->name} (NIP: {$teacher->nip}) marked as alpa");
             }
         }
+        return $count;
     }
 }

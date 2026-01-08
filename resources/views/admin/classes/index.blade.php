@@ -24,10 +24,9 @@
                     <thead class="table-light">
                         <tr>
                             <th style="width: 50px;">No</th>
-                            <th>Nama Kelas</th>
-                            <th>Jurusan/Program</th>
+                            <th>Kelas</th>
                             <th>Wali Kelas</th>
-                            <th>Jumlah Siswa</th>
+                            <th style="text-align: center;">Jumlah Siswa</th>
                             <th style="width: 100px; text-align: center;">Aksi</th>
                         </tr>
                     </thead>
@@ -35,8 +34,7 @@
                         @foreach ($classes as $key => $class)
                             <tr>
                                 <td>{{ $classes->firstItem() + $key }}</td>
-                                <td><strong>{{ $class->class }}</strong></td>
-                                <td>{{ $class->major ?? '-' }}</td>
+                                <td><strong>{{ trim($class->class . ' ' . ($class->major ?? '')) }}</strong></td>
                                 <td>{{ $class->homeroomTeacher?->name ?? '-' }}</td>
                                 <td class="text-center">{{ $class->students->count() }}</td>
                                 <td>

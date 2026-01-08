@@ -38,7 +38,7 @@
                         <h4>{{ $teacher->name }}</h4>
                         <p class="text-muted">NIP: <strong>{{ $teacher->nip }}</strong></p>
                         <p class="mb-2">
-                            <span class="badge bg-info">{{ $teacher->department ?? 'Belum ada bidang studi' }}</span>
+                            <span class="badge bg-info">{{ is_array($teacher->department) ? implode(', ', $teacher->department) : ($teacher->department ?? 'Belum ada bidang studi') }}</span>
                         </p>
                     </div>
                 </div>
@@ -59,7 +59,7 @@
                     <div class="col-md-6">
                         <p class="mb-2">
                             <strong>No. Telepon:</strong> {{ $teacher->phone_number ?? '-' }}<br>
-                            <strong>Bidang Studi:</strong> {{ $teacher->department ?? '-' }}<br>
+                            <strong>Bidang Studi:</strong> {{ is_array($teacher->department) ? implode(', ', $teacher->department) : ($teacher->department ?? '-') }}<br>
                             <strong>Alamat:</strong> {{ $teacher->address ?? '-' }}<br>
                         </p>
                     </div>
@@ -74,7 +74,7 @@
                             <strong>Email:</strong> {{ $teacher->user->email }}<br>
                             @php
                                 $currentRoleRaw = optional($teacher->classRoles->first())->role;
-                                $roleLabel = $currentRoleRaw === 'pengajar' ? 'Pengajar' : ($currentRoleRaw === 'wali_kelas' ? 'Walikelas' : '-');
+                                $roleLabel = $currentRoleRaw === 'pengajar' ? 'Pengajar' : ($currentRoleRaw === 'wali_kelas' ? 'Walikelas' : 'Pengajar');
                             @endphp
                             <strong>Role:</strong> {{ $roleLabel }}<br>
                             <strong>Status:</strong> 

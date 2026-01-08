@@ -18,119 +18,187 @@
             @csrf
             @method('PUT')
             
-            <div class="form-section">
-                <h5 class="form-section-title">Informasi Akun</h5>
-                
-                <div class="form-group">
-                    <label for="email">Email <span class="required-field">*</span></label>
-                    <input type="email" id="email" name="email" class="form-control @error('email') is-invalid @enderror" value="{{ old('email', $teacher->user->email) }}" required>
-                    @error('email')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
+            <x-forms.section title="Informasi Akun">
+                <x-forms.row-2>
+                    <x-forms.field-input 
+                        label="Email" 
+                        name="email" 
+                        type="email"
+                        required 
+                        :value="old('email', $teacher->user->email)"
+                        :error="$errors->first('email')"
+                    />
+                </x-forms.row-2>
+            </x-forms.section>
 
+            <x-forms.section title="Informasi Pribadi">
+                <x-forms.row-2>
+                    <x-forms.field-input 
+                        label="NIP" 
+                        name="nip" 
+                        required 
+                        :value="old('nip', $teacher->nip)"
+                        help="Mengubah NIP akan mengubah password guru menjadi NIP baru"
+                        :error="$errors->first('nip')"
+                    />
+                    <x-forms.field-input 
+                        label="Nama Lengkap" 
+                        name="name" 
+                        required 
+                        :value="old('name', $teacher->name)"
+                        :error="$errors->first('name')"
+                    />
+                </x-forms.row-2>
 
-            </div>
-
-            <div class="form-section">
-                <h5 class="form-section-title-spacing">Informasi Pribadi</h5>
-                
-                <div class="form-group">
-                    <label for="nip">NIP <span class="required-field">*</span></label>
-                    <input type="text" id="nip" name="nip" class="form-control @error('nip') is-invalid @enderror" value="{{ old('nip', $teacher->nip) }}" required>
-                    @error('nip')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                    <small class="form-text text-muted">Mengubah NIP akan mengubah password guru menjadi NIP baru</small>
-                </div>
-
-                <div class="form-group">
-                    <label for="name">Nama Lengkap <span class="required-field">*</span></label>
-                    <input type="text" id="name" name="name" class="form-control @error('name') is-invalid @enderror" value="{{ old('name', $teacher->name) }}" required>
-                    @error('name')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-
-                <div class="form-group">
-                    <label for="gender">Jenis Kelamin <span class="required-field">*</span></label>
-                    <select id="gender" name="gender" class="form-control @error('gender') is-invalid @enderror" required>
-                        <option value="">Pilih Jenis Kelamin</option>
-                        <option value="L" {{ old('gender', $teacher->gender) == 'L' ? 'selected' : '' }}>Laki-laki</option>
-                        <option value="P" {{ old('gender', $teacher->gender) == 'P' ? 'selected' : '' }}>Perempuan</option>
-                    </select>
-                    @error('gender')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-
-                <div class="form-group">
-                    <label for="date_of_birth">Tanggal Lahir <span class="required-field">*</span></label>
-                    <input type="date" id="date_of_birth" name="date_of_birth" class="form-control @error('date_of_birth') is-invalid @enderror" value="{{ old('date_of_birth', $teacher->date_of_birth) }}" required>
-                    @error('date_of_birth')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
+                <x-forms.row-2>
+                    <x-forms.field-select 
+                        label="Jenis Kelamin" 
+                        name="gender" 
+                        required 
+                        :value="old('gender', $teacher->gender)"
+                        :options="['L' => 'Laki-laki', 'P' => 'Perempuan']"
+                        :error="$errors->first('gender')"
+                    />
+                    <x-forms.field-input 
+                        label="Tanggal Lahir" 
+                        name="date_of_birth" 
+                        type="date"
+                        required 
+                        :value="old('date_of_birth', optional($teacher->date_of_birth)->format('Y-m-d'))"
+                        :error="$errors->first('date_of_birth')"
+                    />
+                </x-forms.row-2>
 
                 @php
                     $currentRoleRaw = optional($teacher->classRoles->first())->role;
-                    $currentRoleLabel = $currentRoleRaw === 'pengajar' ? 'Pengajar' : ($currentRoleRaw === 'wali_kelas' ? 'Walikelas' : '');
+                    $mapped = $currentRoleRaw === 'pengajar' ? 'Pengajar' : ($currentRoleRaw === 'wali_kelas' ? 'Walikelas' : null);
+                    $currentRoleLabel = old('role', $mapped ?? 'Pengajar');
                 @endphp
-                <div class="form-group">
-                    <label for="role">Role <span class="required-field">*</span></label>
-                    <select id="role" name="role" class="form-control @error('role') is-invalid @enderror" required>
-                        <option value="">Pilih Role</option>
-                        <option value="Pengajar" {{ old('role', $currentRoleLabel) == 'Pengajar' ? 'selected' : '' }}>Pengajar</option>
-                        <option value="Walikelas" {{ old('role', $currentRoleLabel) == 'Walikelas' ? 'selected' : '' }}>Walikelas</option>
-                    </select>
-                    @error('role')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
+                <x-forms.row-2>
+                    <x-forms.field-select 
+                        label="Role" 
+                        name="role" 
+                        required 
+                        :value="$currentRoleLabel"
+                        :options="['Pengajar' => 'Pengajar', 'Walikelas' => 'Walikelas']"
+                        :error="$errors->first('role')"
+                    />
+                    <x-forms.field-input 
+                        label="No. Telepon" 
+                        name="phone_number" 
+                        type="tel"
+                        :value="old('phone_number', $teacher->phone_number)"
+                        :error="$errors->first('phone_number')"
+                    />
+                </x-forms.row-2>
 
-                <div class="form-group">
-                    <label for="department">Bidang Studi</label>
-                    <input type="text" id="department" name="department" class="form-control @error('department') is-invalid @enderror" value="{{ old('department', $teacher->department) }}" placeholder="Contoh: Matematika, Bahasa Indonesia">
-                    @error('department')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-
-                <div class="form-group">
-                    <label for="phone_number">No. Telepon</label>
-                    <input type="text" id="phone_number" name="phone_number" class="form-control @error('phone_number') is-invalid @enderror" value="{{ old('phone_number', $teacher->phone_number) }}">
-                    @error('phone_number')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-
-                <div class="form-group">
-                    <label for="address">Alamat</label>
-                    <textarea id="address" name="address" class="form-control @error('address') is-invalid @enderror" rows="3">{{ old('address', $teacher->address) }}</textarea>
-                    @error('address')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-
-                <div class="form-group">
-                    <label for="photo_profile">Foto Profil</label>
-                    @if($teacher->photo_profile)
-                        <div class="mb-2">
-                            <img src="{{ asset('storage/' . $teacher->photo_profile) }}" alt="Foto Profil" class="photo-preview">
-                            <p class="text-muted small mt-2">Foto saat ini</p>
+                <x-forms.row-full>
+                    <div class="form-group">
+                        <label for="departments" class="form-label">
+                            Bidang Studi
+                            <small class="text-muted">(Dapat menambah lebih dari satu)</small>
+                        </label>
+                        <div id="departments-container">
+                            @php
+                                $deptOld = old('departments');
+                                if (is_array($deptOld) && count($deptOld) > 0) {
+                                    $departmentsToShow = $deptOld;
+                                } elseif ($teacher->department && is_array($teacher->department)) {
+                                    $departmentsToShow = $teacher->department;
+                                } else {
+                                    $departmentsToShow = [''];
+                                }
+                            @endphp
+                            @foreach($departmentsToShow as $index => $dept)
+                            <div class="field-group">
+                                <div class="input-group">
+                                    <input type="text" name="departments[]" class="form-control department-input @error('departments.*') is-invalid @enderror" placeholder="Contoh: Matematika" value="{{ old('departments.' . $index, $dept) }}">
+                                    <button type="button" class="btn btn-outline-danger btn-sm remove-department" style="display: none;">Hapus</button>
+                                </div>
+                            </div>
+                            @endforeach
                         </div>
-                    @endif
-                    <input type="file" id="photo_profile" name="photo_profile" class="form-control @error('photo_profile') is-invalid @enderror" accept="image/*">
-                    @error('photo_profile')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                    <small class="form-text text-muted">Format: JPG, PNG (Maksimal 2MB)</small>
-                </div>
-            </div>
+                        <button type="button" id="add-department" class="btn btn-sm btn-success add-field-btn">+ Tambah Bidang Studi</button>
+                        @error('departments.*')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </x-forms.row-full>
+
+                <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const container = document.getElementById('departments-container');
+                    const addBtn = document.getElementById('add-department');
+                    
+                    function updateRemoveButtons() {
+                        const groups = container.querySelectorAll('.field-group');
+                        groups.forEach(group => {
+                            const removeBtn = group.querySelector('.remove-department');
+                            removeBtn.style.display = groups.length > 1 ? 'block' : 'none';
+                        });
+                    }
+
+                    addBtn.addEventListener('click', function() {
+                        const newGroup = document.createElement('div');
+                        newGroup.className = 'field-group';
+                        newGroup.innerHTML = `
+                            <div class="input-group">
+                                <input type="text" name="departments[]" class="form-control department-input" placeholder="Contoh: Bahasa Indonesia">
+                                <button type="button" class="btn btn-outline-danger btn-sm remove-department">Hapus</button>
+                            </div>
+                        `;
+                        container.appendChild(newGroup);
+                        updateRemoveButtons();
+
+                        newGroup.querySelector('.remove-department').addEventListener('click', function(e) {
+                            e.preventDefault();
+                            newGroup.remove();
+                            updateRemoveButtons();
+                        });
+                    });
+
+                    container.addEventListener('click', function(e) {
+                        if (e.target.classList.contains('remove-department')) {
+                            e.preventDefault();
+                            e.target.closest('.field-group').remove();
+                            updateRemoveButtons();
+                        }
+                    });
+
+                    updateRemoveButtons();
+                });
+                </script>
+
+                <x-forms.row-full>
+                    <x-forms.field-textarea 
+                        label="Alamat" 
+                        name="address" 
+                        rows="3"
+                        :value="old('address', $teacher->address)"
+                        :error="$errors->first('address')"
+                    />
+                </x-forms.row-full>
+
+                <x-forms.row-full>
+                    <x-forms.field-file 
+                        label="Foto Profil" 
+                        name="photo_profile" 
+                        accept="image/*"
+                        help="Format: JPG, PNG (Maksimal 2MB)"
+                        :preview="$teacher->photo_profile ? asset('storage/' . $teacher->photo_profile) : null"
+                        previewLabel="Foto saat ini"
+                        :error="$errors->first('photo_profile')"
+                    />
+                </x-forms.row-full>
+            </x-forms.section>
 
             <div class="form-actions">
-                <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
-                <a href="{{ route('admin.teachers.index') }}" class="btn btn-secondary">Batal</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i> Simpan Perubahan
+                </button>
+                <a href="{{ route('admin.teachers.index') }}" class="btn btn-secondary">
+                    <i class="bi bi-x-circle"></i> Batal
+                </a>
             </div>
         </form>
     </div>

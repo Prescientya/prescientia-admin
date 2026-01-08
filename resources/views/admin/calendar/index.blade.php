@@ -92,11 +92,12 @@
 
 .calendar-day {
     background: white;
-    padding: 0.75rem;
-    min-height: 100px;
+    padding: 0.6rem 0.75rem;
+    height: 120px;
+    box-sizing: border-box;
     position: relative;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background 0.15s ease;
 }
 
 .calendar-day:hover {
@@ -108,42 +109,19 @@
     color: #adb5bd;
 }
 
-.calendar-day.today {
-    background: #fff3e6;
-    border: 2px solid var(--color-link);
-}
-
-.calendar-day.aktif {
-    background: #d4edda;
-}
-
 .calendar-day.libur {
-    background: #f8d7da;
+    background-color: rgba(255, 0, 0, 0.2); /* 20% red */
+    color: inherit;
 }
 
 .day-number {
     font-weight: 600;
     font-size: 1rem;
     margin-bottom: 0.5rem;
-    color: var(--color-text-dark);
+    color: inherit;
 }
 
-.day-status {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-}
-
-.day-status.aktif {
-    background: var(--color-success);
-}
-
-.day-status.libur {
-    background: var(--color-danger);
-}
+.day-status { display: none; }
 
 .day-description {
     font-size: 0.75rem;
@@ -162,34 +140,9 @@
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-sm);
 }
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.875rem;
-}
-
-.legend-color {
-    width: 20px;
-    height: 20px;
-    border-radius: var(--radius-sm);
-}
-
-.legend-color.aktif {
-    background: #d4edda;
-    border: 1px solid var(--color-success);
-}
-
-.legend-color.libur {
-    background: #f8d7da;
-    border: 1px solid var(--color-danger);
-}
-
-.legend-color.today {
-    background: #fff3e6;
-    border: 2px solid var(--color-link);
-}
+.legend-item { display:flex; align-items:center; gap:0.5rem; font-size:0.875rem; }
+.legend-color { width:20px; height:20px; border-radius:var(--radius-sm); }
+.legend-color.libur { background:#f8d7da; border:1px solid var(--color-danger); }
 
 .add-event-btn {
     padding: 0.625rem 1.25rem;
@@ -249,6 +202,12 @@
                     <strong>{{ $stats['this_month'] }}</strong>
                     <span>Bulan Ini</span>
                 </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <form method="POST" action="{{ route('admin.calendar.seed') }}" onsubmit="return confirm('Proses ini dapat memakan waktu 2–4 menit. Lanjutkan pembuatan Kalender?');">
+                        @csrf
+                        <button type="submit" class="add-event-btn">Buat Kalender</button>
+                    </form>
+                </div>
                 <div class="stat-mini aktif">
                     <strong>{{ $stats['aktif'] }}</strong>
                     <span>Hari Aktif</span>
@@ -284,13 +243,14 @@
                 @php
                     $dateString = $currentDate->toDateString();
                     $isCurrentMonth = $currentDate->month == $month;
-                    $isToday = $dateString === $today;
                     $calendarEvent = $calendars->get($dateString);
-                    
+
                     $classes = ['calendar-day'];
-                    if (!$isCurrentMonth) $classes[] = 'other-month';
-                    if ($isToday) $classes[] = 'today';
-                    if ($calendarEvent) $classes[] = $calendarEvent->status;
+                    if (! $isCurrentMonth) $classes[] = 'other-month';
+                    // only add status class (e.g., 'libur') when calendar event exists
+                    if ($calendarEvent && !empty($calendarEvent->status)) {
+                        $classes[] = trim($calendarEvent->status);
+                    }
                 @endphp
 
                 <div class="{{ implode(' ', $classes) }}" 
@@ -313,14 +273,6 @@
 
         <!-- Legend -->
         <div class="legend">
-            <div class="legend-item">
-                <div class="legend-color today"></div>
-                <span>Hari Ini</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color aktif"></div>
-                <span>Hari Aktif (Sekolah)</span>
-            </div>
             <div class="legend-item">
                 <div class="legend-color libur"></div>
                 <span>Hari Libur</span>

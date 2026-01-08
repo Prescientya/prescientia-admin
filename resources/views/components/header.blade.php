@@ -13,16 +13,52 @@
 
         <!-- Right Side: Notifications & User Menu -->
         <div class="header-right">
-            <!-- Notifications -->
-            <button class="btn-icon notification-btn" id="notificationBtn" title="Notifikasi">
-                <span class="notification-icon">🔔</span>
-            </button>
+            <!-- Notification Wrapper -->
+            <div class="notification-wrapper">
+                <!-- Notifications -->
+                <button class="btn-icon notification-btn" id="notificationBtn" title="Notifikasi">
+                    <span class="notification-icon">🔔</span>
+                    @if($recentActivities && count($recentActivities) > 0)
+                        <span class="notification-badge">{{ count($recentActivities) }}</span>
+                    @endif
+                </button>
+
+                <!-- Notification Dropdown -->
+                <div class="notification-dropdown" id="notificationDropdown">
+                <div class="notification-header">
+                    <h3>Aktivitas Terbaru</h3>
+                    <span class="notification-count">{{ $recentActivities ? count($recentActivities) : 0 }}</span>
+                </div>
+                <div class="notification-list">
+                    @if($recentActivities && count($recentActivities) > 0)
+                        @foreach($recentActivities as $activity)
+                            <div class="notification-item" style="border-left: 4px solid {{ $activity->color ?? '#3B82F6' }};">
+                                <div class="notification-content">
+                                    <p class="notification-title">{{ $activity->title ?? 'Aktivitas' }}</p>
+                                    <p class="notification-time">{{ $activity->description ?? $activity->time_ago ?? '' }}</p>
+                                </div>
+                            </div>
+                        @endforeach
+                    @else
+                        <div class="notification-empty">
+                            <p>Tidak ada aktivitas terbaru</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
 
             <!-- User Menu -->
             <div class="user-menu">
                 <button class="user-button" id="userMenuBtn">
                     <div class="user-avatar">
-                        {{ substr(Auth::user()->admin->name ?? Auth::user()->email, 0, 1) }}
+                        @php
+                            $user = Auth::user();
+                            $name = $user->email;
+                            
+                            // Get first letter
+                            $letter = !empty($name) ? strtoupper(substr($name, 0, 1)) : 'U';
+                        @endphp
+                        <span title="Debug: {{ $name }} | Email: {{ $user->email }}">{{ $letter }}</span>
                     </div>
                 </button>
 
@@ -51,16 +87,31 @@
 </header>
 
 <script>
-    // User Menu Toggle
-    document.getElementById('userMenuBtn')?.addEventListener('click', function() {
-        document.getElementById('userDropdown').classList.toggle('show');
+    // Notification Dropdown Toggle
+    document.getElementById('notificationBtn')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const dropdown = document.getElementById('notificationDropdown');
+        dropdown.classList.toggle('show');
+        document.getElementById('userDropdown').classList.remove('show');
     });
 
-    // Close dropdown when clicking outside
+    // User Menu Toggle
+    document.getElementById('userMenuBtn')?.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const dropdown = document.getElementById('userDropdown');
+        dropdown.classList.toggle('show');
+        document.getElementById('notificationDropdown').classList.remove('show');
+    });
+
+    // Close dropdowns when clicking outside
     document.addEventListener('click', function(e) {
-        const userMenu = document.querySelector('.user-menu');
-        if (userMenu && !userMenu.contains(e.target)) {
-            document.getElementById('userDropdown').classList.remove('show');
+        const notificationDropdown = document.getElementById('notificationDropdown');
+        const userDropdown = document.getElementById('userDropdown');
+        const header = document.querySelector('.header-right');
+        
+        if (header && !header.contains(e.target)) {
+            notificationDropdown?.classList.remove('show');
+            userDropdown?.classList.remove('show');
         }
     });
 

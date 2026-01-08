@@ -4,41 +4,49 @@
 
 @section('page-title', 'Tambah Petugas MBG')
 
+@section('css')
+<link rel="stylesheet" href="{{ asset('css/form-pages.css') }}">
+@endsection
+
 @section('content')
 <div class="card">
-    <div class="card-header">
-        <h5 class="mb-0">Form Tambah Petugas MBG</h5>
+    <div class="card-header card-header-form">
+        <h4>Form Tambah Petugas MBG</h4>
     </div>
-    <div class="card-body">
+    <div class="card-body card-body-form">
         <form method="POST" action="{{ route('admin.mbg-officers.store') }}">
             @csrf
 
-            <div class="mb-3">
-                <label for="username" class="form-label">Username <span class="text-danger">*</span></label>
-                <input type="text" class="form-control @error('username') is-invalid @enderror" 
-                       id="username" name="username" value="{{ old('username') }}" required>
-                @error('username')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
-            </div>
+            <x-forms.section title="Kredensial Akun">
+                <x-forms.row-2>
+                    <x-forms.field-input 
+                        label="Username" 
+                        name="username" 
+                        required 
+                        :error="$errors->first('username')"
+                    />
+                    <x-forms.field-input 
+                        label="Password" 
+                        name="password" 
+                        type="password"
+                        required 
+                        help="Minimal 6 karakter"
+                        :error="$errors->first('password')"
+                    />
+                </x-forms.row-2>
 
-            <div class="mb-3">
-                <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
-                <input type="password" class="form-control @error('password') is-invalid @enderror" 
-                       id="password" name="password" required>
-                @error('password')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
-                <small class="form-text text-muted">Minimal 6 karakter</small>
-            </div>
+                <x-forms.row-2>
+                    <x-forms.field-input 
+                        label="Konfirmasi Password" 
+                        name="password_confirmation" 
+                        type="password"
+                        required 
+                        :error="$errors->first('password_confirmation')"
+                    />
+                </x-forms.row-2>
+            </x-forms.section>
 
-            <div class="mb-3">
-                <label for="password_confirmation" class="form-label">Konfirmasi Password <span class="text-danger">*</span></label>
-                <input type="password" class="form-control" 
-                       id="password_confirmation" name="password_confirmation" required>
-            </div>
-
-            <div class="action-buttons">
+            <div class="form-actions">
                 <button type="submit" class="btn btn-primary">
                     <i class="bi bi-save"></i> Simpan
                 </button>

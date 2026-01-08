@@ -99,4 +99,15 @@ class User extends Authenticatable
     {
         return $this->hasMany(WifiPresenceLog::class);
     }
+
+    /**
+     * Get display name for user (admin name or email fallback)
+     */
+    public function getDisplayNameAttribute()
+    {
+        if ($this->admin && $this->admin->name) {
+            return $this->admin->name;
+        }
+        return $this->email ?? 'User';
+    }
 }

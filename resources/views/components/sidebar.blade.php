@@ -26,6 +26,11 @@
             <span class="menu-text">Data Guru</span>
         </a>
         
+        <a href="{{ route('admin.teached-classes.index') }}" class="menu-item {{ request()->routeIs('admin.teached-classes.*') ? 'active' : '' }}" title="Setting Guru Pengajar">
+            <img src="{{ asset('assets/icons/teacher.png') }}" alt="Setting Guru Pengajar" class="menu-icon">
+            <span class="menu-text">kelola Guru Pengajar</span>
+        </a>
+        
         <a href="{{ route('admin.classes.index') }}" class="menu-item {{ request()->routeIs('admin.classes.*') ? 'active' : '' }}" title="Data Kelas">
             <img src="{{ asset('assets/icons/open-book.png') }}" alt="Kelas" class="menu-icon">
             <span class="menu-text">Data Kelas</span>

@@ -11,7 +11,6 @@ class TeacherClassRole extends Model
 
     protected $fillable = [
         'teacher_id',
-        'class_id',
         'role',
     ];
 
