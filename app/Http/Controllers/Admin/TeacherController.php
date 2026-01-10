@@ -32,7 +32,14 @@ class TeacherController extends Controller
      */
     public function create()
     {
-        return view('admin.teachers.create');
+        // Ambil semua mata pelajaran yang aktif, dikelompokkan per jurusan
+        $subjects = \App\Models\Subject::where('is_active', true)
+            ->orderBy('major')
+            ->orderBy('name')
+            ->get()
+            ->groupBy('major');
+        
+        return view('admin.teachers.create', compact('subjects'));
     }
 
     /**
@@ -65,6 +72,11 @@ class TeacherController extends Controller
                     'address' => $request->address,
                     'photo_profile' => $photoPath,
                 ]);
+
+                // Sync mata pelajaran yang dipilih
+                if ($request->has('subject_ids') && is_array($request->subject_ids)) {
+                    $teacher->subjects()->sync($request->subject_ids);
+                }
 
                 // Map UI role to DB enum value and create teacher class role entry
                 $dbRole = $request->role === 'Pengajar' ? 'pengajar' : 'wali_kelas';
@@ -146,8 +158,16 @@ class TeacherController extends Controller
      */
     public function edit(string $id)
     {
-        $teacher = Teacher::with('user')->findOrFail($id);
-        return view('admin.teachers.edit', compact('teacher'));
+        $teacher = Teacher::with(['user', 'subjects'])->findOrFail($id);
+        
+        // Ambil semua mata pelajaran yang aktif, dikelompokkan per jurusan
+        $subjects = \App\Models\Subject::where('is_active', true)
+            ->orderBy('major')
+            ->orderBy('name')
+            ->get()
+            ->groupBy('major');
+        
+        return view('admin.teachers.edit', compact('teacher', 'subjects'));
     }
 
     /**
@@ -189,6 +209,11 @@ class TeacherController extends Controller
             }
 
             $teacher->update($teacherData);
+            
+            // Sync mata pelajaran yang dipilih
+            if ($request->has('subject_ids')) {
+                $teacher->subjects()->sync($request->subject_ids ?? []);
+            }
             
             // Update or recreate teacher class role (map UI role to DB enum)
             $teacher->classRoles()->delete();

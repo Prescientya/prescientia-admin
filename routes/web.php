@@ -38,6 +38,9 @@ Route::prefix('admin')->middleware('admin')->name('admin.')->group(function () {
     // Classes
     Route::resource('classes', ClassController::class);
     
+    // Subjects (Mata Pelajaran)
+    Route::resource('subjects', \App\Http\Controllers\Admin\SubjectsController::class);
+    
     // Teached Classes (Guru Mengajar)
     Route::get('teached-classes', [TeachedClassController::class, 'index'])->name('teached-classes.index');
     Route::get('teached-classes/{class}/edit', [TeachedClassController::class, 'edit'])->name('teached-classes.edit');

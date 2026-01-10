@@ -36,6 +36,11 @@
             <span class="menu-text">Data Kelas</span>
         </a>
         
+        <a href="{{ route('admin.subjects.index') }}" class="menu-item {{ request()->routeIs('admin.subjects.*') ? 'active' : '' }}" title="Mata Pelajaran">
+            <img src="{{ asset('assets/icons/open-book.png') }}" alt="Mata Pelajaran" class="menu-icon">
+            <span class="menu-text">Mata Pelajaran</span>
+        </a>
+        
         <a href="{{ route('admin.attendances.index') }}" class="menu-item {{ request()->routeIs('admin.attendances.*') ? 'active' : '' }}" title="Data Absensi">
             <img src="{{ asset('assets/icons/list.png') }}" alt="Absensi" class="menu-icon">
             <span class="menu-text">Data Absensi</span>

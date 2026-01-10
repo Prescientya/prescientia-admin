@@ -91,21 +91,19 @@
                                 @foreach($class->teachedClasses as $tc)
                                     <tr>
                                         <td>
-                                            @php
-                                                $tcDeps = is_array($tc->departments) ? array_filter($tc->departments) : [];
-                                                $teacherDeps = is_array($tc->teacher->department) ? $tc->teacher->department : ($tc->teacher->department ? [$tc->teacher->department] : []);
-                                                $displayDeps = count($tcDeps) ? $tcDeps : $teacherDeps;
-                                            @endphp
-                                            <strong>{{ $tc->teacher->name }}</strong> - {{ count($displayDeps) ? implode(', ', $displayDeps) : '-' }}<br>
+                                            <strong>{{ $tc->teacher->name }}</strong><br>
                                             <small class="text-muted">NIP: {{ $tc->teacher->nip }}</small>
                                         </td>
                                         <td>{{ $tc->semester }}</td>
                                         <td>
                                             <small>
-                                                @if(is_array($tc->departments) && count($tc->departments) > 0)
-                                                    {{ implode(', ', $tc->departments) }}
+                                                {{-- Tampilkan mata pelajaran dari relasi subjects --}}
+                                                @if($tc->subjects->count() > 0)
+                                                    @foreach($tc->subjects as $subject)
+                                                        <span class="badge bg-primary me-1 mb-1">{{ $subject->name }}</span>
+                                                    @endforeach
                                                 @else
-                                                    <span class="text-muted">-</span>
+                                                    <span class="text-muted">Belum ada mata pelajaran</span>
                                                 @endif
                                             </small>
                                         </td>
@@ -146,13 +144,28 @@
                                                         <div class="form-group">
                                                             <label class="form-label">Mata Pelajaran</label>
                                                             @php
-                                                                $depts = is_array($tc->departments) ? $tc->departments : ($tc->departments ? [$tc->departments] : []);
+                                                                // Ambil ID mata pelajaran yang sudah dipilih
+                                                                $selectedSubjectIds = $tc->subjects->pluck('id')->toArray();
+                                                                // Ambil ID mata pelajaran yang sudah digunakan guru lain di kelas ini
+                                                                $assignedByOthers = $class->teachedClasses
+                                                                    ->where('id', '!=', $tc->id)
+                                                                    ->pluck('subjects')
+                                                                    ->flatten()
+                                                                    ->pluck('id')
+                                                                    ->toArray();
                                                             @endphp
-                                                            <select name="departments[]" class="form-control" multiple style="min-height:120px;">
-                                                                @foreach($tc->teacher->department ?? [] as $opt)
-                                                                    <option value="{{ $opt }}" {{ in_array($opt, $depts) ? 'selected' : '' }}>{{ $opt }}</option>
+                                                            <select name="subject_ids[]" class="form-control" multiple style="min-height:120px;" required>
+                                                                @foreach($availableSubjects as $subject)
+                                                                    <option value="{{ $subject->id }}" 
+                                                                        {{ in_array($subject->id, $selectedSubjectIds) ? 'selected' : '' }}
+                                                                        {{ in_array($subject->id, $assignedByOthers) && !in_array($subject->id, $selectedSubjectIds) ? 'disabled' : '' }}>
+                                                                        {{ $subject->name }} {{ in_array($subject->id, $assignedByOthers) && !in_array($subject->id, $selectedSubjectIds) ? '(sudah terdaftar)' : '' }}
+                                                                    </option>
                                                                 @endforeach
                                                             </select>
+                                                            <small class="text-muted d-block mt-1">
+                                                                <i class="bi bi-info-circle"></i> Tekan Ctrl/Cmd untuk pilih lebih dari satu
+                                                            </small>
                                                         </div>
                                                     </div>
                                                     <div class="modal-footer">
@@ -175,6 +188,39 @@
 
                 <hr>
 
+                <!-- Daftar Mata Pelajaran Kelas -->
+                <div class="alert alert-info mb-4">
+                    <h6 class="mb-2"><strong><i class="bi bi-book"></i> Mata Pelajaran untuk Kelas {{ $class->class }} ({{ $class->major ?? 'Umum' }})</strong></h6>
+                    <div class="row">
+                        @foreach($availableSubjects as $subject)
+                            @php
+                                // Cek apakah mata pelajaran sudah ada yang mengajar
+                                $isAssigned = $class->teachedClasses
+                                    ->pluck('subjects')
+                                    ->flatten()
+                                    ->contains('id', $subject->id);
+                            @endphp
+                            <div class="col-md-6 col-lg-4">
+                                <small class="d-block mb-1">
+                                    @if($isAssigned)
+                                        <i class="bi bi-check-circle-fill text-success"></i>
+                                    @else
+                                        <i class="bi bi-circle text-muted"></i>
+                                    @endif
+                                    {{ $subject->name }}
+                                    @if($isAssigned)
+                                        <span class="badge bg-success">Sudah Ada</span>
+                                    @else
+                                        <span class="badge bg-warning text-dark">Belum Ada</span>
+                                    @endif
+                                </small>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+
+                <hr>
+
                 <!-- Form Tambah Guru -->
                 <h6 class="mb-3"><strong>Tambah Guru Pengajar</strong></h6>
                 <form method="POST" action="{{ route('admin.teached-classes.store', $class->id) }}">
@@ -185,11 +231,24 @@
                         <select name="teacher_id" id="teacher_id" class="form-control @error('teacher_id') is-invalid @enderror" required>
                             <option value="">-- Pilih Guru --</option>
                             @foreach($teachers as $teacher)
-                                <option value="{{ $teacher->id }}" data-departments='@json($teacher->department)' {{ old('teacher_id') == $teacher->id ? 'selected' : '' }}>
-                                    {{ $teacher->name }} ({{ $teacher->nip }})
+                                @php
+                                    // Ambil nama mata pelajaran yang cocok dengan kelas
+                                    $matchedSubjectNames = $teacher->matched_subjects->pluck('name')->toArray();
+                                    $subjectsText = count($matchedSubjectNames) > 0 ? implode(', ', $matchedSubjectNames) : 'Semua mata pelajaran';
+                                @endphp
+                                <option value="{{ $teacher->id }}" {{ old('teacher_id') == $teacher->id ? 'selected' : '' }}>
+                                    {{ $teacher->name }} ({{ $teacher->nip }}) - {{ $subjectsText }}
                                 </option>
                             @endforeach
                         </select>
+                        <small class="text-muted d-block mt-1">
+                            <i class="bi bi-info-circle"></i> 
+                            @if($teachers->count() > 0)
+                                Menampilkan {{ $teachers->count() }} guru yang tersedia
+                            @else
+                                Belum ada guru yang terdaftar
+                            @endif
+                        </small>
                         @error('teacher_id')
                             <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
@@ -208,20 +267,34 @@
                     </div>
 
                     <div class="form-group mb-3">
-                        <label class="form-label">Mata Pelajaran <span class="text-muted">(Bisa lebih dari satu)</span></label>
+                        <label class="form-label">Mata Pelajaran <span class="text-danger">*</span> <span class="text-muted">(Bisa lebih dari satu)</span></label>
                         <div id="departments-container">
                             @php
-                                $oldDepts = old('departments', []);
+                                $oldSubjectIds = old('subject_ids', []);
+                                // Ambil ID mata pelajaran yang sudah digunakan guru lain
+                                $assignedSubjectIds = $class->teachedClasses
+                                    ->pluck('subjects')
+                                    ->flatten()
+                                    ->pluck('id')
+                                    ->toArray();
                             @endphp
-                            <select name="departments[]" id="departments_select" class="form-control" multiple style="min-height:120px;">
-                                {{-- options populated by JS based on selected teacher --}}
+                            <select name="subject_ids[]" id="subject_ids_select" class="form-control @error('subject_ids') is-invalid @enderror" multiple style="min-height:150px;" required>
+                                @foreach($availableSubjects as $subject)
+                                    <option value="{{ $subject->id }}" 
+                                        {{ in_array($subject->id, $oldSubjectIds) ? 'selected' : '' }}
+                                        {{ in_array($subject->id, $assignedSubjectIds) ? 'disabled' : '' }}>
+                                        {{ $subject->name }} ({{ $subject->code }}) {{ in_array($subject->id, $assignedSubjectIds) ? '(sudah terdaftar)' : '' }}
+                                    </option>
+                                @endforeach
                             </select>
-                            @if(!empty($oldDepts))
-                                <script>window.__OLD_DEPARTMENTS = @json($oldDepts);</script>
-                            @endif
-                            <script>window.__CLASS_DEPARTMENTS = @json(collect($class->teachedClasses)->pluck('departments')->flatten()->filter()->unique()->values()->all());</script>
+                            <small class="text-muted d-block mt-1">
+                                <i class="bi bi-info-circle"></i> Tekan Ctrl/Cmd untuk pilih lebih dari satu. Mata pelajaran disesuaikan dengan jurusan kelas: <strong>{{ $class->major ?? 'Umum' }}</strong>
+                            </small>
                         </div>
-                        @error('departments.*')
+                        @error('subject_ids')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
+                        @error('subject_ids.*')
                             <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
                     </div>
@@ -267,6 +340,10 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // No longer need to populate departments from teacher selection
+    // Departments are now pre-populated based on class major
+    
+    // Keep this for backward compatibility if needed
     function initDepartmentHandlers(containerId) {
         const container = document.getElementById(containerId);
         if (!container) return;
@@ -275,7 +352,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const groups = container.querySelectorAll('.department-input-group');
             groups.forEach(group => {
                 const removeBtn = group.querySelector('.remove-dept-btn');
-                removeBtn.style.display = groups.length > 1 ? 'block' : 'none';
+                if (removeBtn) {
+                    removeBtn.style.display = groups.length > 1 ? 'block' : 'none';
+                }
             });
         }
 
@@ -313,58 +392,8 @@ document.addEventListener('DOMContentLoaded', function() {
         updateRemoveButtons();
     }
 
-    // Initialize for main form
+    // Initialize for main form (if needed)
     initDepartmentHandlers('departments-container');
-
-    // Populate departments select based on selected teacher
-    const teacherSelect = document.getElementById('teacher_id');
-    const departmentsSelect = document.getElementById('departments_select');
-    function populateDepartmentsForTeacher(teacherId) {
-        // clear
-        departmentsSelect.innerHTML = '';
-        if (!teacherId) return;
-        const opt = teacherSelect.querySelector('option[value="' + teacherId + '"]');
-        if (!opt) return;
-        const depts = opt.dataset.departments ? JSON.parse(opt.dataset.departments) : [];
-        depts.forEach(function(d) {
-            const o = document.createElement('option');
-            o.value = d;
-            o.textContent = d;
-            // disable option if already assigned in this class
-            if (window.__CLASS_DEPARTMENTS && Array.isArray(window.__CLASS_DEPARTMENTS) && window.__CLASS_DEPARTMENTS.indexOf(d) !== -1) {
-                o.disabled = true;
-                o.textContent = d + ' (sudah terdaftar)';
-            }
-            departmentsSelect.appendChild(o);
-        });
-
-        // preselect old departments if present
-        if (window.__OLD_DEPARTMENTS && Array.isArray(window.__OLD_DEPARTMENTS)) {
-            Array.from(departmentsSelect.options).forEach(o => {
-                if (window.__OLD_DEPARTMENTS.indexOf(o.value) !== -1) o.selected = true;
-            });
-            // clear global after applied
-            window.__OLD_DEPARTMENTS = null;
-        }
-    }
-
-    teacherSelect?.addEventListener('change', function() {
-        populateDepartmentsForTeacher(this.value);
-    });
-
-    // populate initial if a teacher is preselected
-    if (teacherSelect && teacherSelect.value) {
-        populateDepartmentsForTeacher(teacherSelect.value);
-    }
-
-    // Initialize for edit modals
-    document.querySelectorAll('[id^="editModal"]').forEach(modal => {
-        const containerId = 'departments-container-' + modal.id.replace('editModal', '');
-        const observer = new MutationObserver(() => {
-            initDepartmentHandlers(containerId);
-        });
-        observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
-    });
 });
 </script>
 @endsection

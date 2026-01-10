@@ -98,82 +98,93 @@
 
                 <x-forms.row-full>
                     <div class="form-group">
-                        <label for="departments" class="form-label">
-                            Bidang Studi
-                            <small class="text-muted">(Dapat menambah lebih dari satu)</small>
+                        <label class="form-label">
+                            Mata Pelajaran yang Diajar
+                            <small class="text-muted">(Pilih satu atau lebih)</small>
                         </label>
-                        <div id="departments-container">
-                            @php
-                                $oldDepartments = old('departments', []);
-                            @endphp
-                            @if(!empty($oldDepartments) && is_array($oldDepartments))
-                                @foreach($oldDepartments as $idx => $val)
-                                    <div class="field-group">
-                                        <div class="input-group">
-                                            <input type="text" name="departments[]" class="form-control department-input @error('departments.*') is-invalid @enderror" placeholder="Contoh: Matematika" value="{{ $val }}">
-                                            <button type="button" class="btn btn-outline-danger btn-sm remove-department" style="display: none;">Hapus</button>
+                        
+                        @if($subjects->count() > 0)
+                            <!-- Live Search -->
+                            <div class="mb-3">
+                                <input 
+                                    type="text" 
+                                    id="searchSubjects" 
+                                    class="form-control" 
+                                    placeholder="🔍 Cari mata pelajaran..."
+                                >
+                            </div>
+
+                            <div class="subjects-container" style="max-height: 400px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; padding: 15px; background: #f8f9fa;">
+                                @foreach($subjects as $major => $subjectList)
+                                    <div class="subject-major-group mb-4">
+                                        <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">📚 {{ $major }}</h6>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            @foreach($subjectList as $subject)
+                                                <div class="subject-item" data-subject-name="{{ strtolower($subject->name) }}" data-subject-code="{{ strtolower($subject->code) }}">
+                                                    <label class="d-flex align-items-center" for="subject_{{ $subject->id }}" style="background: white; border: 1px solid #dee2e6; border-radius: 6px; padding: 10px 14px; min-width: 220px; cursor: pointer; margin: 0; transition: all 0.2s;" onmouseover="this.style.borderColor='#0d6efd'; this.style.boxShadow='0 2px 4px rgba(13,110,253,0.2)';" onmouseout="this.style.borderColor='#dee2e6'; this.style.boxShadow='none';">
+                                                        <input 
+                                                            class="form-check-input" 
+                                                            type="checkbox" 
+                                                            name="subject_ids[]" 
+                                                            value="{{ $subject->id }}" 
+                                                            id="subject_{{ $subject->id }}"
+                                                            {{ in_array($subject->id, old('subject_ids', [])) ? 'checked' : '' }}
+                                                            style="margin-top: 0; margin-right: 10px; flex-shrink: 0;"
+                                                        >
+                                                        <span style="margin-right: 8px; font-size: 10px; flex-shrink: 0;">{{ $subject->code }}</span>
+                                                        <span style="flex: 1; font-size: 14px;">{{ $subject->name }}</span>
+                                                    </label>
+                                                </div>
+                                            @endforeach
                                         </div>
                                     </div>
                                 @endforeach
-                            @else
-                                <div class="field-group">
-                                    <div class="input-group">
-                                        <input type="text" name="departments[]" class="form-control department-input @error('departments.*') is-invalid @enderror" placeholder="Contoh: Matematika" value="">
-                                        <button type="button" class="btn btn-outline-danger btn-sm remove-department" style="display: none;">Hapus</button>
-                                    </div>
-                                </div>
-                            @endif
-                        </div>
-                        <button type="button" id="add-department" class="btn btn-sm btn-success add-field-btn">+ Tambah Bidang Studi</button>
-                        @error('departments.*')
-                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                            </div>
+
+                            <script>
+                            document.addEventListener('DOMContentLoaded', function() {
+                                const searchInput = document.getElementById('searchSubjects');
+                                const subjectItems = document.querySelectorAll('.subject-item');
+                                const majorGroups = document.querySelectorAll('.subject-major-group');
+
+                                searchInput.addEventListener('input', function() {
+                                    const searchTerm = this.value.toLowerCase().trim();
+
+                                    majorGroups.forEach(group => {
+                                        let hasVisibleItems = false;
+                                        const items = group.querySelectorAll('.subject-item');
+                                        
+                                        items.forEach(item => {
+                                            const name = item.dataset.subjectName;
+                                            const code = item.dataset.subjectCode;
+                                            const matches = name.includes(searchTerm) || code.includes(searchTerm);
+                                            
+                                            if (matches || searchTerm === '') {
+                                                item.style.display = 'block';
+                                                hasVisibleItems = true;
+                                            } else {
+                                                item.style.display = 'none';
+                                            }
+                                        });
+
+                                        // Hide/show entire major group if no items match
+                                        group.style.display = hasVisibleItems ? 'block' : 'none';
+                                    });
+                                });
+                            });
+                            </script>
+                        @else
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-triangle"></i> 
+                                Belum ada mata pelajaran aktif. Silakan tambah mata pelajaran terlebih dahulu.
+                            </div>
+                        @endif
+                        
+                        @error('subject_ids')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror
                     </div>
                 </x-forms.row-full>
-
-                <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    const container = document.getElementById('departments-container');
-                    const addBtn = document.getElementById('add-department');
-                    
-                    function updateRemoveButtons() {
-                        const groups = container.querySelectorAll('.field-group');
-                        groups.forEach(group => {
-                            const removeBtn = group.querySelector('.remove-department');
-                            removeBtn.style.display = groups.length > 1 ? 'block' : 'none';
-                        });
-                    }
-
-                    addBtn.addEventListener('click', function() {
-                        const newGroup = document.createElement('div');
-                        newGroup.className = 'field-group';
-                        newGroup.innerHTML = `
-                            <div class="input-group">
-                                <input type="text" name="departments[]" class="form-control department-input" placeholder="Contoh: Bahasa Indonesia">
-                                <button type="button" class="btn btn-outline-danger btn-sm remove-department">Hapus</button>
-                            </div>
-                        `;
-                        container.appendChild(newGroup);
-                        updateRemoveButtons();
-
-                        newGroup.querySelector('.remove-department').addEventListener('click', function(e) {
-                            e.preventDefault();
-                            newGroup.remove();
-                            updateRemoveButtons();
-                        });
-                    });
-
-                    container.addEventListener('click', function(e) {
-                        if (e.target.classList.contains('remove-department')) {
-                            e.preventDefault();
-                            e.target.closest('.field-group').remove();
-                            updateRemoveButtons();
-                        }
-                    });
-
-                    updateRemoveButtons();
-                });
-                </script>
 
                 <x-forms.row-full>
                     <x-forms.field-textarea 
