@@ -91,4 +91,40 @@ class Teacher extends Model
     {
         return $this->hasMany(TeachedClass::class);
     }
+
+    /**
+     * Relasi many-to-many dengan mata pelajaran (subjects).
+     * 1 guru bisa mengajar banyak mata pelajaran.
+     * 
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
+    public function subjects()
+    {
+        return $this->belongsToMany(Subject::class, 'teacher_subject')
+            ->withTimestamps()
+            ->orderBy('name');
+    }
+
+    /**
+     * Cek apakah guru mengajar mata pelajaran tertentu.
+     * Contoh: $teacher->teachesSubject($subjectId)
+     * 
+     * @param int $subjectId ID mata pelajaran
+     * @return bool
+     */
+    public function teachesSubject($subjectId)
+    {
+        return $this->subjects()->where('subjects.id', $subjectId)->exists();
+    }
+
+    /**
+     * Ambil daftar nama mata pelajaran yang diajar guru.
+     * Contoh: $teacher->getSubjectNames() => ['Matematika', 'Fisika']
+     * 
+     * @return array
+     */
+    public function getSubjectNames()
+    {
+        return $this->subjects()->pluck('name')->toArray();
+    }
 }
