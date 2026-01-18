@@ -160,10 +160,14 @@
     font-size: 1.25rem;
 }
 
+.notification-wrapper {
+    position: relative;
+}
+
 .badge {
-    position: absolute;
-    top: 0;
-    right: 0;
+    position: static;
+    top: auto;
+    right: auto;
     background-color: var(--color-danger);
     color: white;
     font-size: 0.625rem;
@@ -171,6 +175,14 @@
     border-radius: 9999px;
     min-width: 1rem;
     text-align: center;
+    display: inline-block;
+}
+
+/* Badge in header/notification context only */
+.notification-wrapper .badge {
+    position: absolute;
+    top: 0;
+    right: 0;
 }
 
 .user-menu {
@@ -472,8 +484,8 @@
 
 .notification-badge {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: 0;
+    right: 0;
     background-color: var(--color-danger);
     color: white;
     font-size: 0.625rem;

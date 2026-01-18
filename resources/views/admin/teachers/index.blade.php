@@ -13,9 +13,14 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">Daftar Data Guru</h5>
-        <a href="{{ route('admin.teachers.create') }}" class="btn btn-primary btn-sm">
-            <i class="bi bi-plus-circle"></i> Tambah Guru
-        </a>
+        <div class="d-flex align-items-center">
+            <button type="button" class="btn btn-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#importTeacherModal">
+                Import Excel
+            </button>
+            <a href="{{ route('admin.teachers.create') }}" class="btn btn-primary btn-sm">
+                <i class="bi bi-plus-circle"></i> Tambah Guru
+            </a>
+        </div>
     </div>
     <div class="card-body">
         @if ($teachers->count() > 0)
@@ -110,4 +115,63 @@
 </div>
 
 <script src="{{ asset('js/action-dropdown.js') }}"></script>
+<!-- Teacher import modal -->
+<div id="importTeacherModal" class="simple-modal" aria-hidden="true">
+    <div class="simple-modal-backdrop" data-modal-close></div>
+    <div class="simple-modal-dialog">
+        <div class="simple-modal-header">
+            <h5>Import Akun Guru dari Excel</h5>
+            <button type="button" class="simple-modal-close" data-modal-close>&times;</button>
+        </div>
+        <form action="{{ route('admin.teachers.import') }}" method="POST" enctype="multipart/form-data">
+            @csrf
+            <div class="simple-modal-body">
+                <div class="mb-3">
+                    <label for="import_file_teachers" class="form-label">Pilih File Excel</label>
+                    <input class="form-control" type="file" id="import_file_teachers" name="file" accept=".xlsx,.xls" required>
+                    <div class="form-text">Format: .xlsx atau .xls (maksimal 10 MB)</div>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <a href="{{ route('admin.teachers.download-template') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-download"></i> Download Template Excel (10 Contoh Data)
+                    </a>
+                </div>
+            </div>
+            <div class="simple-modal-footer">
+                <button type="button" class="btn btn-secondary" data-modal-close>Batal</button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-upload"></i> Upload & Import
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.simple-modal { display: none; position: fixed; inset: 0; z-index: 1050; }
+.simple-modal.show { display: block; }
+.simple-modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.5); }
+.simple-modal-dialog { position: relative; max-width: 600px; margin: 6% auto; background: #fff; border-radius: 6px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+.simple-modal-header { display:flex; justify-content:space-between; align-items:center; padding:16px; border-bottom:1px solid #eee; }
+.simple-modal-body { padding:16px; }
+.simple-modal-footer { padding:12px 16px; text-align:right; border-top:1px solid #eee; }
+.simple-modal-close { background:none; border:0; font-size:20px; line-height:1; cursor:pointer; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const importBtn = document.querySelector('[data-bs-toggle="modal"][data-bs-target="#importTeacherModal"]') || null;
+    const modal = document.getElementById('importTeacherModal');
+    if (!modal) return;
+    function openModal() { modal.classList.add('show'); modal.setAttribute('aria-hidden','false'); document.body.style.overflow = 'hidden'; }
+    function closeModal() { modal.classList.remove('show'); modal.setAttribute('aria-hidden','true'); document.body.style.overflow = ''; }
+    if (importBtn) importBtn.addEventListener('click', function (e) { e.preventDefault(); openModal(); });
+    modal.querySelectorAll('[data-modal-close]').forEach(function (el) { el.addEventListener('click', closeModal); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+    @if(request()->get('show_import'))
+        openModal();
+    @endif
+});
+</script>
 @endsection

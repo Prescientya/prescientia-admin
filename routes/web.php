@@ -30,9 +30,21 @@ Route::prefix('admin')->middleware('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     
     // Students
+    // Bulk import template and upload - register before resource to avoid route parameter collision
+    Route::get('students/import', [StudentController::class, 'importForm'])->name('students.import.form');
+    Route::get('students/download-template', [StudentController::class, 'downloadTemplate'])->name('students.download-template');
+    Route::post('students/import', [StudentController::class, 'import'])->name('students.import');
+    Route::post('students/import/create-missing-and-import', [StudentController::class, 'createMissingAndImport'])->name('students.import.create-missing-and-import');
+    Route::post('students/import/confirm-dependencies', [StudentController::class, 'confirmAndCreateDependencies'])->name('students.import.confirm-dependencies');
+    Route::post('students/import/process', [StudentController::class, 'importProcess'])->name('students.import.process');
     Route::resource('students', StudentController::class);
     
     // Teachers
+    // Bulk import template and upload - register before resource to avoid route parameter collision
+    Route::get('teachers/import', [\App\Http\Controllers\Admin\TeacherController::class, 'importForm'])->name('teachers.import.form');
+    Route::get('teachers/download-template', [\App\Http\Controllers\Admin\TeacherController::class, 'downloadTemplate'])->name('teachers.download-template');
+    Route::post('teachers/import', [\App\Http\Controllers\Admin\TeacherController::class, 'import'])->name('teachers.import');
+    Route::post('teachers/import/confirm-dependencies', [\App\Http\Controllers\Admin\TeacherController::class, 'confirmAndCreateDependencies'])->name('teachers.import.confirm-dependencies');
     Route::resource('teachers', TeacherController::class);
     
     // Classes
@@ -43,7 +55,18 @@ Route::prefix('admin')->middleware('admin')->name('admin.')->group(function () {
     
     // Teached Classes (Guru Mengajar)
     Route::get('teached-classes', [TeachedClassController::class, 'index'])->name('teached-classes.index');
+    Route::get('teached-classes/download-assignment-template', [TeachedClassController::class, 'downloadAssignmentTemplate'])->name('teached-classes.download-assignment-template');
+    Route::post('teached-classes/import-assignments', [TeachedClassController::class, 'importAssignments'])->name('teached-classes.import-assignments');
+    Route::get('teached-classes/suggestions', [TeachedClassController::class, 'suggestions'])->name('teached-classes.suggestions');
+    Route::get('teached-classes/{class}/subjects', [TeachedClassController::class, 'getTeacherSubjects'])->name('teached-classes.get-subjects');
     Route::get('teached-classes/{class}/edit', [TeachedClassController::class, 'edit'])->name('teached-classes.edit');
+    
+    // NEW: Subject-first assignment routes
+    Route::post('teached-classes/{class}/subjects/{subject}/assign', [TeachedClassController::class, 'assignTeacherToSubject'])->name('teached-classes.assign-subject');
+    Route::put('teached-classes/{teachedClass}/update-teacher', [TeachedClassController::class, 'updateTeacherForSubject'])->name('teached-classes.update-teacher');
+    Route::delete('teached-classes/{teachedClass}/remove', [TeachedClassController::class, 'removeTeacherFromSubject'])->name('teached-classes.remove-subject');
+    
+    // DEPRECATED: Old multi-subject assignment routes (kept for backwards compatibility)
     Route::post('teached-classes/{class}', [TeachedClassController::class, 'store'])->name('teached-classes.store');
     Route::put('teached-classes/{teachedClass}', [TeachedClassController::class, 'update'])->name('teached-classes.update');
     Route::delete('teached-classes/{teachedClass}', [TeachedClassController::class, 'destroy'])->name('teached-classes.destroy');
@@ -52,10 +75,11 @@ Route::prefix('admin')->middleware('admin')->name('admin.')->group(function () {
     Route::resource('wifi', WifiController::class)->except(['show']);
     Route::post('wifi/convert', [WifiController::class, 'convert'])->name('wifi.convert');
     
-    // Attendances
-    Route::get('attendances', [AttendanceController::class, 'index'])->name('attendances.index');
+    // Attendances (separate pages for students and teachers)
     Route::get('attendances/students', [AttendanceController::class, 'students'])->name('attendances.students');
+    Route::get('attendances/students/export', [AttendanceController::class, 'exportStudents'])->name('attendances.students.export');
     Route::get('attendances/teachers', [AttendanceController::class, 'teachers'])->name('attendances.teachers');
+    Route::get('attendances/teachers/export', [AttendanceController::class, 'exportTeachers'])->name('attendances.teachers.export');
     Route::post('attendances/record', [AttendanceController::class, 'record'])->name('attendances.record');
     Route::get('attendances/{role}/{id}', [AttendanceController::class, 'show'])->name('attendances.show');
     Route::put('attendances/{role}/{id}', [AttendanceController::class, 'update'])->name('attendances.update');

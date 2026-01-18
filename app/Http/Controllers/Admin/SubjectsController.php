@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Subject;
+use App\Models\ClassModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -23,16 +24,19 @@ class SubjectsController extends Controller
         // Ambil semua mata pelajaran dengan filter dan pagination
         $subjects = Subject::query()
             ->when(request('search'), function($query, $search) {
-                $query->where('name', 'like', "%{$search}%")
-                      ->orWhere('code', 'like', "%{$search}%");
+                $query->where('name', 'like', "%{$search}%");
             })
             ->when(request('major'), function($query, $major) {
                 $query->where('major', $major);
+            })
+            ->when(request('kelas'), function($query, $kelas) {
+                $query->where('kelas', $kelas);
             })
             ->when(request('status') !== null, function($query) {
                 $isActive = request('status') === '1';
                 $query->where('is_active', $isActive);
             })
+            ->orderBy('kelas')
             ->orderBy('major')
             ->orderBy('name')
             ->paginate(20);
@@ -44,7 +48,14 @@ class SubjectsController extends Controller
             ->orderBy('major')
             ->pluck('major');
         
-        return view('admin.subjects.index', compact('subjects', 'majors'));
+        // Ambil daftar kelas untuk filter
+        $kelases = Subject::select('kelas')
+            ->distinct()
+            ->whereNotNull('kelas')
+            ->orderBy('kelas')
+            ->pluck('kelas');
+        
+        return view('admin.subjects.index', compact('subjects', 'majors', 'kelases'));
     }
 
     /**
@@ -55,9 +66,16 @@ class SubjectsController extends Controller
     public function create()
     {
         // Daftar jurusan yang tersedia
-        $majors = ['IPA', 'IPS', 'Bahasa', 'TKJ', 'RPL', 'Umum'];
+        $majors = ['IPA', 'IPS', 'Bahasa', 'TKJ', 'RPL', 'Kuliner', 'Umum'];
         
-        return view('admin.subjects.create', compact('majors'));
+        // Daftar kelas yang tersedia
+        $kelases = ClassModel::select('class')
+            ->distinct()
+            ->orderBy('class')
+            ->pluck('class')
+            ->toArray();
+        
+        return view('admin.subjects.create', compact('majors', 'kelases'));
     }
 
     /**
@@ -71,40 +89,41 @@ class SubjectsController extends Controller
         // Validasi input
         $validated = $request->validate([
             'name' => 'required|string|max:100',
-            'code' => 'required|string|max:10',
             'major' => 'required|string|max:50',
+            'kelas' => 'nullable|integer|min:1|max:99',
             'description' => 'nullable|string',
             'is_active' => 'boolean',
         ], [
             'name.required' => 'Nama mata pelajaran wajib diisi',
-            'code.required' => 'Kode mata pelajaran wajib diisi',
             'major.required' => 'Jurusan wajib dipilih',
+            'kelas.integer' => 'Kelas harus berupa angka',
         ]);
 
         try {
-            // Cek apakah kombinasi code + major sudah ada
-            $exists = Subject::where('code', $validated['code'])
+            // Cek apakah sudah ada mata pelajaran dengan nama, kelas, dan jurusan yang sama
+            $exists = Subject::where('name', $validated['name'])
                 ->where('major', $validated['major'])
+                ->where('kelas', $validated['kelas'] ?? null)
                 ->exists();
             
             if ($exists) {
                 return redirect()->back()
                     ->withInput()
-                    ->with('error', 'Mata pelajaran dengan kode "' . $validated['code'] . '" sudah ada untuk jurusan ' . $validated['major']);
+                    ->with('error', 'Mata pelajaran "' . $validated['name'] . '" sudah ada untuk Kelas ' . ($validated['kelas'] ?? 'Umum') . ' Jurusan ' . $validated['major']);
             }
-            
+
             // Buat mata pelajaran baru
             Subject::create([
                 'name' => $validated['name'],
-                'code' => strtoupper($validated['code']),
                 'major' => $validated['major'],
+                'kelas' => $validated['kelas'] ?? null,
                 'description' => $validated['description'] ?? null,
                 'is_active' => $request->has('is_active'),
             ]);
 
             return redirect()->route('admin.subjects.index')
                 ->with('success', 'Mata pelajaran berhasil ditambahkan');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'Gagal menambahkan mata pelajaran: ' . $e->getMessage());
@@ -134,9 +153,16 @@ class SubjectsController extends Controller
     public function edit(Subject $subject)
     {
         // Daftar jurusan yang tersedia
-        $majors = ['IPA', 'IPS', 'Bahasa', 'TKJ', 'RPL', 'Umum'];
+        $majors = ['IPA', 'IPS', 'Bahasa', 'TKJ', 'RPL', 'Kuliner', 'Umum'];
         
-        return view('admin.subjects.edit', compact('subject', 'majors'));
+        // Daftar kelas yang tersedia
+        $kelases = ClassModel::select('class')
+            ->distinct()
+            ->orderBy('class')
+            ->pluck('class')
+            ->toArray();
+        
+        return view('admin.subjects.edit', compact('subject', 'majors', 'kelases'));
     }
 
     /**
@@ -151,41 +177,42 @@ class SubjectsController extends Controller
         // Validasi input
         $validated = $request->validate([
             'name' => 'required|string|max:100',
-            'code' => 'required|string|max:10',
             'major' => 'required|string|max:50',
+            'kelas' => 'nullable|integer|min:1|max:99',
             'description' => 'nullable|string',
             'is_active' => 'boolean',
         ], [
             'name.required' => 'Nama mata pelajaran wajib diisi',
-            'code.required' => 'Kode mata pelajaran wajib diisi',
             'major.required' => 'Jurusan wajib dipilih',
+            'kelas.integer' => 'Kelas harus berupa angka',
         ]);
 
         try {
-            // Cek apakah kombinasi code + major sudah ada (kecuali untuk subject ini sendiri)
-            $exists = Subject::where('code', $validated['code'])
+            // Cek apakah sudah ada mata pelajaran dengan nama, kelas, dan jurusan yang sama (kecuali yang sedang diedit)
+            $exists = Subject::where('name', $validated['name'])
                 ->where('major', $validated['major'])
+                ->where('kelas', $validated['kelas'] ?? null)
                 ->where('id', '!=', $subject->id)
                 ->exists();
             
             if ($exists) {
                 return redirect()->back()
                     ->withInput()
-                    ->with('error', 'Mata pelajaran dengan kode "' . $validated['code'] . '" sudah ada untuk jurusan ' . $validated['major']);
+                    ->with('error', 'Mata pelajaran "' . $validated['name'] . '" sudah ada untuk Kelas ' . ($validated['kelas'] ?? 'Umum') . ' Jurusan ' . $validated['major']);
             }
-            
+
             // Update mata pelajaran
             $subject->update([
                 'name' => $validated['name'],
-                'code' => strtoupper($validated['code']),
                 'major' => $validated['major'],
+                'kelas' => $validated['kelas'] ?? null,
                 'description' => $validated['description'] ?? null,
                 'is_active' => $request->has('is_active'),
             ]);
 
             return redirect()->route('admin.subjects.index')
                 ->with('success', 'Mata pelajaran berhasil diperbarui');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'Gagal memperbarui mata pelajaran: ' . $e->getMessage());

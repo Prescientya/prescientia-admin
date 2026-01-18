@@ -18,8 +18,8 @@ class Subject extends Model
      */
     protected $fillable = [
         'name',        // Nama mata pelajaran
-        'code',        // Kode mata pelajaran
         'major',       // Jurusan yang memiliki mata pelajaran ini
+        'kelas',       // Kelas untuk mata pelajaran ini (10, 11, 12, dll) - nullable
         'description', // Deskripsi mata pelajaran
         'is_active',   // Status aktif/tidak
     ];

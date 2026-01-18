@@ -14,7 +14,7 @@ return new class extends Migration
     {
         Schema::create('subjects', function (Blueprint $table) {
             $table->id();
-            // Nama mata pelajaran (contoh: Matematika, Fisika, dll)
+            // Nama mata pelajaran (contoh: Matematika, dll)
             $table->string('name', 100);
             // Kode mata pelajaran (contoh: MAT, FIS, BIO)
             $table->string('code', 10);

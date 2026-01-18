@@ -53,12 +53,15 @@ class Student extends Model
     protected static function booted()
     {
         static::created(function ($student) {
-            // assign default role via service to enforce class assignment and future logic
+            // assign default role 'Pelajar' via service to enforce class assignment and future logic
             try {
                 $service = new \App\Services\StudentRoleService();
+                // Assign role regardless of class_id status
+                // Student will get role 'Pelajar' immediately upon creation
                 $service->assignDefaultRole($student);
             } catch (\Throwable $e) {
-                // swallow errors so student creation doesn't fail; logging may be added later
+                // Log error but don't fail student creation
+                \Log::warning('Failed to assign default role to student', ['student_id' => $student->id, 'error' => $e->getMessage()]);
             }
         });
     }

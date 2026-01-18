@@ -64,7 +64,7 @@
                         name="date_of_birth" 
                         type="date"
                         required 
-                        :value="old('date_of_birth', $student->date_of_birth)"
+                        :value="old('date_of_birth', $student->date_of_birth ? $student->date_of_birth->format('Y-m-d') : '')"
                         :error="$errors->first('date_of_birth')"
                     />
                 </x-forms.row-2>

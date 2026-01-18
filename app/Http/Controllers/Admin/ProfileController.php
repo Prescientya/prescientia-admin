@@ -22,7 +22,12 @@ class ProfileController extends Controller
      */
     public function update(Request $request)
     {
+        /** @var \App\Models\User|null $user */
         $user = Auth::user();
+
+        if (!$user) {
+            return redirect()->route('admin.login')->with('error', 'Unauthorized');
+        }
 
         $request->validate([
             'name' => 'required|string|max:255',
@@ -45,7 +50,12 @@ class ProfileController extends Controller
             'password' => 'required|string|min:8|confirmed',
         ]);
 
+        /** @var \App\Models\User|null $user */
         $user = Auth::user();
+
+        if (!$user) {
+            return redirect()->route('admin.login')->with('error', 'Unauthorized');
+        }
 
         if (!Hash::check($request->current_password, $user->password)) {
             return back()->withErrors(['current_password' => 'Password saat ini tidak sesuai']);

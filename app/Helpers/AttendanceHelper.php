@@ -10,6 +10,53 @@ use Carbon\Carbon;
 class AttendanceHelper
 {
     /**
+     * Get current semester based on current month.
+     * Januari - Juni: Semester 2 (Genap)
+     * Juli - Desember: Semester 1 (Ganjil)
+     * 
+     * @return int 1 or 2
+     */
+    public static function getCurrentSemester(): int
+    {
+        $currentMonth = now()->month;
+        
+        // Juli (7) - Desember (12) = Semester 1 (Ganjil)
+        // Januari (1) - Juni (6) = Semester 2 (Genap)
+        return ($currentMonth >= 7 && $currentMonth <= 12) ? 1 : 2;
+    }
+
+    /**
+     * Get semester name (Ganjil/Genap) based on semester number.
+     * 
+     * @param int $semester
+     * @return string
+     */
+    public static function getSemesterName(int $semester): string
+    {
+        return $semester === 1 ? 'Ganjil' : 'Genap';
+    }
+
+    /**
+     * Get current academic year based on current date.
+     * Example: "2025/2026"
+     * 
+     * @return string
+     */
+    public static function getCurrentAcademicYear(): string
+    {
+        $year = now()->year;
+        $month = now()->month;
+        
+        // If in semester 1 (July-Dec), academic year is current/next
+        // If in semester 2 (Jan-June), academic year is previous/current
+        if ($month >= 7) {
+            return $year . '/' . ($year + 1);
+        } else {
+            return ($year - 1) . '/' . $year;
+        }
+    }
+
+    /**
      * Check if today is a school day.
      */
     public static function isTodaySchoolDay(): bool

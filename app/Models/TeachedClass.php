@@ -14,8 +14,9 @@ class TeachedClass extends Model
     protected $fillable = [
         'teacher_id',
         'class_id',
+        'subject_id',
         'semester',
-        'departments',
+        'departments', // Legacy field, deprecated
     ];
 
     protected $casts = [
@@ -40,6 +41,16 @@ class TeachedClass extends Model
     public function class()
     {
         return $this->belongsTo(ClassModel::class, 'class_id');
+    }
+
+    /**
+     * Dapatkan mata pelajaran yang diajar (1 TeachedClass = 1 Subject).
+     * 
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function subject()
+    {
+        return $this->belongsTo(Subject::class, 'subject_id');
     }
 
     /**
@@ -69,7 +80,7 @@ class TeachedClass extends Model
 
     /**
      * Ambil daftar nama mata pelajaran yang diajar di teached class ini.
-     * Contoh: $teachedClass->getSubjectNames() => ['Matematika', 'Fisika']
+     * Contoh: $teachedClass->getSubjectNames() => ['Matematika']
      * 
      * @return array
      */

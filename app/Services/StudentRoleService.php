@@ -11,19 +11,18 @@ use Illuminate\Validation\ValidationException;
 class StudentRoleService
 {
     /**
-     * Assign default role `pelajar` to the student in their current class.
+     * Assign default role `pelajar` to the student.
+     * If student has a class_id, create role in that class.
+     * If student has no class_id, still create the role (will be updated when assigned to a class).
      */
     public function assignDefaultRole(Student $student): StudentClassRole
     {
-        if (empty($student->class_id)) {
-            throw ValidationException::withMessages(['class_id' => 'Student must be assigned to a class before assigning a role.']);
-        }
-
         $role = StudentRole::PELAJAR;
+        $classId = $student->class_id ?? 0; // Use 0 if no class assigned yet
 
         return StudentClassRole::firstOrCreate([
             'student_id' => $student->id,
-            'class_id' => $student->class_id,
+            'class_id' => $classId,
         ], [
             'role' => $role,
         ]);

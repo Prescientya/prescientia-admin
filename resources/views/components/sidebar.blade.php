@@ -41,9 +41,13 @@
             <span class="menu-text">Mata Pelajaran</span>
         </a>
         
-        <a href="{{ route('admin.attendances.index') }}" class="menu-item {{ request()->routeIs('admin.attendances.*') ? 'active' : '' }}" title="Data Absensi">
-            <img src="{{ asset('assets/icons/list.png') }}" alt="Absensi" class="menu-icon">
-            <span class="menu-text">Data Absensi</span>
+        <a href="{{ route('admin.attendances.students') }}" class="menu-item {{ request()->routeIs('admin.attendances.students') ? 'active' : '' }}" title="Absensi Siswa">
+            <img src="{{ asset('assets/icons/list.png') }}" alt="Absensi Siswa" class="menu-icon">
+            <span class="menu-text">Absensi Siswa</span>
+        </a>
+        <a href="{{ route('admin.attendances.teachers') }}" class="menu-item {{ request()->routeIs('admin.attendances.teachers') ? 'active' : '' }}" title="Absensi Guru">
+            <img src="{{ asset('assets/icons/list.png') }}" alt="Absensi Guru" class="menu-icon">
+            <span class="menu-text">Absensi Guru</span>
         </a>
         
         <a href="{{ route('admin.wifi.index') }}" class="menu-item {{ request()->routeIs('admin.wifi.*') ? 'active' : '' }}" title="Data WiFi">

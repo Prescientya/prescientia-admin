@@ -38,9 +38,19 @@
             <div class="row g-2">
                 <div class="col-md-4">
                     <input type="text" name="search" class="form-control form-control-sm" 
-                           placeholder="Cari nama atau kode..." value="{{ request('search') }}">
+                           placeholder="Cari nama mata pelajaran..." value="{{ request('search') }}">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
+                    <select name="kelas" class="form-select form-select-sm">
+                        <option value="">-- Semua Kelas --</option>
+                        @foreach($kelases as $kelas)
+                            <option value="{{ $kelas }}" {{ request('kelas') == $kelas ? 'selected' : '' }}>
+                                Kelas {{ $kelas }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
                     <select name="major" class="form-select form-select-sm">
                         <option value="">-- Semua Jurusan --</option>
                         @foreach($majors as $major)
@@ -57,7 +67,7 @@
                         <option value="0" {{ request('status') === '0' ? 'selected' : '' }}>Tidak Aktif</option>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <button type="submit" class="btn btn-sm btn-primary">
                         <i class="bi bi-search"></i> Filter
                     </button>
@@ -74,8 +84,8 @@
                     <thead class="table-light">
                         <tr>
                             <th style="width: 50px;">No</th>
-                            <th>Kode</th>
                             <th>Nama Mata Pelajaran</th>
+                            <th style="width: 80px;">Kelas</th>
                             <th>Jurusan</th>
                             <th style="text-align: center;">Status</th>
                             <th style="width: 100px; text-align: center;">Aksi</th>
@@ -85,8 +95,14 @@
                         @foreach ($subjects as $key => $subject)
                             <tr>
                                 <td>{{ $subjects->firstItem() + $key }}</td>
-                                <td>{{ $subject->code }}</td>
                                 <td><strong>{{ $subject->name }}</strong></td>
+                                <td>
+                                    @if($subject->kelas)
+                                        Kelas {{ $subject->kelas }}
+                                    @else
+                                        <span class="text-muted small">Semua Kelas</span>
+                                    @endif
+                                </td>
                                 <td>{{ $subject->major }}</td>
                                 <td class="text-center">
                                     @if($subject->is_active)

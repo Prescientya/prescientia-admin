@@ -119,7 +119,7 @@ class Teacher extends Model
 
     /**
      * Ambil daftar nama mata pelajaran yang diajar guru.
-     * Contoh: $teacher->getSubjectNames() => ['Matematika', 'Fisika']
+     * Contoh: $teacher->getSubjectNames() => ['Matematika']
      * 
      * @return array
      */

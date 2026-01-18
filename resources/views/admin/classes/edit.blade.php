@@ -20,27 +20,24 @@
             
             <x-forms.section title="Informasi Kelas">
                 <x-forms.row-3>
-                    <x-forms.field-select 
+                    <x-forms.field-input 
                         label="Kelas" 
                         name="class" 
+                        type="number"
+                        min="1"
+                        max="99"
+                        placeholder="Contoh: 10, 11, 12"
                         required 
                         :value="old('class', $class->class)"
-                        :options="['10' => '10', '11' => '11', '12' => '12']"
                         :error="$errors->first('class')"
                     />
-                    <x-forms.field-select 
+                    <x-forms.field-input 
                         label="Jurusan/Program Keahlian" 
                         name="major" 
-                        :value="old('major', $class->major)"
-                        :options="[
-                            '' => 'Pilih Jurusan (opsional)',
-                            'Kuliner 1' => 'Kuliner 1',
-                            'Kuliner 2' => 'Kuliner 2',
-                            'Kuliner 3' => 'Kuliner 3',
-                            'Kuliner 4' => 'Kuliner 4',
-                            'Kuliner 5' => 'Kuliner 5'
-                        ]"
+                        type="text"
+                        placeholder="Contoh: RPL, Kuliner 1, IPA"
                         help="Bidang keahlian atau program studi (opsional)"
+                        :value="old('major', $class->major)"
                         :error="$errors->first('major')"
                     />
                 </x-forms.row-3>

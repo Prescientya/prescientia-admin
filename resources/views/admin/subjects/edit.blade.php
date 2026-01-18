@@ -30,12 +30,17 @@
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <label for="code" class="form-label required">Kode Mata Pelajaran</label>
-                        <input type="text" class="form-control @error('code') is-invalid @enderror" 
-                               id="code" name="code" value="{{ old('code', $subject->code) }}" maxlength="10" 
-                               placeholder="Contoh: MAT, BIO, FIS" required style="text-transform: uppercase;">
-                        <div class="form-text">Maksimal 10 karakter, akan otomatis uppercase</div>
-                        @error('code')
+                        <label for="kelas" class="form-label">Kelas</label>
+                        <select class="form-select @error('kelas') is-invalid @enderror" id="kelas" name="kelas">
+                            <option value="">-- Berlaku Semua Kelas --</option>
+                            @foreach($kelases as $kls)
+                                <option value="{{ $kls }}" {{ old('kelas', $subject->kelas) == $kls ? 'selected' : '' }}>
+                                    Kelas {{ $kls }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="form-text">Pilih kelas spesifik atau kosongkan untuk semua kelas</div>
+                        @error('kelas')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
@@ -88,10 +93,4 @@
     </div>
 </div>
 
-<script>
-// Auto uppercase kode
-document.getElementById('code').addEventListener('input', function() {
-    this.value = this.value.toUpperCase();
-});
-</script>
 @endsection

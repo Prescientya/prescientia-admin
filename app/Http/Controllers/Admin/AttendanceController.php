@@ -8,69 +8,149 @@ use App\Models\TeacherAttendance;
 use App\Models\SchoolCalendar;
 use App\Models\Student;
 use App\Models\Teacher;
+use App\Models\ClassModel;
+use App\Exports\StudentAttendanceExport;
+use App\Exports\TeacherAttendanceExport;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
 class AttendanceController extends Controller
 {
     /**
-     * Display a listing of the attendance.
+     * Display attendance for students (filtered, paginated).
      */
-    public function index(Request $request)
+    public function students(Request $request)
+    {
+        // Get filter parameters
+        $filters = [
+            'date_from' => $request->get('date_from'),
+            'date_to' => $request->get('date_to'),
+            'status' => $request->get('status'),
+            'class_number' => $request->get('class_number'),
+            'major' => $request->get('major'),
+            'keyword' => $request->get('keyword'),
+        ];
+
+        // Build query with relationships
+        $query = StudentAttendance::with(['student', 'class', 'calendar']);
+
+        // Apply filters
+        if ($filters['status']) {
+            $query->where('status', $filters['status']);
+        }
+
+        // Filter by class number (10, 11, 12) and/or major
+        if ($filters['class_number']) {
+            $query->whereHas('class', function ($q) use ($filters) {
+                $q->where('class', $filters['class_number']);
+                if ($filters['major']) {
+                    $q->where('major', $filters['major']);
+                }
+            });
+        } elseif ($filters['major']) {
+            // Filter by major only (all classes with this major)
+            $query->whereHas('class', function ($q) use ($filters) {
+                $q->where('major', $filters['major']);
+            });
+        }
+
+        if ($filters['date_from'] || $filters['date_to']) {
+            $query->whereHas('calendar', function ($q) use ($filters) {
+                if ($filters['date_from']) {
+                    $q->whereDate('date', '>=', $filters['date_from']);
+                }
+                if ($filters['date_to']) {
+                    $q->whereDate('date', '<=', $filters['date_to']);
+                }
+            });
+        }
+
+        if ($filters['keyword']) {
+            $query->whereHas('student', function ($q) use ($filters) {
+                $q->where('name', 'like', "%{$filters['keyword']}%")
+                  ->orWhere('nis', 'like', "%{$filters['keyword']}%");
+            });
+        }
+
+        // Paginate results (10 per page) and transform data
+        $records = $query->latest()
+            ->paginate(10)
+            ->through(function ($attendance) {
+                return (object) [
+                    'id' => $attendance->id,
+                    'role' => 'students',
+                    'name' => $attendance->student->name ?? '-',
+                    'class' => optional($attendance->class)->class,
+                    'status' => $attendance->status,
+                    'source' => $attendance->source,
+                    'date' => optional($attendance->calendar)->date,
+                ];
+            });
+
+        // Get unique class numbers (10, 11, 12) and majors for filter dropdowns
+        $classNumbers = ClassModel::select('class')->distinct()->orderBy('class')->pluck('class');
+        $majors = ClassModel::select('major')->distinct()->whereNotNull('major')->orderBy('major')->get();
+
+        return view('admin.attendances.students', compact('records', 'classNumbers', 'majors', 'filters'));
+    }
+
+    /**
+     * Export student attendance data to Excel based on current filters.
+     */
+    public function exportStudents(Request $request)
+    {
+        $filters = [
+            'date_from' => $request->get('date_from'),
+            'date_to' => $request->get('date_to'),
+            'status' => $request->get('status'),
+            'class_number' => $request->get('class_number'),
+            'major' => $request->get('major'),
+            'keyword' => $request->get('keyword'),
+        ];
+
+        $export = new StudentAttendanceExport($filters);
+        return $export->export();
+    }
+
+    /**
+     * Display attendance for teachers (filtered, paginated).
+     */
+    public function teachers(Request $request)
     {
         $dateFrom = $request->get('date_from');
         $dateTo = $request->get('date_to');
         $status = $request->get('status');
+        $subjectId = $request->get('subject_id');
         $keyword = $request->get('keyword');
-        $roleFilter = $request->get('role'); // 'students' | 'teachers' | null
 
-        // current calendar (used in the view header)
-        $today = Carbon::today();
-        $calendar = SchoolCalendar::whereDate('date', $today)->first();
-
-        // base queries
-        $studentQuery = StudentAttendance::with(['student', 'class', 'calendar']);
-        $teacherQuery = TeacherAttendance::with(['teacher', 'calendar']);
+        $query = TeacherAttendance::with(['teacher', 'calendar']);
 
         if ($status) {
-            $studentQuery->where('status', $status);
-            $teacherQuery->where('status', $status);
+            $query->where('status', $status);
         }
 
         if ($dateFrom || $dateTo) {
-            $studentQuery->whereHas('calendar', function($q) use ($dateFrom, $dateTo) {
+            $query->whereHas('calendar', function ($q) use ($dateFrom, $dateTo) {
                 if ($dateFrom) $q->whereDate('date', '>=', $dateFrom);
                 if ($dateTo) $q->whereDate('date', '<=', $dateTo);
             });
-            $teacherQuery->whereHas('calendar', function($q) use ($dateFrom, $dateTo) {
-                if ($dateFrom) $q->whereDate('date', '>=', $dateFrom);
-                if ($dateTo) $q->whereDate('date', '<=', $dateTo);
+        }
+
+        if ($subjectId) {
+            $query->whereHas('teacher', function ($q) use ($subjectId) {
+                $q->whereHas('subjects', function ($s) use ($subjectId) {
+                    $s->where('subjects.id', $subjectId);
+                });
             });
         }
 
         if ($keyword) {
-            $studentQuery->whereHas('student', function($q) use ($keyword) {
-                $q->where('name', 'like', "%{$keyword}%");
-            });
-            $teacherQuery->whereHas('teacher', function($q) use ($keyword) {
-                $q->where('name', 'like', "%{$keyword}%");
+            $query->whereHas('teacher', function ($q) use ($keyword) {
+                $q->where('name', 'like', "%{$keyword}%")->orWhere('nip', 'like', "%{$keyword}%");
             });
         }
 
-        $students = $studentQuery->get()->map(function($a) {
-            return (object) [
-                'id' => $a->id,
-                'role' => 'students',
-                'name' => $a->student->name ?? '-',
-                'class' => optional($a->class)->class,
-                'status' => $a->status,
-                'source' => $a->source,
-                'date' => optional($a->calendar)->date,
-                'model' => $a,
-            ];
-        });
-
-        $teachers = $teacherQuery->get()->map(function($a) {
+        $items = $query->latest()->get()->map(function ($a) {
             return (object) [
                 'id' => $a->id,
                 'role' => 'teachers',
@@ -83,201 +163,22 @@ class AttendanceController extends Controller
             ];
         });
 
-        // merge and sort by date desc (null dates last), then paginate
-        if ($roleFilter === 'students') {
-            $merged = $students;
-        } elseif ($roleFilter === 'teachers') {
-            $merged = $teachers;
-        } else {
-            $merged = $students->merge($teachers);
-        }
-
-        $merged = $merged->sortByDesc(function($item) {
-            return $item->date ?? '1970-01-01';
-        })->values();
-
-        $perPage = 15;
+        $perPage = 10;
         $page = $request->get('page', 1);
-        $total = $merged->count();
-        $items = $merged->forPage($page, $perPage);
+        $total = $items->count();
+        $pagerItems = $items->forPage($page, $perPage);
 
-        $paginator = new \Illuminate\Pagination\LengthAwarePaginator($items, $total, $perPage, $page, [
+        $paginator = new \Illuminate\Pagination\LengthAwarePaginator($pagerItems, $total, $perPage, $page, [
             'path' => \Illuminate\Pagination\Paginator::resolveCurrentPath(),
             'query' => $request->query(),
         ]);
 
-        // Provide some totals for summary if needed
-        $totalStudents = Student::count();
-        $totalTeachers = Teacher::count();
+        $subjects = \App\Models\Subject::orderBy('name')->get();
 
-        $studentStats = [
-            'hadir' => StudentAttendance::where('status','hadir')->count(),
-            'sakit' => StudentAttendance::where('status','sakit')->count(),
-            'izin' => StudentAttendance::where('status','izin')->count(),
-            'alpa' => StudentAttendance::where('status','alpa')->count(),
-        ];
-
-        $teacherStats = [
-            'hadir' => TeacherAttendance::where('status','hadir')->count(),
-            'sakit' => TeacherAttendance::where('status','sakit')->count(),
-            'izin' => TeacherAttendance::where('status','izin')->count(),
-            'dinas' => TeacherAttendance::where('status','dinas')->count(),
-        ];
-
-        // If AJAX, return partial table only
-        if ($request->ajax() || $request->get('ajax')) {
-            return view('admin.attendances._table', ['attendances' => $paginator]);
-        }
-
-        return view('admin.attendances.index', compact(
-            'paginator',
-            'calendar',
-            'totalStudents',
-            'totalTeachers',
-            'studentStats',
-            'teacherStats'
-        ));
+        return view('admin.attendances.teachers', compact('paginator', 'subjects', 'dateFrom', 'dateTo', 'status', 'subjectId', 'keyword'));
     }
 
-    /**
-     * History / filtered listing of attendance (students or teachers)
-     */
-    public function history(Request $request)
-    {
-        // prepare today's data so the main tabs still render
-        $today = Carbon::today();
-        $calendar = SchoolCalendar::whereDate('date', $today)->first();
-        $studentAttendances = StudentAttendance::with(['student', 'class', 'calendar'])
-            ->when($calendar, function($query) use ($calendar) {
-                return $query->where('calendar_id', $calendar->id);
-            })
-            ->latest()
-            ->paginate(15, ['*'], 'students_page');
-        $teacherAttendances = TeacherAttendance::with(['teacher', 'calendar'])
-            ->when($calendar, function($query) use ($calendar) {
-                return $query->where('calendar_id', $calendar->id);
-            })
-            ->latest()
-            ->paginate(15, ['*'], 'teachers_page');
-        $totalStudents = Student::count();
-        $totalTeachers = Teacher::count();
-        $studentStats = [
-            'hadir' => StudentAttendance::when($calendar, function($q) use ($calendar) {
-                return $q->where('calendar_id', $calendar->id);
-            })->where('status', 'hadir')->count(),
-            'sakit' => StudentAttendance::when($calendar, function($q) use ($calendar) {
-                return $q->where('calendar_id', $calendar->id);
-            })->where('status', 'sakit')->count(),
-            'izin' => StudentAttendance::when($calendar, function($q) use ($calendar) {
-                return $q->where('calendar_id', $calendar->id);
-            })->where('status', 'izin')->count(),
-            'alpa' => StudentAttendance::when($calendar, function($q) use ($calendar) {
-                return $q->where('calendar_id', $calendar->id);
-            })->where('status', 'alpa')->count(),
-        ];
-        $teacherStats = [
-            'hadir' => TeacherAttendance::when($calendar, function($q) use ($calendar) {
-                return $q->where('calendar_id', $calendar->id);
-            })->where('status', 'hadir')->count(),
-            'sakit' => TeacherAttendance::when($calendar, function($q) use ($calendar) {
-                return $q->where('calendar_id', $calendar->id);
-            })->where('status', 'sakit')->count(),
-            'izin' => TeacherAttendance::when($calendar, function($q) use ($calendar) {
-                return $q->where('calendar_id', $calendar->id);
-            })->where('status', 'izin')->count(),
-            'dinas' => TeacherAttendance::when($calendar, function($q) use ($calendar) {
-                return $q->where('calendar_id', $calendar->id);
-            })->where('status', 'dinas')->count(),
-        ];
-
-        $role = $request->get('role', 'students'); // 'students' or 'teachers'
-        $dateFrom = $request->get('date_from');
-        $dateTo = $request->get('date_to');
-        $status = $request->get('status');
-        $classId = $request->get('class_id');
-        $keyword = $request->get('keyword');
-
-        if ($role === 'teachers') {
-            $query = TeacherAttendance::with(['teacher', 'calendar']);
-
-            if ($status) {
-                $query->where('status', $status);
-            }
-
-            if ($dateFrom || $dateTo) {
-                $query->whereHas('calendar', function($q) use ($dateFrom, $dateTo) {
-                    if ($dateFrom) $q->whereDate('date', '>=', $dateFrom);
-                    if ($dateTo) $q->whereDate('date', '<=', $dateTo);
-                });
-            }
-
-            if ($keyword) {
-                $query->whereHas('teacher', function($q) use ($keyword) {
-                    $q->where('name', 'like', "%{$keyword}%");
-                });
-            }
-
-            $results = $query->latest()->paginate(25, ['*'], 'history_page');
-        } else {
-            $query = StudentAttendance::with(['student', 'class', 'calendar']);
-
-            if ($status) {
-                $query->where('status', $status);
-            }
-
-            if ($classId) {
-                $query->where('class_id', $classId);
-            }
-
-            if ($dateFrom || $dateTo) {
-                $query->whereHas('calendar', function($q) use ($dateFrom, $dateTo) {
-                    if ($dateFrom) $q->whereDate('date', '>=', $dateFrom);
-                    if ($dateTo) $q->whereDate('date', '<=', $dateTo);
-                });
-            }
-
-            if ($keyword) {
-                $query->whereHas('student', function($q) use ($keyword) {
-                    $q->where('name', 'like', "%{$keyword}%");
-                });
-            }
-
-            $results = $query->latest()->paginate(25, ['*'], 'history_page');
-        }
-
-        return view('admin.attendances.index', compact(
-            'studentAttendances',
-            'teacherAttendances',
-            'calendar',
-            'totalStudents',
-            'totalTeachers',
-            'studentStats',
-            'teacherStats',
-            'results',
-            'role',
-            'dateFrom',
-            'dateTo',
-            'status',
-            'classId',
-            'keyword'
-        ));
-    }
-
-    /**
-     * Display attendance for students.
-     */
-    public function students()
-    {
-        return view('admin.attendances.students');
-    }
-
-    /**
-     * Display attendance for teachers.
-     */
-    public function teachers()
-    {
-        return view('admin.attendances.teachers');
-    }
+    // (No duplicate no-argument wrappers — route methods accept Request directly.)
 
     /**
      * Record attendance.
@@ -285,8 +186,7 @@ class AttendanceController extends Controller
     public function record(Request $request)
     {
         // Logic untuk record attendance akan ditambahkan nanti
-        return redirect()->route('admin.attendances.index')
-            ->with('success', 'Absensi berhasil direkam');
+        return back()->with('success', 'Absensi berhasil direkam');
     }
 
     /**
@@ -329,6 +229,23 @@ class AttendanceController extends Controller
         $attendance->source = 'manual';
         $attendance->save();
 
-        return redirect()->route('admin.attendances.index')->with('success', 'Status absensi berhasil diperbarui.');
+        return back()->with('success', 'Status absensi berhasil diperbarui.');
+    }
+
+    /**
+     * Export teacher attendance data to Excel based on current filters.
+     */
+    public function exportTeachers(Request $request)
+    {
+        $filters = [
+            'date_from' => $request->get('date_from'),
+            'date_to' => $request->get('date_to'),
+            'status' => $request->get('status'),
+            'subject_id' => $request->get('subject_id'),
+            'keyword' => $request->get('keyword'),
+        ];
+
+        $export = new TeacherAttendanceExport($filters);
+        return $export->export();
     }
 }

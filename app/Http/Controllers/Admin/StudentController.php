@@ -13,6 +13,12 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use App\Enums\StudentRole;
 use App\Services\StudentRoleService;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use App\Exports\StudentTemplateExport;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Illuminate\Support\Facades\Log;
 
 class StudentController extends Controller
 {
@@ -24,6 +30,46 @@ class StudentController extends Controller
         $students = Student::with(['user', 'class'])->paginate(10);
         $totalStudents = Student::count();
         return view('admin.students.index', compact('students', 'totalStudents'));
+    }
+
+    /**
+     * Parse a human-friendly class name like "X IPA 1" or "10 IPA 1"
+     * into an array with keys: ['class' => int, 'major' => string|null]
+     */
+    private function parseClassName(?string $text)
+    {
+        if (empty($text)) {
+            return null;
+        }
+
+        $text = trim($text);
+        // normalize whitespace
+        $parts = preg_split('/\s+/', $text);
+        if (empty($parts)) {
+            return null;
+        }
+
+        $first = strtoupper($parts[0]);
+        $romanMap = [
+            'X' => 10,
+            'XI' => 11,
+            'XII' => 12,
+            'IX' => 9,
+        ];
+
+        $classNum = null;
+        if (isset($romanMap[$first])) {
+            $classNum = $romanMap[$first];
+        } elseif (is_numeric($first)) {
+            $classNum = (int) $first;
+        }
+
+        $major = null;
+        if (count($parts) > 1) {
+            $major = implode(' ', array_slice($parts, 1));
+        }
+
+        return ['class' => $classNum, 'major' => $major];
     }
 
     /**
@@ -65,7 +111,7 @@ class StudentController extends Controller
                 'password' => Hash::make($request->nish),
             ]);
 
-            Student::create([
+            $student = Student::create([
                 'user_id' => $user->id,
                 'nis' => $request->nish,
                 'name' => $request->name,
@@ -76,6 +122,15 @@ class StudentController extends Controller
                 'class_id' => $request->class_id,
                 'photo_profile' => $photoPath,
             ]);
+
+            // Assign default role 'Pelajar' to the newly created student
+            try {
+                $service = new StudentRoleService();
+                $service->assignDefaultRole($student);
+            } catch (\Throwable $e) {
+                // Log warning but don't fail the transaction
+                \Log::warning('Failed to assign default role to new student', ['student_id' => $student->id, 'error' => $e->getMessage()]);
+            }
         });
 
         return redirect()->route('admin.students.index')
@@ -165,7 +220,7 @@ class StudentController extends Controller
 
             if ($request->hasFile('photo_profile')) {
                 if ($student->photo_profile) {
-                    \Storage::disk('public')->delete($student->photo_profile);
+                    Storage::disk('public')->delete($student->photo_profile);
                 }
                 $studentData['photo_profile'] = $request->file('photo_profile')->store('students', 'public');
             }
@@ -191,12 +246,433 @@ class StudentController extends Controller
         $student = Student::findOrFail($id);
         
         DB::transaction(function () use ($student) {
-            $student->delete();
-            $student->user->delete();
+            // Force delete both student and user completely (not soft delete)
+            $user = $student->user;
+            $student->forceDelete();
+            if ($user) {
+                $user->forceDelete();
+            }
         });
 
         return redirect()->route('admin.students.index')
             ->with('success', 'Data siswa berhasil dihapus');
+    }
+
+    /**
+     * Show form for bulk import via Excel.
+     */
+    public function importForm()
+    {
+        // Redirect to the students index and open the import modal there.
+        return redirect()->route('admin.students.index', ['show_import' => 1]);
+    }
+
+    /**
+     * Handle Excel upload and import students using PhpSpreadsheet.
+     * This method performs a comprehensive prescan to detect:
+     * 1. Validation errors (format, required fields)
+     * 2. Missing classes
+     * Then shows appropriate view or proceeds with import
+     */
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls',
+        ]);
+
+        $file = $request->file('file');
+        try {
+            $spreadsheet = IOFactory::load($file->getRealPath());
+            $worksheet = $spreadsheet->getActiveSheet();
+            
+            // Comprehensive prescan: validation errors + missing data
+            $importer = new \App\Imports\StudentsImport();
+            $scanResult = $importer->prescanWorksheet($worksheet);
+            
+            // Combine all errors: validation errors + missing classes
+            $allErrors = array_merge(
+                $scanResult['validationErrors'],
+                $scanResult['missingClasses']
+            );
+            
+            // If there are any errors (validation or missing classes), show error view
+            if (!empty($allErrors)) {
+                // Ensure folder exists before storing
+                if (!Storage::exists('imports')) {
+                    Storage::makeDirectory('imports');
+                }
+                
+                $stored = $file->store('imports');
+                \Log::info('File stored for import', ['path' => $stored]);
+                
+                // Check if errors are only missing classes (no validation errors)
+                if (empty($scanResult['validationErrors']) && !empty($scanResult['missingClasses'])) {
+                    // Show confirmation view with option to create missing classes
+                    return view('admin.students.import_confirm_dependencies', [
+                        'missingClasses' => $scanResult['missingClasses'],
+                        'filePath' => $stored,
+                        'rowCount' => $scanResult['totalRows'],
+                    ]);
+                } else {
+                    // Show error details view
+                    return view('admin.students.import_error_details', [
+                        'validationErrors' => $allErrors,
+                        'filePath' => $stored,
+                        'totalRows' => $scanResult['totalRows'],
+                        'errorCount' => count($allErrors),
+                    ]);
+                }
+            }
+
+            // All validations pass, proceed with import
+            $importer = new \App\Imports\StudentsImport();
+            $importer->processWorksheet($worksheet);
+            $success = $importer->getSuccessCount();
+            $failures = $importer->getFailures();
+            
+            // If there are import failures, show error details
+            if (!empty($failures)) {
+                return view('admin.students.import_error_details', [
+                    'validationErrors' => $failures,
+                    'filePath' => null,
+                    'totalRows' => $success + count($failures),
+                    'errorCount' => count($failures),
+                    'successCount' => $success,
+                ]);
+            }
+            
+            return redirect()->route('admin.students.index')
+                ->with('success', "✅ Import berhasil: {$success} siswa ditambahkan");
+        } catch (\Throwable $e) {
+            \Log::error('Import students failed', ['exception' => $e]);
+            return redirect()->back()->with('error', 'Gagal memproses file Excel: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Create missing classes and import students
+     */
+    public function createMissingAndImport(Request $request)
+    {
+        $request->validate([
+            'filePath' => 'required|string',
+            'missingClasses' => 'nullable|array',
+        ]);
+
+        $filePath = $request->input('filePath');
+        $missingClassesData = $request->input('missingClasses', []);
+        $classesCreated = 0;
+        $studentsCreated = 0;
+        $studentsFailed = 0;
+        $tempPath = null;
+
+        try {
+            // Ensure imports folder exists
+            if (!Storage::exists('imports')) {
+                Storage::makeDirectory('imports');
+            }
+
+            // Construct full path based on local disk configuration
+            // Default 'local' disk stores in storage_path('app/private')
+            $localDiskRoot = storage_path('app/private');
+            $fullFilePath = $localDiskRoot . DIRECTORY_SEPARATOR . $filePath;
+            
+            \Log::info('Attempting to load import file', [
+                'filePath' => $filePath,
+                'fullPath' => $fullFilePath,
+                'exists' => file_exists($fullFilePath),
+                'localDiskRoot' => $localDiskRoot,
+            ]);
+
+            // Check if file exists at the actual path
+            if (!file_exists($fullFilePath)) {
+                // Fallback: try alternate path without the local disk root prefix
+                $alternatePath = storage_path('app') . DIRECTORY_SEPARATOR . $filePath;
+                if (!file_exists($alternatePath)) {
+                    \Log::error('File not found in either location', [
+                        'attempted_path' => $fullFilePath,
+                        'alternate_path' => $alternatePath,
+                        'imports_folder_contents' => array_map(
+                            fn($f) => basename($f),
+                            glob(storage_path('app/private/imports') . '/*') ?: []
+                        )
+                    ]);
+                    throw new \Exception('File import tidak ditemukan. Path dicoba: ' . $filePath);
+                }
+                $fullFilePath = $alternatePath;
+            }
+
+            // Read file directly and write to temp
+            $fileContent = file_get_contents($fullFilePath);
+            if ($fileContent === false) {
+                throw new \Exception('Gagal membaca file import: ' . $filePath);
+            }
+            
+            // Write to system temp file for processing
+            $tempPath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'student_import_' . uniqid() . '.xlsx';
+            if (file_put_contents($tempPath, $fileContent) === false) {
+                throw new \Exception('Gagal menyimpan file ke temp directory');
+            }
+            
+            \Log::info('File loaded and temp file created', ['tempPath' => $tempPath]);
+            
+            try {
+                $spreadsheet = IOFactory::load($tempPath);
+                $worksheet = $spreadsheet->getActiveSheet();
+
+                // Create missing classes and count how many were created
+                $classesCreated = $this->createMissingClasses($missingClassesData);
+
+                // Proceed with import
+                $importer = new \App\Imports\StudentsImport();
+                $importer->processWorksheet($worksheet);
+                $studentsCreated = $importer->getSuccessCount();
+                $studentsFailed = count($importer->getFailures());
+                
+                \Log::info('Import completed successfully', [
+                    'classesCreated' => $classesCreated,
+                    'studentsCreated' => $studentsCreated,
+                    'studentsFailed' => $studentsFailed,
+                ]);
+            } finally {
+                // Clean up temp file
+                if ($tempPath && file_exists($tempPath)) {
+                    unlink($tempPath);
+                    \Log::debug('Temp file cleaned up', ['tempPath' => $tempPath]);
+                }
+            }
+            
+            // Cleanup storage file
+            try {
+                if (file_exists($fullFilePath)) {
+                    unlink($fullFilePath);
+                    \Log::debug('Original import file deleted', ['path' => $fullFilePath]);
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Failed to delete original import file', ['path' => $fullFilePath, 'error' => $e->getMessage()]);
+            }
+
+            // Build message
+            $message = "✅ Kelas dibuat: {$classesCreated} | Siswa berhasil: {$studentsCreated}";
+            if ($studentsFailed > 0) {
+                $message = "⚠️ Kelas dibuat: {$classesCreated} | Siswa berhasil: {$studentsCreated} | Siswa gagal: {$studentsFailed}";
+            }
+
+            return redirect()->route('admin.students.index')
+                ->with('success', $message);
+        } catch (\Throwable $e) {
+            \Log::error('Create missing classes and import failed', ['exception' => $e]);
+            return redirect()->route('admin.students.index')
+                ->with('error', 'Gagal membuat kelas dan mengimport: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Create missing classes from import and return count of classes created
+     */
+    private function createMissingClasses(array $classesData): int
+    {
+        $created = 0;
+        
+        DB::transaction(function () use ($classesData, &$created) {
+            foreach ($classesData as $item) {
+                $classNumber = isset($item['class']) ? (int)$item['class'] : null;
+                $major = isset($item['major']) ? trim($item['major']) : null;
+
+                if (!$classNumber || empty($major)) {
+                    continue;
+                }
+
+                // Check again in case of race condition
+                $exists = ClassModel::where('class', $classNumber)
+                    ->where('major', $major)
+                    ->exists();
+                
+                if (!$exists) {
+                    try {
+                        ClassModel::create([
+                            'class' => $classNumber,
+                            'major' => $major,
+                        ]);
+                        $created++;
+                        Log::info('Created missing class', [
+                            'class' => $classNumber,
+                            'major' => $major,
+                        ]);
+                    } catch (\Throwable $e) {
+                        Log::error('Failed to create class', [
+                            'class' => $classNumber,
+                            'major' => $major,
+                            'error' => $e->getMessage()
+                        ]);
+                    }
+                }
+            }
+        });
+        
+        return $created;
+    }
+
+    /**
+     * Download sample Excel template for students import using PhpSpreadsheet.
+     */
+    public function downloadTemplate()
+    {
+        $export = new StudentTemplateExport();
+        $spreadsheet = $export->generate();
+        
+        $filename = 'Template_Import_Siswa_' . date('Y-m-d_His') . '.xlsx';
+        
+        $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
+        
+        $response = new StreamedResponse(function() use ($writer) {
+            $writer->save('php://output');
+        });
+        
+        $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->headers->set('Content-Disposition', 'attachment; filename="' . $filename . '"');
+        
+        return $response;
+    }
+
+    /**
+     * Process an uploaded worksheet and perform imports.
+     * Returns [successCount, failuresArray]
+     */
+    private function processImportSpreadsheet($worksheet)
+    {
+        $rows = $worksheet->toArray();
+        $success = 0;
+        $failures = [];
+
+        foreach ($rows as $index => $row) {
+            if ($index === 0) continue;
+            $rowNumber = $index + 1;
+
+            $data = [
+                'email' => isset($row[0]) ? trim($row[0]) : null,
+                'nis' => isset($row[1]) ? trim($row[1]) : null,
+                'name' => isset($row[2]) ? trim($row[2]) : null,
+                'gender' => isset($row[3]) ? trim($row[3]) : null,
+                'birth_date' => isset($row[4]) ? trim($row[4]) : null,
+                'phone' => isset($row[5]) ? trim($row[5]) : null,
+                'address' => isset($row[6]) ? trim($row[6]) : null,
+                'class_name' => isset($row[7]) ? trim($row[7]) : null,
+            ];
+
+            if (empty($data['email']) && empty($data['nis']) && empty($data['name'])) {
+                continue;
+            }
+
+            $validator = \Illuminate\Support\Facades\Validator::make($data, [
+                'email' => 'required|email|unique:users,email',
+                'nis' => 'required|unique:students,nis',
+                'name' => 'required|string',
+                'gender' => 'required|string',
+                'birth_date' => 'required|date_format:Y-m-d',
+                'class_name' => 'required|string',
+            ]);
+
+            if ($validator->fails()) {
+                $failures[] = ['row' => $rowNumber, 'data' => $data, 'errors' => $validator->errors()->all()];
+                continue;
+            }
+
+            // resolve class (should exist now)
+            $provided = $data['class_name'];
+            $parsed = $this->parseClassName($provided);
+            $class = null;
+            if ($parsed && isset($parsed['class'])) {
+                $query = ClassModel::where('class', $parsed['class']);
+                if (!empty($parsed['major'])) {
+                    $query->where('major', $parsed['major']);
+                }
+                $class = $query->first();
+                if (!$class && !empty($parsed['major'])) {
+                    $class = ClassModel::where('class', $parsed['class'])
+                        ->where('major', 'ilike', '%' . $parsed['major'] . '%')
+                        ->first();
+                }
+            } else {
+                $class = ClassModel::where('major', $provided)->first();
+            }
+
+            if (!$class) {
+                $failures[] = ['row' => $rowNumber, 'data' => $data, 'errors' => ["Kelas \"{$provided}\" tidak ditemukan saat pemrosesan akhir"]];
+                continue;
+            }
+
+            try {
+                DB::transaction(function () use ($data, $class) {
+                    $user = User::create(['email' => $data['email'], 'password' => Hash::make($data['nis'])]);
+                    $student = Student::create([
+                        'user_id' => $user->id,
+                        'nis' => $data['nis'],
+                        'name' => $data['name'],
+                        'gender' => $data['gender'],
+                        'date_of_birth' => $data['birth_date'],
+                        'phone_number' => $data['phone'],
+                        'address' => $data['address'],
+                        'class_id' => $class->id,
+                    ]);
+
+                    // Assign default role 'Pelajar' to the newly created student
+                    try {
+                        $service = new StudentRoleService();
+                        $service->assignDefaultRole($student);
+                    } catch (\Throwable $e) {
+                        \Log::warning('Failed to assign default role to imported student', ['student_id' => $student->id, 'nis' => $data['nis'], 'error' => $e->getMessage()]);
+                    }
+                });
+                $success++;
+            } catch (\Throwable $e) {
+                \Log::error('Import student row failed', ['row' => $rowNumber, 'data' => $data, 'exception' => $e]);
+                $failures[] = ['row' => $rowNumber, 'data' => $data, 'errors' => ['Terjadi kesalahan saat menyimpan data pada baris ini.']];
+            }
+        }
+
+        return [$success, $failures];
+    }
+
+    /**
+     * Process creation of selected missing classes and then import from stored file.
+     */
+    public function importProcess(Request $request)
+    {
+        $request->validate([
+            'path' => 'required|string',
+            'create_classes' => 'nullable|array',
+        ]);
+
+        $path = $request->input('path');
+        $toCreate = $request->input('create_classes', []);
+
+        // Create classes requested by admin
+        foreach ($toCreate as $classLabel) {
+            $parsed = $this->parseClassName($classLabel);
+            $data = ['major' => $parsed['major'] ?? null, 'class' => $parsed['class'] ?? null];
+            if (empty($data['class'])) continue;
+            $exists = ClassModel::where('class', $data['class'])->where('major', $data['major'])->first();
+            if (!$exists) {
+                ClassModel::create($data);
+            }
+        }
+
+        // Load stored file and process
+        try {
+            $full = storage_path('app/' . $path);
+            $spreadsheet = IOFactory::load($full);
+            $worksheet = $spreadsheet->getActiveSheet();
+            [$success, $failures] = $this->processImportSpreadsheet($worksheet);
+        } catch (\Throwable $e) {
+            \Log::error('Import process failed', ['exception' => $e]);
+            return redirect()->back()->with('error', 'Gagal memproses file setelah membuat kelas.');
+        }
+
+        // cleanup
+        try { \Storage::delete($path); } catch (\Throwable $e) { /* ignore */ }
+
+        return view('admin.students.import_result', ['successCount' => $success, 'failures' => $failures]);
     }
 }
 

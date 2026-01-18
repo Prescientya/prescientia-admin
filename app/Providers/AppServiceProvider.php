@@ -32,11 +32,6 @@ class AppServiceProvider extends ServiceProvider
         
         // Share recent activities with all views for header notification
         View::composer('*', function($view) {
-            // Eager load admin relation for authenticated user
-            if (auth()->check()) {
-                auth()->user()->load(['admin', 'teacher', 'student']);
-            }
-            
             $recentActivities = $this->getRecentActivities();
             $view->with('recentActivities', $recentActivities);
         });
