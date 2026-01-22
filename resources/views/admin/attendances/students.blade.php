@@ -21,6 +21,17 @@
 .status-dinas { background-color: #e7e7ff; color: #3a3a8f; }
 .status-terlambat { background-color: #ffe5cc; color: #cc5500; }
 
+/* Filter Grid Layout - Force 3 columns per row */
+#filter-form {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+#filter-form .col-md-12 {
+    grid-column: 1 / -1;
+}
+
 /* Pagination Styles */
 .pagination-section {
     margin-top: 3rem;
@@ -108,7 +119,7 @@
     <div class="card-body">
         <div class="mb-3">
             <form id="filter-form" class="row g-2">
-                <div class="col-md-2">
+                <div class="col-md-4">
                     <label class="form-label">Jurusan</label>
                     <select name="major" id="major-filter" class="form-select">
                         <option value="">Semua Jurusan</option>
@@ -119,7 +130,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-2">
+                <div class="col-md-4">
                     <label class="form-label">Kelas</label>
                     <select name="class_number" id="class-filter" class="form-select">
                         <option value="">Semua Kelas</option>
@@ -130,15 +141,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">Dari</label>
-                    <input type="date" name="date_from" class="form-control" value="{{ $filters['date_from'] ?? '' }}">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label">Sampai</label>
-                    <input type="date" name="date_to" class="form-control" value="{{ $filters['date_to'] ?? '' }}">
-                </div>
-                <div class="col-md-2">
+                <div class="col-md-4">
                     <label class="form-label">Status</label>
                     <select name="status" class="form-select">
                         <option value="">Semua Status</option>
@@ -148,10 +151,18 @@
                         <option value="alpa" {{ $filters['status'] == 'alpa' ? 'selected' : '' }}>Alpa</option>
                     </select>
                 </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="button" id="clear-filters" class="btn btn-outline-secondary w-100">Reset</button>
+                <div class="col-md-4">
+                    <label class="form-label">Dari</label>
+                    <input type="date" name="date_from" class="form-control" value="{{ $filters['date_from'] ?? '' }}">
                 </div>
-                <div class="col-md-12">
+                <div class="col-md-4">
+                    <label class="form-label">Sampai</label>
+                    <input type="date" name="date_to" class="form-control" value="{{ $filters['date_to'] ?? '' }}">
+                </div>
+                <div class="col-md-4 d-flex">
+                    <button type="button" id="clear-filters" class="btn btn-outline-secondary w-100 h-10 py-2 mt-8">Reset</button>
+                </div>
+                <div class="col-md-12 mb-10">
                     <label class="form-label">Cari (Nama / NIS)</label>
                     <input type="text" name="keyword" class="form-control" placeholder="Ketik nama atau NIS" value="{{ $filters['keyword'] ?? '' }}">
                 </div>
@@ -159,8 +170,12 @@
         </div>
 
         @if($records->count() > 0)
-            <!-- Export Button -->
-            <div class="mb-3 d-flex justify-content-end">
+            <!-- Title and Buttons in One Row -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Recap Absen Siswa</h5>
+                <button type="button" class="btn btn-primary" onclick="openInputAbsenModal()">
+                    <i class="bi bi-plus-circle"></i> Input Absen Siswa
+                </button>
                 <a href="{{ route('admin.attendances.students.export', array_filter([
                     'date_from' => $filters['date_from'],
                     'date_to' => $filters['date_to'],
@@ -310,10 +325,135 @@
         @endif
     </div>
 </div>
+
+<!-- Modal Input Absen Siswa -->
+<div id="inputAbsenModal" class="simple-modal" aria-hidden="true">
+    <div class="simple-modal-backdrop" data-modal-close></div>
+    <div class="simple-modal-dialog">
+        <div class="simple-modal-header">
+            <h5>Input Absen Siswa</h5>
+            <button type="button" class="simple-modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="simple-modal-body">
+            <form id="inputAbsenForm">
+                @csrf
+                <div class="mb-3">
+                    <label for="studentSearch" class="form-label">Nama Siswa</label>
+                    <input type="text" class="form-control" id="studentSearch" placeholder="Ketik nama siswa..." autocomplete="off" required>
+                    <input type="hidden" id="studentId" name="student_id">
+                    <div id="studentSuggestions" class="list-group mt-1" style="position: absolute; z-index: 1060; max-height: 200px; overflow-y: auto; display: none;"></div>
+                    <small class="text-muted">Ketik untuk melihat siswa yang belum absen hari ini</small>
+                </div>
+                <div class="mb-3">
+                    <label for="attendanceDate" class="form-label">Tanggal</label>
+                    <input type="date" class="form-control" id="attendanceDate" name="date" value="{{ date('Y-m-d') }}" required>
+                </div>
+                <div class="mb-3">
+                    <label for="attendanceStatus" class="form-label">Status</label>
+                    <select class="form-select" id="attendanceStatus" name="status" required>
+                        <option value="">Pilih Status</option>
+                        <option value="hadir">Hadir</option>
+                        <option value="izin">Izin</option>
+                        <option value="sakit">Sakit</option>
+                        <option value="alpa">Alpha</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+        <div class="simple-modal-footer">
+            <button type="button" class="btn btn-secondary" data-modal-close>Batal</button>
+            <button type="button" class="btn btn-primary" id="submitAbsen">Simpan Absensi</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.simple-modal { display: none; position: fixed; inset: 0; z-index: 1050; }
+.simple-modal.show { display: block; }
+.simple-modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.5); }
+.simple-modal-dialog { position: relative; max-width: 600px; margin: 6% auto; background: #fff; border-radius: 6px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+.simple-modal-header { display:flex; justify-content:space-between; align-items:center; padding:16px; border-bottom:1px solid #eee; }
+.simple-modal-body { padding:16px; }
+.simple-modal-footer { padding:12px 16px; text-align:right; border-top:1px solid #eee; }
+.simple-modal-close { background:none; border:0; font-size:20px; line-height:1; cursor:pointer; }
+
+/* Autocomplete suggestion styling */
+#studentSuggestions {
+    background: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    z-index: 2000;
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 0;
+    margin-top: 4px;
+}
+#studentSuggestions .suggestion-item {
+    display: block;
+    padding: 12px 14px;
+    border-bottom: 1px solid #f0f0f0;
+    background: #ffffff;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s ease;
+}
+#studentSuggestions .suggestion-item:last-child {
+    border-bottom: none;
+}
+#studentSuggestions .suggestion-item:hover {
+    background: #f5f9ff;
+    padding-left: 16px;
+}
+#studentSuggestions .suggestion-item .student-name {
+    display: block;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+#studentSuggestions .suggestion-item .student-info {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    line-height: 1.4;
+}
+</style>
+
 @endsection
 
 @section('scripts')
 <script>
+// Modal functions
+function openInputAbsenModal() {
+    const modal = document.getElementById('inputAbsenModal');
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeInputAbsenModal() {
+    const modal = document.getElementById('inputAbsenModal');
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+}
+
+// Setup modal close handlers
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('inputAbsenModal');
+    if (modal) {
+        modal.querySelectorAll('[data-modal-close]').forEach(function(el) {
+            el.addEventListener('click', closeInputAbsenModal);
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && modal.classList.contains('show')) closeInputAbsenModal();
+        });
+    }
+});
+
+// Filter form
 (() => {
     const form = document.getElementById('filter-form');
 
@@ -323,9 +463,134 @@
     });
 
     document.getElementById('clear-filters').addEventListener('click', () => {
-        form.reset();
+        // Explicitly clear all form controls (selects, inputs, dates, text)
+        form.querySelectorAll('select').forEach(s => { s.value = ''; });
+        form.querySelectorAll('input').forEach(i => {
+            if (i.type === 'checkbox' || i.type === 'radio') {
+                i.checked = false;
+            } else {
+                i.value = '';
+            }
+        });
+        // Remove any page param from the URL when submitting to reset pagination
+        const pageInput = document.querySelector('input[name="page"]');
+        if (pageInput) pageInput.remove();
+
         form.submit();
     });
+})();
+
+// Student Autocomplete and Submission
+(() => {
+    const studentSearch = document.getElementById('studentSearch');
+    const studentId = document.getElementById('studentId');
+    const suggestions = document.getElementById('studentSuggestions');
+    const submitBtn = document.getElementById('submitAbsen');
+    let debounceTimer;
+
+    // Autocomplete functionality
+    studentSearch.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        const query = this.value.trim();
+        
+        if (query.length < 2) {
+            suggestions.style.display = 'none';
+            studentId.value = '';
+            return;
+        }
+
+        debounceTimer = setTimeout(() => {
+            fetch(`{{ route('admin.attendances.students.search-unattended') }}?q=${encodeURIComponent(query)}&date=${document.getElementById('attendanceDate').value}`)
+                .then(response => response.json())
+                .then(data => {
+                    suggestions.innerHTML = '';
+                    
+                    if (data.length === 0) {
+                        suggestions.innerHTML = '<div class="list-group-item text-muted">Tidak ada siswa yang ditemukan</div>';
+                    } else {
+                        data.forEach(student => {
+                            const item = document.createElement('a');
+                            item.href = '#';
+                            item.className = 'suggestion-item';
+                            item.innerHTML = `
+                                <span class="student-name">${student.name}</span>
+                                <span class="student-info">NIS: ${student.nis} | Kelas: ${student.class || '-'}</span>
+                            `;
+                            item.addEventListener('click', (e) => {
+                                e.preventDefault();
+                                studentSearch.value = student.name;
+                                studentId.value = student.id;
+                                suggestions.style.display = 'none';
+                            });
+                            suggestions.appendChild(item);
+                        });
+                    }
+                    
+                    suggestions.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error fetching students:', error);
+                    suggestions.innerHTML = '<div class="list-group-item text-danger">Error memuat data</div>';
+                    suggestions.style.display = 'block';
+                });
+        }, 300);
+    });
+
+    // Hide suggestions when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!studentSearch.contains(e.target) && !suggestions.contains(e.target)) {
+            suggestions.style.display = 'none';
+        }
+    });
+
+    // Submit attendance
+    submitBtn.addEventListener('click', function() {
+        const form = document.getElementById('inputAbsenForm');
+        const formData = new FormData(form);
+        
+        if (!studentId.value) {
+            alert('Silakan pilih siswa dari daftar');
+            return;
+        }
+
+        if (!formData.get('status')) {
+            alert('Silakan pilih status kehadiran');
+            return;
+        }
+
+        formData.append('student_id', studentId.value);
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Menyimpan...';
+
+        fetch('{{ route("admin.attendances.students.store") }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+                'Accept': 'application/json',
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Absensi berhasil disimpan!');
+                location.reload();
+            } else {
+                alert(data.message || 'Terjadi kesalahan saat menyimpan');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Simpan Absensi';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Terjadi kesalahan saat menyimpan absensi');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Simpan Absensi';
+        });
+    });
+
+    // Reset form when modal is closed - tidak perlu lagi karena sudah di handle di closeInputAbsenModal
 })();
 </script>
 <script src="{{ asset('js/action-dropdown.js') }}"></script>

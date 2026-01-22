@@ -149,8 +149,12 @@
         </div>
 
         @if($paginator->count() > 0)
-            <!-- Export Button -->
-            <div class="mb-3 d-flex justify-content-end">
+            <!-- Title and Buttons in One Row -->
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Recap Absen Guru</h5>
+                <button type="button" class="btn btn-primary" onclick="openInputAbsenModal()">
+                    <i class="bi bi-plus-circle"></i> Input Absen Guru
+                </button>
                 <a href="{{ route('admin.attendances.teachers.export', array_filter([
                     'date_from' => $dateFrom,
                     'date_to' => $dateTo,
@@ -203,37 +207,28 @@
                 </table>
             </div>
 
-                @php
-                    $currentPage = $paginator->currentPage();
-                    $lastPage = $paginator->lastPage();
-                    $total = $paginator->total();
-                    $perPage = $paginator->perPage();
-                    $startIndex = $paginator->firstItem();
-                    $endIndex = $paginator->lastItem();
-                @endphp
-
-                <div class="pagination-section">
+            <div class="pagination-section">
                     <div class="pagination-info">
                         Menampilkan data <strong>{{ $startIndex ?? 0 }}</strong> – 
-                        <strong>{{ $endIndex ?? 0 }}</strong> dari <strong>{{ $total }}</strong>
+                        <strong>{{ $endIndex ?? 0 }}</strong> dari <strong>{{ $total ?? 0 }}</strong>
                     </div>
 
                     <div class="pagination-controls">
                         <!-- First -->
                         <a href="{{ $paginator->url(1) }}&{{ http_build_query(request()->except('page')) }}"
                            class="pagination-btn"
-                           {{ $currentPage == 1 ? 'disabled onclick="return false;"' : '' }}>&laquo;</a>
+                           {{ ($currentPage ?? 1) == 1 ? 'disabled onclick="return false;"' : '' }}>&laquo;</a>
 
                         <!-- Previous -->
                         <a href="{{ $paginator->previousPageUrl() }}&{{ http_build_query(request()->except('page')) }}"
                            class="pagination-btn"
-                           {{ $currentPage == 1 ? 'disabled onclick="return false;"' : '' }}>&lt;</a>
+                           {{ ($currentPage ?? 1) == 1 ? 'disabled onclick="return false;"' : '' }}>&lt;</a>
 
                         <span class="pagination-separator">|</span>
 
                         @php
-                            $start = max(1, $currentPage - 2);
-                            $end = min($lastPage, $currentPage + 2);
+                            $start = max(1, ($currentPage ?? 1) - 2);
+                            $end = min(($lastPage ?? 1), ($currentPage ?? 1) + 2);
                         @endphp
 
                         @if($start > 1)
@@ -244,18 +239,18 @@
                         @endif
 
                         @for($page = $start; $page <= $end; $page++)
-                            @if($page == $currentPage)
+                            @if($page == ($currentPage ?? 1))
                                 <button class="pagination-btn active" aria-current="page" aria-disabled="true" tabindex="-1">{{ $page }}</button>
                             @else
                                 <a href="{{ $paginator->url($page) }}&{{ http_build_query(request()->except('page')) }}" class="pagination-btn">{{ $page }}</a>
                             @endif
                         @endfor
 
-                        @if($end < $lastPage)
-                            @if($end < $lastPage - 1)
+                        @if($end < ($lastPage ?? 1))
+                            @if($end < (($lastPage ?? 1) - 1))
                                 <span class="pagination-btn" style="border: none; background: none; cursor: default;">...</span>
                             @endif
-                            <a href="{{ $paginator->url($lastPage) }}&{{ http_build_query(request()->except('page')) }}" class="pagination-btn">{{ $lastPage }}</a>
+                            <a href="{{ $paginator->url($lastPage ?? 1) }}&{{ http_build_query(request()->except('page')) }}" class="pagination-btn">{{ $lastPage ?? 1 }}</a>
                         @endif
 
                         <span class="pagination-separator">|</span>
@@ -263,12 +258,12 @@
                         <!-- Next -->
                         <a href="{{ $paginator->nextPageUrl() }}&{{ http_build_query(request()->except('page')) }}"
                            class="pagination-btn"
-                           {{ $currentPage == $lastPage ? 'disabled onclick="return false;"' : '' }}>&gt;</a>
+                           {{ ($currentPage ?? 1) == ($lastPage ?? 1) ? 'disabled onclick="return false;"' : '' }}>&gt;</a>
 
                         <!-- Last -->
-                        <a href="{{ $paginator->url($lastPage) }}&{{ http_build_query(request()->except('page')) }}"
+                        <a href="{{ $paginator->url($lastPage ?? 1) }}&{{ http_build_query(request()->except('page')) }}"
                            class="pagination-btn"
-                           {{ $currentPage == $lastPage ? 'disabled onclick="return false;"' : '' }}>&raquo;</a>
+                           {{ ($currentPage ?? 1) == ($lastPage ?? 1) ? 'disabled onclick="return false;"' : '' }}>&raquo;</a>
                     </div>
                 </div>
         @else
@@ -276,10 +271,136 @@
         @endif
     </div>
 </div>
+
+<!-- Modal Input Absen Guru -->
+<div id="inputAbsenModal" class="simple-modal" aria-hidden="true">
+    <div class="simple-modal-backdrop" data-modal-close></div>
+    <div class="simple-modal-dialog">
+        <div class="simple-modal-header">
+            <h5>Input Absen Guru</h5>
+            <button type="button" class="simple-modal-close" data-modal-close>&times;</button>
+        </div>
+        <div class="simple-modal-body">
+            <form id="inputAbsenForm">
+                @csrf
+                <div class="mb-3">
+                    <label for="teacherSearch" class="form-label">Nama Guru</label>
+                    <input type="text" class="form-control" id="teacherSearch" placeholder="Ketik nama guru..." autocomplete="off" required>
+                    <input type="hidden" id="teacherId" name="teacher_id">
+                    <div id="teacherSuggestions" class="list-group mt-1" style="position: absolute; z-index: 1060; max-height: 200px; overflow-y: auto; display: none;"></div>
+                    <small class="text-muted">Ketik untuk melihat guru yang belum absen hari ini</small>
+                </div>
+                <div class="mb-3">
+                    <label for="attendanceDate" class="form-label">Tanggal</label>
+                    <input type="date" class="form-control" id="attendanceDate" name="date" value="{{ date('Y-m-d') }}" required>
+                </div>
+                <div class="mb-3">
+                    <label for="attendanceStatus" class="form-label">Status</label>
+                    <select class="form-select" id="attendanceStatus" name="status" required>
+                        <option value="">Pilih Status</option>
+                        <option value="hadir">Hadir</option>
+                        <option value="izin">Izin</option>
+                        <option value="sakit">Sakit</option>
+                        <option value="alpa">Alpha</option>
+                        <option value="dinas">Kedinasan</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+        <div class="simple-modal-footer">
+            <button type="button" class="btn btn-secondary" data-modal-close>Batal</button>
+            <button type="button" class="btn btn-primary" id="submitAbsen">Simpan Absensi</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.simple-modal { display: none; position: fixed; inset: 0; z-index: 1050; }
+.simple-modal.show { display: block; }
+.simple-modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.5); }
+.simple-modal-dialog { position: relative; max-width: 600px; margin: 6% auto; background: #fff; border-radius: 6px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+.simple-modal-header { display:flex; justify-content:space-between; align-items:center; padding:16px; border-bottom:1px solid #eee; }
+.simple-modal-body { padding:16px; }
+.simple-modal-footer { padding:12px 16px; text-align:right; border-top:1px solid #eee; }
+.simple-modal-close { background:none; border:0; font-size:20px; line-height:1; cursor:pointer; }
+
+/* Autocomplete suggestion styling */
+#teacherSuggestions {
+    background: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    z-index: 2000;
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 0;
+    margin-top: 4px;
+}
+#teacherSuggestions .suggestion-item {
+    display: block;
+    padding: 12px 14px;
+    border-bottom: 1px solid #f0f0f0;
+    background: #ffffff;
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s ease;
+}
+#teacherSuggestions .suggestion-item:last-child {
+    border-bottom: none;
+}
+#teacherSuggestions .suggestion-item:hover {
+    background: #f5f9ff;
+    padding-left: 16px;
+}
+#teacherSuggestions .suggestion-item .teacher-name {
+    display: block;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 4px;
+    font-size: 14px;
+}
+#teacherSuggestions .suggestion-item .teacher-info {
+    display: block;
+    font-size: 12px;
+    color: #666;
+    line-height: 1.4;
+}
+</style>
+
 @endsection
 
 @section('scripts')
 <script>
+// Modal functions
+function openInputAbsenModal() {
+    const modal = document.getElementById('inputAbsenModal');
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeInputAbsenModal() {
+    const modal = document.getElementById('inputAbsenModal');
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+}
+
+// Setup modal close handlers
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('inputAbsenModal');
+    if (modal) {
+        modal.querySelectorAll('[data-modal-close]').forEach(function(el) {
+            el.addEventListener('click', closeInputAbsenModal);
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && modal.classList.contains('show')) closeInputAbsenModal();
+        });
+    }
+});
+
+// Filter form
 (() => {
     const form = document.getElementById('filter-form');
 
@@ -291,6 +412,119 @@
         form.reset();
         form.submit();
     });
+})();
+
+// Teacher Autocomplete and Submission
+(() => {
+    const teacherSearch = document.getElementById('teacherSearch');
+    const teacherId = document.getElementById('teacherId');
+    const suggestions = document.getElementById('teacherSuggestions');
+    const submitBtn = document.getElementById('submitAbsen');
+    let debounceTimer;
+
+    // Autocomplete functionality
+    teacherSearch.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        const query = this.value.trim();
+        
+        if (query.length < 2) {
+            suggestions.style.display = 'none';
+            teacherId.value = '';
+            return;
+        }
+
+        debounceTimer = setTimeout(() => {
+            fetch(`{{ route('admin.attendances.teachers.search-unattended') }}?q=${encodeURIComponent(query)}&date=${document.getElementById('attendanceDate').value}`)
+                .then(response => response.json())
+                .then(data => {
+                    suggestions.innerHTML = '';
+                    
+                    if (data.length === 0) {
+                        suggestions.innerHTML = '<div class="list-group-item text-muted">Tidak ada guru yang ditemukan</div>';
+                    } else {
+                        data.forEach(teacher => {
+                            const item = document.createElement('a');
+                            item.href = '#';
+                            item.className = 'suggestion-item';
+                            item.innerHTML = `
+                                <span class="teacher-name">${teacher.name}</span>
+                                <span class="teacher-info">NIP: ${teacher.nip || '-'} | ${teacher.position || '-'}</span>
+                            `;
+                            item.addEventListener('click', (e) => {
+                                e.preventDefault();
+                                teacherSearch.value = teacher.name;
+                                teacherId.value = teacher.id;
+                                suggestions.style.display = 'none';
+                            });
+                            suggestions.appendChild(item);
+                        });
+                    }
+                    
+                    suggestions.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error fetching teachers:', error);
+                    suggestions.innerHTML = '<div class="list-group-item text-danger">Error memuat data</div>';
+                    suggestions.style.display = 'block';
+                });
+        }, 300);
+    });
+
+    // Hide suggestions when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!teacherSearch.contains(e.target) && !suggestions.contains(e.target)) {
+            suggestions.style.display = 'none';
+        }
+    });
+
+    // Submit attendance
+    submitBtn.addEventListener('click', function() {
+        const form = document.getElementById('inputAbsenForm');
+        const formData = new FormData(form);
+        
+        if (!teacherId.value) {
+            alert('Silakan pilih guru dari daftar');
+            return;
+        }
+
+        if (!formData.get('status')) {
+            alert('Silakan pilih status kehadiran');
+            return;
+        }
+
+        formData.append('teacher_id', teacherId.value);
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Menyimpan...';
+
+        fetch('{{ route("admin.attendances.teachers.store") }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+                'Accept': 'application/json',
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Absensi berhasil disimpan!');
+                location.reload();
+            } else {
+                alert(data.message || 'Terjadi kesalahan saat menyimpan');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Simpan Absensi';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Terjadi kesalahan saat menyimpan absensi');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Simpan Absensi';
+        });
+    });
+
+    // Reset form when modal is closed - tidak perlu lagi karena sudah di handle di closeInputAbsenModal
 })();
 </script>
 <script src="{{ asset('js/action-dropdown.js') }}"></script>

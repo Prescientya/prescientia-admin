@@ -78,8 +78,12 @@ Route::prefix('admin')->middleware('admin')->name('admin.')->group(function () {
     // Attendances (separate pages for students and teachers)
     Route::get('attendances/students', [AttendanceController::class, 'students'])->name('attendances.students');
     Route::get('attendances/students/export', [AttendanceController::class, 'exportStudents'])->name('attendances.students.export');
+    Route::get('attendances/students/search-unattended', [AttendanceController::class, 'searchUnattendedStudents'])->name('attendances.students.search-unattended');
+    Route::post('attendances/students/store', [AttendanceController::class, 'storeStudentAttendance'])->name('attendances.students.store');
     Route::get('attendances/teachers', [AttendanceController::class, 'teachers'])->name('attendances.teachers');
     Route::get('attendances/teachers/export', [AttendanceController::class, 'exportTeachers'])->name('attendances.teachers.export');
+    Route::get('attendances/teachers/search-unattended', [AttendanceController::class, 'searchUnattendedTeachers'])->name('attendances.teachers.search-unattended');
+    Route::post('attendances/teachers/store', [AttendanceController::class, 'storeTeacherAttendance'])->name('attendances.teachers.store');
     Route::post('attendances/record', [AttendanceController::class, 'record'])->name('attendances.record');
     Route::get('attendances/{role}/{id}', [AttendanceController::class, 'show'])->name('attendances.show');
     Route::put('attendances/{role}/{id}', [AttendanceController::class, 'update'])->name('attendances.update');

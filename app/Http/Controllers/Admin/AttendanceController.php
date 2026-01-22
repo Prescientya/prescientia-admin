@@ -173,9 +173,15 @@ class AttendanceController extends Controller
             'query' => $request->query(),
         ]);
 
+        // Pagination variables
+        $currentPage = $page;
+        $lastPage = ceil($total / $perPage);
+        $startIndex = ($page - 1) * $perPage + 1;
+        $endIndex = min($page * $perPage, $total);
+
         $subjects = \App\Models\Subject::orderBy('name')->get();
 
-        return view('admin.attendances.teachers', compact('paginator', 'subjects', 'dateFrom', 'dateTo', 'status', 'subjectId', 'keyword'));
+        return view('admin.attendances.teachers', compact('paginator', 'subjects', 'dateFrom', 'dateTo', 'status', 'subjectId', 'keyword', 'total', 'currentPage', 'lastPage', 'startIndex', 'endIndex'));
     }
 
     // (No duplicate no-argument wrappers — route methods accept Request directly.)
@@ -248,4 +254,178 @@ class AttendanceController extends Controller
         $export = new TeacherAttendanceExport($filters);
         return $export->export();
     }
+
+    /**
+     * Search for students who haven't been marked present for a specific date.
+     */
+    public function searchUnattendedStudents(Request $request)
+    {
+        $query = $request->get('q', '');
+        $date = $request->get('date', now()->format('Y-m-d'));
+
+        // Get the school calendar ID for the specified date
+        $calendar = SchoolCalendar::whereDate('date', $date)->first();
+
+        if (!$calendar) {
+            return response()->json([]);
+        }
+
+        // Get students who already have attendance records for this date
+        $attendedStudentIds = StudentAttendance::where('calendar_id', $calendar->id)
+            ->pluck('student_id')
+            ->toArray();
+
+        // Search for students who haven't been marked and match the search query
+        $students = Student::with('class')
+            ->whereNotIn('id', $attendedStudentIds)
+            ->where(function($q) use ($query) {
+                $q->where('name', 'like', "%{$query}%")
+                  ->orWhere('nis', 'like', "%{$query}%");
+            })
+            ->limit(10)
+            ->get()
+            ->map(function($student) {
+                return [
+                    'id' => $student->id,
+                    'name' => $student->name,
+                    'nis' => $student->nis,
+                    'class' => $student->class ? $student->class->class : null,
+                ];
+            });
+
+        return response()->json($students);
+    }
+
+    /**
+     * Search for teachers who haven't been marked present for a specific date.
+     */
+    public function searchUnattendedTeachers(Request $request)
+    {
+        $query = $request->get('q', '');
+        $date = $request->get('date', now()->format('Y-m-d'));
+
+        // Get the school calendar ID for the specified date
+        $calendar = SchoolCalendar::whereDate('date', $date)->first();
+
+        if (!$calendar) {
+            return response()->json([]);
+        }
+
+        // Get teachers who already have attendance records for this date
+        $attendedTeacherIds = TeacherAttendance::where('calendar_id', $calendar->id)
+            ->pluck('teacher_id')
+            ->toArray();
+
+        // Search for teachers who haven't been marked and match the search query
+        $teachers = Teacher::whereNotIn('id', $attendedTeacherIds)
+            ->where(function($q) use ($query) {
+                $q->where('name', 'like', "%{$query}%")
+                  ->orWhere('nip', 'like', "%{$query}%");
+            })
+            ->limit(10)
+            ->get()
+            ->map(function($teacher) {
+                return [
+                    'id' => $teacher->id,
+                    'name' => $teacher->name,
+                    'nip' => $teacher->nip,
+                    'position' => $teacher->position,
+                ];
+            });
+
+        return response()->json($teachers);
+    }
+
+    /**
+     * Store a new student attendance record.
+     */
+    public function storeStudentAttendance(Request $request)
+    {
+        $validated = $request->validate([
+            'student_id' => 'required|exists:students,id',
+            'date' => 'required|date',
+            'status' => 'required|in:hadir,izin,sakit,alpa',
+        ]);
+
+        // Get or create school calendar for the date
+        $calendar = SchoolCalendar::firstOrCreate(
+            ['date' => $validated['date']],
+            ['is_holiday' => false]
+        );
+
+        // Check if attendance already exists
+        $existingAttendance = StudentAttendance::where('student_id', $validated['student_id'])
+            ->where('calendar_id', $calendar->id)
+            ->first();
+
+        if ($existingAttendance) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Siswa ini sudah memiliki catatan absensi untuk tanggal tersebut.'
+            ], 422);
+        }
+
+        // Get student with class information
+        $student = Student::with('class')->findOrFail($validated['student_id']);
+
+        // Create attendance record
+        $attendance = StudentAttendance::create([
+            'student_id' => $validated['student_id'],
+            'calendar_id' => $calendar->id,
+            'class_id' => $student->class_id,
+            'status' => $validated['status'],
+            'source' => 'manual',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Absensi siswa berhasil disimpan.',
+            'data' => $attendance
+        ]);
+    }
+
+    /**
+     * Store a new teacher attendance record.
+     */
+    public function storeTeacherAttendance(Request $request)
+    {
+        $validated = $request->validate([
+            'teacher_id' => 'required|exists:teachers,id',
+            'date' => 'required|date',
+            'status' => 'required|in:hadir,izin,sakit,alpa,dinas',
+        ]);
+
+        // Get or create school calendar for the date
+        $calendar = SchoolCalendar::firstOrCreate(
+            ['date' => $validated['date']],
+            ['is_holiday' => false]
+        );
+
+        // Check if attendance already exists
+        $existingAttendance = TeacherAttendance::where('teacher_id', $validated['teacher_id'])
+            ->where('calendar_id', $calendar->id)
+            ->first();
+
+        if ($existingAttendance) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Guru ini sudah memiliki catatan absensi untuk tanggal tersebut.'
+            ], 422);
+        }
+
+        // Create attendance record
+        $attendance = TeacherAttendance::create([
+            'teacher_id' => $validated['teacher_id'],
+            'calendar_id' => $calendar->id,
+            'status' => $validated['status'],
+            'source' => 'manual',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Absensi guru berhasil disimpan.',
+            'data' => $attendance
+        ]);
+    }
 }
+
