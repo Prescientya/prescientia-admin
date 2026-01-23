@@ -38,11 +38,11 @@ class TeachedClassController extends Controller
         // Show 10 classes per page so the view can render a 2 x 5 card grid per page
         $classes = ClassModel::with([
             'teachedClasses' => function($query) use ($currentSemester) {
-                $query->where('semester', $currentSemester)
-                      ->whereNotNull('subject_id');
+                $query->where('semester', $currentSemester);
             },
             'teachedClasses.teacher',
             'teachedClasses.subject',
+            'teachedClasses.subjects',
             'homeroomTeacher'
         ])->paginate(10);
         
@@ -166,12 +166,34 @@ class TeachedClassController extends Controller
             ->orderBy('name')
             ->get();
         
-        // Ambil existing assignments untuk kelas ini (dengan subject_id sudah terisi)
-        $existingAssignments = TeachedClass::with(['teacher', 'subject'])
+        // Ambil existing assignments untuk kelas ini
+        // Load both legacy (subject_id) dan new-style (subjects many-to-many)
+        $teachedClasses = TeachedClass::with(['teacher', 'subject', 'subjects'])
             ->where('class_id', $class->id)
             ->where('semester', $currentSemester)
-            ->whereNotNull('subject_id') // Only get new-style assignments
             ->get();
+        
+        // Transform teached_classes to show all assignments (both legacy dan imported via many-to-many)
+        $existingAssignments = collect();
+        foreach ($teachedClasses as $teachedClass) {
+            // Check if has legacy subject_id
+            if ($teachedClass->subject_id) {
+                $existingAssignments->push($teachedClass);
+            } else if ($teachedClass->subjects->count() > 0) {
+                // For many-to-many subjects, create virtual assignments
+                foreach ($teachedClass->subjects as $subject) {
+                    $virtual = (object)[
+                        'id' => $teachedClass->id . '_' . $subject->id,
+                        'teacher_id' => $teachedClass->teacher_id,
+                        'teacher' => $teachedClass->teacher,
+                        'subject' => $subject,
+                        'subject_id' => $subject->id,
+                        '_teached_class_id' => $teachedClass->id, // Store original ID
+                    ];
+                    $existingAssignments->push($virtual);
+                }
+            }
+        }
         
         // Group teachers by subject_id for quick lookup
         $teachersBySubject = [];
@@ -486,18 +508,13 @@ class TeachedClassController extends Controller
             $importer = new TeacherAssignmentImport($worksheet);
             [$success, $failures] = $importer->process();
             
-            // If there are failures, show them
-            if (!empty($failures)) {
-                return view('admin.teached-classes.import_result', [
-                    'successCount' => $success,
-                    'failures' => $failures,
-                    'totalRows' => $success + count($failures),
-                ]);
-            }
-            
-            // Success - redirect with message
-            return redirect()->route('admin.teached-classes.index')
-                ->with('success', "✅ Import berhasil: {$success} penugasan guru ditambahkan");
+            // ALWAYS show import result with both success and failures (if any)
+            // This way users can see exactly what was imported and what failed
+            return view('admin.teached-classes.import_result', [
+                'successCount' => $success,
+                'failures' => $failures,
+                'totalRows' => $success + count($failures),
+            ]);
                 
         } catch (\Throwable $e) {
             Log::error('Import teacher assignments failed', ['exception' => $e->getMessage()]);

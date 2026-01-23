@@ -4,7 +4,9 @@ namespace App\Imports;
 
 use App\Models\Teacher;
 use App\Models\ClassModel;
+use App\Models\Subject;
 use App\Models\TeachedClass;
+use App\Helpers\AttendanceHelper;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
@@ -141,6 +143,22 @@ class TeacherAssignmentImport
             ];
         }
 
+        // VALIDATION: Teacher harus memiliki mata pelajaran
+        $teacherSubjects = $teacher->subjects()->get();
+        if ($teacherSubjects->isEmpty()) {
+            return [
+                'valid' => false,
+                'errors' => [
+                    "❌ Guru '{$teacher->name}' TIDAK MEMILIKI mata pelajaran yang terdaftar.",
+                    "📝 Langkah perbaikan: ",
+                    "1. Buka menu 'Data Guru'",
+                    "2. Klik guru '{$teacher->name}'",
+                    "3. Tambahkan mata pelajaran yang akan diajar",
+                    "4. Coba import ulang"
+                ],
+            ];
+        }
+
         // Parse classes and majors
         $classes = array_filter(array_map('trim', explode(',', $data['class_raw'])));
         $majors = array_filter(array_map('trim', explode(',', $data['major_raw'])));
@@ -159,6 +177,8 @@ class TeacherAssignmentImport
 
         // Validate each class+major combination
         $assignments = [];
+        $errorDetails = [];
+        
         foreach ($classes as $idx => $classNum) {
             $classNum = trim($classNum);
             $majorName = trim($majors[$idx]);
@@ -186,9 +206,80 @@ class TeacherAssignmentImport
             }
 
             if (!$classModel) {
+                // Get available classes for better error message
+                $availableClasses = ClassModel::select('class', 'major')
+                    ->orderBy('class')
+                    ->orderBy('major')
+                    ->get();
+                
+                $classList = $availableClasses->map(function($c) {
+                    return "Kelas {$c->class} " . ($c->major ? "({$c->major})" : "(Umum)");
+                })->unique()->join(", ");
+                
                 return [
                     'valid' => false,
-                    'errors' => ["Kelas {$classInt} {$majorName} tidak ditemukan di sistem. Pastikan kelas sudah dibuat terlebih dahulu."],
+                    'errors' => [
+                        "❌ Kelas {$classInt} {$majorName} TIDAK DITEMUKAN di sistem.",
+                        "Kelas+Jurusan yang tersedia: {$classList}",
+                        "Mohon buat kelas tersebut terlebih dahulu di menu 'Data Kelas'."
+                    ],
+                ];
+            }
+
+            // VALIDATION: Check which subjects in this class don't have a teacher yet
+            // Only assign guru untuk mapel yang belum ada guru di kelas ini
+            $classRequiredSubjects = \App\Models\Subject::forMajor($classModel->major ?? 'Umum')
+                ->active()
+                ->get();
+            
+            if ($classRequiredSubjects->isEmpty()) {
+                return [
+                    'valid' => false,
+                    'errors' => [
+                        "❌ Kelas {$classInt} {$majorName} tidak memiliki mapel yang didefinisikan.",
+                        "Pastikan kelas ini sudah dikonfigurasi dengan mapel yang tepat di menu 'Data Kelas'."
+                    ],
+                ];
+            }
+
+            // Get subjects that already have teachers assigned in this class
+            $assignedSubjectIds = TeachedClass::where('class_id', $classModel->id)
+                ->where('semester', AttendanceHelper::getCurrentSemester())
+                ->whereNotNull('subject_id')
+                ->pluck('subject_id')
+                ->toArray();
+
+            // Find VACANT subjects (not yet assigned) in this class
+            $classSubjectIds = $classRequiredSubjects->pluck('id')->toArray();
+            $vacantSubjectIds = array_diff($classSubjectIds, $assignedSubjectIds);
+
+            // Get teacher's subjects that match vacant subjects
+            $teacherSubjectIds = $teacherSubjects->pluck('id')->toArray();
+            $assignableSubjectIds = array_intersect($teacherSubjectIds, $vacantSubjectIds);
+
+            // If guru tidak punya subject apapun yang vacant di kelas ini, reject
+            if (empty($assignableSubjectIds)) {
+                $teacherSubjectNames = $teacherSubjects->pluck('name')->toArray();
+                $vacantSubjectNames = $classRequiredSubjects->whereIn('id', $vacantSubjectIds)->pluck('name')->toArray();
+                $assignedSubjectNames = $classRequiredSubjects->whereIn('id', $assignedSubjectIds)->pluck('name')->toArray();
+                
+                return [
+                    'valid' => false,
+                    'errors' => [
+                        "⚠️ VALIDASI SUBJECT GAGAL:",
+                        "Guru '{$teacher->name}' tidak memiliki mapel yang BELUM ADA guru di Kelas {$classInt} {$majorName}.",
+                        "",
+                        "📚 Mata pelajaran yang Guru ajarkan: " . implode(', ', $teacherSubjectNames),
+                        "",
+                        "📚 Mapel yang SUDAH ada guru di kelas: " . implode(', ', $assignedSubjectNames),
+                        "",
+                        "📚 Mapel yang BELUM ada guru di kelas: " . implode(', ', $vacantSubjectNames),
+                        "",
+                        "💡 Guru '{$teacher->name}' bisa mengajar mapel: " . implode(', ', $teacherSubjectNames),
+                        "   Tapi semua mapel itu SUDAH ada guru lain di kelas ini.",
+                        "",
+                        "💡 Solusi: Gunakan guru lain yang bisa mengajar mapel yang masih vacant.",
+                    ],
                 ];
             }
 
@@ -196,6 +287,7 @@ class TeacherAssignmentImport
                 'class_id' => $classModel->id,
                 'class_num' => $classInt,
                 'major' => $majorName,
+                'subject_ids' => $assignableSubjectIds, // Only assignable subjects (not yet assigned)
             ];
         }
 
@@ -203,44 +295,76 @@ class TeacherAssignmentImport
             'valid' => true,
             'teacher' => $teacher,
             'assignments' => $assignments,
+            'teacher_subjects' => $teacherSubjects,
         ];
     }
 
     /**
-     * Import teacher assignment to classes
+     * Import teacher assignment to classes with proper subject handling
+     * Creates separate TeachedClass records for EACH subject the teacher teaches
+     * ONLY for subjects that don't already have a teacher in the class
      */
     private function importAssignment(Teacher $teacher, array $assignments): void
     {
         DB::transaction(function () use ($teacher, $assignments) {
+            // Get all subject names that this teacher teaches (for departments field)
+            $teacherSubjectNames = $teacher->subjects()->pluck('name')->toArray();
+            $departmentsJson = json_encode($teacherSubjectNames, JSON_UNESCAPED_UNICODE);
+            
             foreach ($assignments as $assignment) {
-                // Get or create TeachedClass
-                // Use current semester (you can make this configurable)
-                $semester = config('prescientia.current_semester', 1);
+                // Use current semester based on current date
+                $semester = AttendanceHelper::getCurrentSemester();
                 
-                $teachedClass = TeachedClass::updateOrCreate(
-                    [
+                // Get ASSIGNABLE subject IDs (subjects that are vacant in this class)
+                $subjectIds = $assignment['subject_ids'] ?? [];
+                
+                if (empty($subjectIds)) {
+                    Log::warning('No assignable subjects for teacher, skipping assignment', [
                         'teacher_id' => $teacher->id,
+                        'teacher_name' => $teacher->name,
                         'class_id' => $assignment['class_id'],
-                        'semester' => $semester,
-                    ],
-                    [
-                        'departments' => [], // Empty by default, can be updated later
-                    ]
-                );
-
-                // Sync teacher's subjects with this teached class
-                $subjectIds = $teacher->subjects()->pluck('subjects.id')->toArray();
-                if (!empty($subjectIds)) {
-                    $teachedClass->subjects()->sync($subjectIds);
+                    ]);
+                    return;
                 }
 
-                Log::info('Teacher assigned to class', [
-                    'teacher_id' => $teacher->id,
-                    'teacher_name' => $teacher->name,
-                    'class_id' => $assignment['class_id'],
-                    'class_num' => $assignment['class_num'],
-                    'major' => $assignment['major'],
-                ]);
+                // Create separate TeachedClass for EACH assignable subject
+                foreach ($subjectIds as $subjectId) {
+                    // Final check: Make sure subject is not already assigned
+                    $existing = TeachedClass::where('teacher_id', $teacher->id)
+                        ->where('class_id', $assignment['class_id'])
+                        ->where('subject_id', $subjectId)
+                        ->where('semester', $semester)
+                        ->first();
+
+                    if ($existing) {
+                        Log::info('Teacher-Subject-Class already assigned, skipping', [
+                            'teacher_id' => $teacher->id,
+                            'subject_id' => $subjectId,
+                            'class_id' => $assignment['class_id'],
+                        ]);
+                        continue;
+                    }
+
+                    // Create new TeachedClass with subject_id and departments
+                    $teachedClass = TeachedClass::create([
+                        'teacher_id' => $teacher->id,
+                        'class_id' => $assignment['class_id'],
+                        'subject_id' => $subjectId, // Only for vacant subjects
+                        'semester' => $semester,
+                        'departments' => $departmentsJson, // Store teacher's subject names for UI reference
+                    ]);
+
+                    Log::info('Teacher assigned to class for specific subject', [
+                        'teacher_id' => $teacher->id,
+                        'teacher_name' => $teacher->name,
+                        'class_id' => $assignment['class_id'],
+                        'class_num' => $assignment['class_num'],
+                        'major' => $assignment['major'],
+                        'subject_id' => $subjectId,
+                        'teached_class_id' => $teachedClass->id,
+                        'departments' => $teacherSubjectNames,
+                    ]);
+                }
             }
         });
     }

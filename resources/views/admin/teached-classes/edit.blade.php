@@ -57,10 +57,10 @@
                                     {{ $assignment->subject->name }}
                                 </td>
                                 <td>
-                                    <button class="btn btn-sm btn-warning" onclick="editAssignment({{ $assignment->id }}, {{ $assignment->subject->id }}, '{{ $assignment->subject->name }}')">
+                                    <button class="btn btn-sm btn-warning" onclick="editAssignment({{ $assignment->_teached_class_id ?? $assignment->id }}, {{ $assignment->subject->id }}, '{{ $assignment->subject->name }}')">
                                         Edit
                                     </button>
-                                    <form action="{{ route('admin.teached-classes.remove-subject', $assignment->id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Yakin hapus?')">
+                                    <form action="{{ route('admin.teached-classes.remove-subject', $assignment->_teached_class_id ?? $assignment->id) }}" method="POST" style="display:inline;" onsubmit="return confirm('Yakin hapus?')">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-danger">Hapus</button>
