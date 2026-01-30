@@ -156,21 +156,26 @@
         width: 100%;
         height: 100%;
         background-color: rgba(0, 0, 0, 0.4);
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        box-sizing: border-box;
     }
 
     .modal.show {
-        display: block;
+        display: flex;
     }
 
     .modal-content {
         background-color: #fefefe;
-        margin: 10% auto;
-        padding: 2rem;
+        padding: 1.5rem 2rem;
         border: 1px solid #888;
         border-radius: 0.5rem;
-        width: 80%;
-        max-width: 500px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 600px;
+        max-height: calc(100vh - 2rem);
+        overflow-y: auto;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
     }
 
     .modal-close {
@@ -313,6 +318,19 @@
             @endif
         </div>
 
+        {{-- Section 1.5: Input Manual WiFi --}}
+        <div class="wifi-section">
+            <h2 class="wifi-section-title">
+                ✏️ Input Manual WiFi
+                <span style="float: right; font-size: 1rem;">
+                    <button type="button" onclick="openManualWifiModal()" class="btn btn-sm btn-primary" style="padding: 0.5rem 1rem;">
+                        ➕ Tambah WiFi Manual
+                    </button>
+                </span>
+            </h2>
+            <p style="color: #6c757d;">Tambahkan WiFi secara manual dengan memasukkan SSID dan BSSID (MAC Address) yang ingin dijadikan patokan di sekolah.</p>
+        </div>
+
         {{-- Section 2: Detected WiFi Networks --}}
         <div class="wifi-section">
             <h2 class="wifi-section-title">
@@ -408,6 +426,69 @@
     </div>
 </div>
 
+{{-- Manual WiFi Input Modal --}}
+<div id="manualWifiModal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+        <span class="modal-close" onclick="closeManualWifiModal()">&times;</span>
+        <h2 style="margin-top: 0;">➕ Input Manual WiFi</h2>
+        
+        <form id="manualWifiForm" onsubmit="submitManualWifi(event)">
+            @csrf
+            
+            <div style="margin-bottom: 1.5rem;">
+                <label for="manual_ssid" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">SSID (Nama WiFi) <span style="color: #dc3545;">*</span></label>
+                <input 
+                    type="text" 
+                    id="manual_ssid" 
+                    name="ssid" 
+                    style="width: 100%; padding: 0.75rem; border: 1px solid #dee2e6; border-radius: 0.25rem; font-size: 1rem; box-sizing: border-box;"
+                    placeholder="Contoh: WiFi-Sekolah"
+                    required
+                >
+                <small style="display: block; margin-top: 0.25rem; color: #6c757d;">Nama jaringan WiFi yang akan ditambahkan</small>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label for="manual_bssid" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">BSSID (MAC Address) <span style="color: #dc3545;">*</span></label>
+                <input 
+                    type="text" 
+                    id="manual_bssid" 
+                    name="bssid" 
+                    style="width: 100%; padding: 0.75rem; border: 1px solid #dee2e6; border-radius: 0.25rem; font-size: 1rem; box-sizing: border-box;"
+                    placeholder="Contoh: aa:bb:cc:dd:ee:ff"
+                    required
+                >
+                <small style="display: block; margin-top: 0.25rem; color: #6c757d;">MAC Address unik dari Access Point WiFi (format: xx:xx:xx:xx:xx:xx)</small>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label for="manual_ip_address" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">IP Address <span style="color: #6c757d;">(Opsional)</span></label>
+                <input 
+                    type="text" 
+                    id="manual_ip_address" 
+                    name="ip_address" 
+                    style="width: 100%; padding: 0.75rem; border: 1px solid #dee2e6; border-radius: 0.25rem; font-size: 1rem; box-sizing: border-box;"
+                    placeholder="Contoh: 192.168.1.1"
+                >
+                <small style="display: block; margin-top: 0.25rem; color: #6c757d;">IP Address router/gateway WiFi (opsional, bisa ditambahkan/diubah nanti)</small>
+            </div>
+
+            <div id="manualWifiErrors" class="alert alert-danger" style="display: none; margin-bottom: 1rem;">
+                <strong>Terjadi kesalahan:</strong>
+                <ul id="manualWifiErrorList" style="margin: 0.5rem 0 0 1.5rem; padding: 0;"></ul>
+            </div>
+
+            <div class="modal-buttons">
+                <button type="button" class="btn-cancel" onclick="closeManualWifiModal()">Batal</button>
+                <button type="submit" class="btn-confirm" id="manualWifiSubmitBtn">
+                    <span id="manualWifiSubmitBtnText">💾 Simpan WiFi</span>
+                    <span id="manualWifiSubmitBtnLoader" class="loader" style="display: none; margin-left: 0.5rem;"></span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
     let currentConvertData = {
         ssid: '',
@@ -469,11 +550,88 @@
         });
     }
 
+    // Manual WiFi Modal Functions
+    function openManualWifiModal() {
+        document.getElementById('manualWifiModal').classList.add('show');
+        document.getElementById('manualWifiForm').reset();
+        document.getElementById('manualWifiErrors').style.display = 'none';
+    }
+
+    function closeManualWifiModal() {
+        document.getElementById('manualWifiModal').classList.remove('show');
+        document.getElementById('manualWifiForm').reset();
+        document.getElementById('manualWifiErrors').style.display = 'none';
+    }
+
+    function submitManualWifi(event) {
+        event.preventDefault();
+
+        const submitBtn = document.getElementById('manualWifiSubmitBtn');
+        const submitBtnText = document.getElementById('manualWifiSubmitBtnText');
+        const submitBtnLoader = document.getElementById('manualWifiSubmitBtnLoader');
+        const errorContainer = document.getElementById('manualWifiErrors');
+        const errorList = document.getElementById('manualWifiErrorList');
+
+        submitBtn.disabled = true;
+        submitBtnText.style.display = 'none';
+        submitBtnLoader.style.display = 'inline-block';
+
+        const formData = new FormData(document.getElementById('manualWifiForm'));
+
+        fetch('{{ route("admin.wifi.store") }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                closeManualWifiModal();
+                alert(data.message);
+                location.reload();
+            } else {
+                submitBtn.disabled = false;
+                submitBtnText.style.display = 'inline';
+                submitBtnLoader.style.display = 'none';
+                
+                if (data.errors) {
+                    errorList.innerHTML = '';
+                    for (let field in data.errors) {
+                        const errors = data.errors[field];
+                        errors.forEach(msg => {
+                            const li = document.createElement('li');
+                            li.textContent = msg;
+                            errorList.appendChild(li);
+                        });
+                    }
+                    errorContainer.style.display = 'block';
+                }
+            }
+        })
+        .catch(error => {
+            submitBtn.disabled = false;
+            submitBtnText.style.display = 'inline';
+            submitBtnLoader.style.display = 'none';
+            console.error('Error:', error);
+            
+            errorList.innerHTML = '<li>Terjadi kesalahan: ' + error.message + '</li>';
+            errorContainer.style.display = 'block';
+        });
+    }
+
     // Close modal when clicking outside
     window.onclick = function(event) {
-        const modal = document.getElementById('convertModal');
-        if (event.target == modal) {
+        const convertModal = document.getElementById('convertModal');
+        const manualWifiModal = document.getElementById('manualWifiModal');
+        
+        if (event.target == convertModal) {
             closeConvertModal();
+        }
+        if (event.target == manualWifiModal) {
+            closeManualWifiModal();
         }
     }
 </script>

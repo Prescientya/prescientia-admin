@@ -11,9 +11,8 @@
     <div class="login-box">
         <div class="login-header">
             <div class="login-logo">
-                <img src="{{ asset('assets/logo-smkn1-ciamis.svg') }}" alt="SMKN 1 CIAMIS" width="80" height="80">
+                <img src="{{ asset('assets/images/Logo_SMK.png') }}" alt="Logo" class="login-logo-img" />
             </div>
-            <h1 class="login-title">SekolahKu</h1>
             <p class="login-subtitle">Silakan login untuk melanjutkan</p>
         </div>
 
