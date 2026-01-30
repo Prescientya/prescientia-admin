@@ -163,20 +163,40 @@ class WifiController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'ssid' => 'required|string|max:100',
-            'bssid' => 'required|string|max:50|unique:wifi_networks,bssid',
-            'ip_address' => 'nullable|string|max:45|ip',
-        ]);
+        try {
+            $validated = $request->validate([
+                'ssid' => 'required|string|max:100',
+                'bssid' => 'required|string|max:50|unique:wifi_networks,bssid',
+                'ip_address' => 'nullable|string|max:45|ip',
+            ]);
 
-        WifiNetwork::create([
-            'ssid' => $request->ssid,
-            'bssid' => $request->bssid,
-            'ip_address' => $request->ip_address ?? null,
-        ]);
+            WifiNetwork::create([
+                'ssid' => $validated['ssid'],
+                'bssid' => $validated['bssid'],
+                'ip_address' => $validated['ip_address'] ?? null,
+            ]);
 
-        return redirect()->route('admin.wifi.index')
-            ->with('success', 'Data WiFi berhasil ditambahkan');
+            // Return JSON response if AJAX request
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Data WiFi berhasil ditambahkan'
+                ]);
+            }
+
+            return redirect()->route('admin.wifi.index')
+                ->with('success', 'Data WiFi berhasil ditambahkan');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Return JSON response if AJAX request
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => $e->errors()
+                ], 422);
+            }
+
+            throw $e;
+        }
     }
 
     /**
