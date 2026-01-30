@@ -233,6 +233,53 @@
         animation: spin 1s linear infinite;
     }
 
+        /* Action menu (settings) */
+        .action-menu {
+            position: relative;
+            display: inline-block;
+        }
+
+        .action-menu .settings-btn {
+            padding: 0.4rem 0.6rem;
+            border-radius: 0.375rem;
+            background-color: #343a40;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .action-menu-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 6px);
+            min-width: 140px;
+            background: #ffffff;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 0.25rem;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+            z-index: 2000;
+        }
+
+        .action-menu-dropdown a,
+        .action-menu-dropdown button {
+            display: block;
+            padding: 0.45rem 0.75rem;
+            text-decoration: none;
+            color: #212529;
+            background: transparent;
+            border: none;
+            text-align: left;
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .action-menu-dropdown a:hover,
+        .action-menu-dropdown button:hover {
+            background-color: #f8f9fa;
+        }
+
     @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
@@ -292,14 +339,17 @@
                                     <td><code>{{ $wifi->bssid }}</code></td>
                                     <td>{{ $wifi->ip_address ?? '-' }}</td>
                                     <td>{{ $wifi->created_at->format('d/m/Y H:i') }}</td>
-                                    <td>
-                                        <div class="btn-group">
-                                            <a href="{{ route('admin.wifi.edit', $wifi->id) }}" class="btn btn-sm btn-primary">Edit</a>
-                                            <form action="{{ route('admin.wifi.destroy', $wifi->id) }}" method="POST" style="display: inline;" onsubmit="return confirm('Apakah Anda yakin ingin menghapus WiFi ini?');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="btn btn-sm btn-danger">Hapus</button>
-                                            </form>
+                                    <td style="text-align: center; vertical-align: middle;">
+                                        <div class="action-menu">
+                                            <button type="button" class="settings-btn" onclick="toggleActionMenu('{{ $wifi->id }}')">⚙</button>
+                                            <div id="action-menu-{{ $wifi->id }}" class="action-menu-dropdown" aria-hidden="true">
+                                                <a href="{{ route('admin.wifi.edit', $wifi->id) }}">✏️ Edit</a>
+                                                <form action="{{ route('admin.wifi.destroy', $wifi->id) }}" method="POST" style="margin:0;">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" onclick="return confirm('Apakah Anda yakin ingin menghapus WiFi ini?');">🗑 Hapus</button>
+                                                </form>
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>
@@ -622,17 +672,41 @@
         });
     }
 
-    // Close modal when clicking outside
-    window.onclick = function(event) {
-        const convertModal = document.getElementById('convertModal');
-        const manualWifiModal = document.getElementById('manualWifiModal');
-        
-        if (event.target == convertModal) {
-            closeConvertModal();
-        }
-        if (event.target == manualWifiModal) {
-            closeManualWifiModal();
+    // Action menu helpers
+    function closeAllActionMenus() {
+        document.querySelectorAll('.action-menu-dropdown').forEach(el => {
+            el.style.display = 'none';
+            el.setAttribute('aria-hidden', 'true');
+        });
+    }
+
+    function toggleActionMenu(id) {
+        const el = document.getElementById('action-menu-' + id);
+        if (!el) return;
+        const isOpen = el.style.display === 'block';
+        closeAllActionMenus();
+        if (!isOpen) {
+            el.style.display = 'block';
+            el.setAttribute('aria-hidden', 'false');
         }
     }
+
+    // Close modal or action menu when clicking outside
+    window.addEventListener('click', function(event) {
+        const convertModal = document.getElementById('convertModal');
+        const manualWifiModal = document.getElementById('manualWifiModal');
+
+        if (convertModal && event.target == convertModal) {
+            closeConvertModal();
+        }
+        if (manualWifiModal && event.target == manualWifiModal) {
+            closeManualWifiModal();
+        }
+
+        // Close action menus if click is outside an open menu or settings button
+        if (!event.target.closest || !event.target.closest('.action-menu')) {
+            closeAllActionMenus();
+        }
+    });
 </script>
 @endsection
