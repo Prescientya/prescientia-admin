@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y libmemcached-dev zlib1g-dev \
 RUN install-php-extensions \
     gd \
     pcntl intl \
-    pdo_mysql mbstring exif pcntl bcmath opcache \
+    pdo_mysql pdo_pgsql pgsql mbstring exif pcntl bcmath opcache \
     zip gmp
 
 RUN apt-get update && apt-get install -y supervisor && rm -rf /var/lib/apt/lists/*
