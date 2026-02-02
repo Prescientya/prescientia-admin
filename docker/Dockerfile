@@ -12,13 +12,22 @@ RUN install-php-extensions \
     pdo_mysql pdo_pgsql pgsql mbstring exif pcntl bcmath opcache \
     zip gmp
 
-RUN apt-get update && apt-get install -y supervisor && rm -rf /var/lib/apt/lists/*
+# Install Node.js and Supervisor
+RUN apt-get update && apt-get install -y curl gnupg \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && apt-get install -y supervisor \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
+
 WORKDIR /app
 
 # Copy application files
 COPY . /app
+
+# Install Node modules and build assets
+RUN npm install && npm run build
 
 ENV SERVER_NAME=:80
 
