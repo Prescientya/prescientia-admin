@@ -16,9 +16,6 @@
 
 <div class="stats-grid">
     <div class="stat-card">
-        <div class="stat-icon">
-            <img src="{{ asset('assets/icons/Siswa.png') }}" alt="Siswa">
-        </div>
         <div class="stat-info">
             <h3>{{ \App\Models\Student::count() }}</h3>
             <p>Total Siswa</p>
@@ -26,9 +23,6 @@
     </div>
 
     <div class="stat-card">
-        <div class="stat-icon">
-            <img src="{{ asset('assets/icons/teacher.png') }}" alt="Guru">
-        </div>
         <div class="stat-info">
             <h3>{{ \App\Models\Teacher::count() }}</h3>
             <p>Total Guru</p>
@@ -36,9 +30,6 @@
     </div>
 
     <div class="stat-card">
-        <div class="stat-icon">
-            <img src="{{ asset('assets/icons/open-book.png') }}" alt="Kelas">
-        </div>
         <div class="stat-info">
             <h3>{{ \App\Models\ClassModel::count() }}</h3>
             <p>Total Kelas</p>
@@ -46,9 +37,6 @@
     </div>
 
     <div class="stat-card">
-        <div class="stat-icon">
-            <img src="{{ asset('assets/icons/wifi.png') }}" alt="WiFi">
-        </div>
         <div class="stat-info">
             <h3>{{ \App\Models\WifiNetwork::count() }}</h3>
             <p>Jaringan WiFi</p>

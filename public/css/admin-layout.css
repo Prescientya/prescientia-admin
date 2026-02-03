@@ -17,6 +17,7 @@
     background-color: #2c3e50;
     color: white;
     overflow-y: auto;
+    overflow-x: hidden;
     box-shadow: var(--shadow-lg);
     position: fixed;
     height: 100vh;
@@ -24,6 +25,14 @@
     top: 0;
     z-index: 1000;
     transition: width 0.3s ease, transform 0.3s ease;
+    /* Hide scrollbar while keeping scroll functionality */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.admin-sidebar::-webkit-scrollbar {
+    display: none;
 }
 
 /* Minimized sidebar state */
@@ -124,6 +133,94 @@
     font-size: 0.875rem;
     white-space: nowrap;
     transition: opacity 0.3s ease;
+}
+
+/* ============================================
+   SUBMENU STYLES
+   ============================================ */
+
+.has-submenu {
+    cursor: pointer;
+    position: relative;
+}
+
+.submenu-arrow {
+    margin-left: auto;
+    font-size: 0.75rem;
+    transition: transform 0.3s ease;
+}
+
+.submenu {
+    max-height: 0;
+    overflow: hidden;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-md);
+    margin: 4px 0 8px 0;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+.submenu.open {
+    max-height: 400px;
+    padding: 4px 0;
+}
+
+.submenu-item {
+    display: block;
+    width: 100%;
+    padding: 10px 16px 10px 48px;
+    color: #bdc3c7;
+    text-decoration: none;
+    border-radius: 0;
+    margin: 0;
+    transition: all 0.2s ease;
+    font-size: 0.85rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.submenu-item:last-child {
+    border-bottom: none;
+}
+
+.submenu-item:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: white;
+    padding-left: 52px;
+}
+
+.submenu-item.active {
+    background-color: rgba(231, 76, 60, 0.8);
+    color: white;
+    font-weight: 500;
+}
+
+.submenu-text {
+    white-space: nowrap;
+}
+
+/* Minimized sidebar submenu styles */
+.admin-sidebar.minimized .has-submenu .submenu-arrow {
+    display: none;
+}
+
+.admin-sidebar.minimized .submenu {
+    position: absolute;
+    left: 100%;
+    top: 0;
+    width: 200px;
+    background-color: #34495e;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    border-radius: var(--radius-md);
+    z-index: 1001;
+    margin-left: 10px;
+}
+
+.admin-sidebar.minimized .submenu.open {
+    padding: 8px;
+}
+
+.admin-sidebar.minimized .submenu-item {
+    padding: 8px 16px;
+    margin: 2px 0;
 }
 
 /* Tooltip for minimized sidebar */
