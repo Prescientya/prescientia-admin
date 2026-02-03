@@ -2,11 +2,10 @@
 <aside class="admin-sidebar">
     <div class="sidebar-header">
         <div class="sidebar-logo">
-            <img src="{{ asset('assets/icons/home.png') }}" alt="Logo" width="28" height="28">
+            <img src="{{ asset('assets/images/Logo_SMK.png') }}" alt="Logo">
         </div>
         <div class="sidebar-title">
-            <h2>SekolahKu</h2>
-            <p>Admin Panel</p>
+            <h2>Prescientia</h2>
         </div>
     </div>
 
@@ -53,6 +52,11 @@
         <a href="{{ route('admin.wifi.index') }}" class="menu-item {{ request()->routeIs('admin.wifi.*') ? 'active' : '' }}" title="Data WiFi">
             <img src="{{ asset('assets/icons/wifi.png') }}" alt="WiFi" class="menu-icon">
             <span class="menu-text">Data WiFi</span>
+        </a>
+        
+        <a href="{{ route('admin.class-periods.index') }}" class="menu-item {{ request()->routeIs('admin.class-periods.*') ? 'active' : '' }}" title="Jam Pelajaran">
+            <img src="{{ asset('assets/icons/open-book.png') }}" alt="Jam Pelajaran" class="menu-icon">
+            <span class="menu-text">Jam Pelajaran</span>
         </a>
         
         <a href="{{ route('admin.calendar.index') }}" class="menu-item {{ request()->routeIs('admin.calendar.*') ? 'active' : '' }}" title="Kalender">

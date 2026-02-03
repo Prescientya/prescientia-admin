@@ -1,387 +1,226 @@
 @extends('layouts.app')
 
-@section('title', 'Dashboard - SekolahKu Admin')
-
-@section('page-title', 'Dashboard')
-
-@section('css')
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        .dashboard-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .stat-card {
-            background: white;
-            border-radius: 8px;
-            padding: 24px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-        }
-        
-        .stat-content {
-            flex: 1;
-        }
-        
-        .stat-content p {
-            color: #6b7280;
-            font-size: 14px;
-            margin: 0 0 8px 0;
-        }
-        
-        .stat-content h3 {
-            color: #111827;
-            font-size: 32px;
-            font-weight: bold;
-            margin: 8px 0;
-        }
-        
-        .stat-content .change {
-            color: #10b981;
-            font-size: 12px;
-            margin-top: 8px;
-        }
-        
-        .stat-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            color: white;
-            margin-left: 16px;
-        }
-        
-        .stat-icon.blue { background-color: #3b82f6; }
-        .stat-icon.green { background-color: #10b981; }
-        .stat-icon.purple { background-color: #a855f7; }
-        .stat-icon.orange { background-color: #f97316; }
-        
-        .chart-card {
-            background: white;
-            border-radius: 8px;
-            padding: 24px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            margin-bottom: 30px;
-        }
-        
-        .chart-card h3 {
-            color: #111827;
-            font-size: 18px;
-            font-weight: 600;
-            margin: 0 0 8px 0;
-        }
-        
-        .chart-card p {
-            color: #6b7280;
-            font-size: 14px;
-            margin: 0 0 20px 0;
-        }
-        
-        .chart-container {
-            position: relative;
-            height: 400px;
-        }
-        
-        .bottom-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .activity-item {
-            display: flex;
-            gap: 12px;
-            padding-bottom: 16px;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        
-        .activity-item:last-child {
-            border-bottom: none;
-        }
-        
-        .activity-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            flex-shrink: 0;
-            margin-top: 6px;
-        }
-        
-        .activity-content p:first-child {
-            color: #111827;
-            font-size: 14px;
-            font-weight: 500;
-            margin: 0;
-        }
-        
-        .activity-content p:last-child {
-            color: #6b7280;
-            font-size: 12px;
-            margin: 4px 0 0 0;
-        }
-        
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px 0;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        
-        .info-row:last-child {
-            border-bottom: none;
-        }
-        
-        .info-label {
-            color: #6b7280;
-            font-size: 14px;
-        }
-        
-        .info-value {
-            color: #111827;
-            font-size: 14px;
-            font-weight: 600;
-        }
-        
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-        
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background-color: #10b981;
-        }
-        
-        .status-text {
-            color: #10b981;
-            font-weight: 600;
-            font-size: 14px;
-        }
-    </style>
-@endsection
+@section('title', 'Dashboard Admin')
 
 @section('content')
 <div class="dashboard-container">
-    <!-- Statistics Cards -->
-    <div class="stats-grid">
-        <!-- Total Siswa -->
+    <!-- Dashboard Overview Container -->
+    <div class="dashboard-overview-container">
+        <div class="overview-header">
+            <h2 class="overview-title">Dashboard Overview</h2>
+        </div>
+        
+        <!-- Statistics Cards -->
+        <div class="stats-cards">
+        <!-- Card Kelas 10 -->
         <div class="stat-card">
-            <div class="stat-content">
-                <p>Total Siswa</p>
-                <h3>{{ $totalSiswa ?? 0 }}</h3>
-                <div class="change">↑ +5% dari bulan lalu</div>
-            </div>
-            <div class="stat-icon blue">
-                <i class="fas fa-graduation-cap"></i>
-            </div>
-        </div>
-
-        <!-- Total Guru -->
-        <div class="stat-card">
-            <div class="stat-content">
-                <p>Total Guru</p>
-                <h3>{{ $totalGuru ?? 0 }}</h3>
-                <div class="change">↑ +2 guru baru</div>
-            </div>
-            <div class="stat-icon green">
-                <i class="fas fa-chalkboard-user"></i>
-            </div>
-        </div>
-
-        <!-- Total Kelas -->
-        <div class="stat-card">
-            <div class="stat-content">
-                <p>Total Kelas</p>
-                <h3>{{ $totalKelas ?? 0 }}</h3>
-                <div class="change">&nbsp;</div>
-            </div>
-            <div class="stat-icon purple">
-                <i class="fas fa-book"></i>
-            </div>
-        </div>
-
-        <!-- Login Hari Ini -->
-        <div class="stat-card">
-            <div class="stat-content">
-                <p>Login Hari Ini</p>
-                <h3>{{ $loginHariIni ?? 0 }}</h3>
-                <div class="change">↑ +12% dari kemarin</div>
-            </div>
-            <div class="stat-icon orange">
-                <i class="fas fa-chart-line"></i>
-            </div>
-        </div>
-    </div>
-
-    <!-- Grafik Login Harian -->
-    <div class="chart-card">
-        <h3>Grafik Kehadiran Harian</h3>
-        <p>7 hari terakhir - Data dari tabel attendance</p>
-        <div class="chart-container">
-            <canvas id="loginChart"></canvas>
-        </div>
-    </div>
-
-    <!-- Row 2: Pie Chart + System Info -->
-    <div class="bottom-grid">
-        <!-- Distribusi Login Berdasarkan Peran -->
-        <div class="chart-card">
-            <h3>Distribusi Login Berdasarkan Peran</h3>
-            <p>Total {{ $totalLoginDistribusi ?? 0 }} login</p>
-            <div class="chart-container" style="height: 300px;">
-                <canvas id="roleDistributionChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Ringkasan Sistem -->
-        <div class="chart-card">
-            <h3>Ringkasan Sistem</h3>
-            <div style="margin-top: 24px;">
-                <div class="info-row">
-                    <span class="info-label">Tahun Ajaran</span>
-                    <span class="info-value">{{ $tahunAjaran ?? '2024/2025' }}</span>
+            <div class="stat-card-content">
+                <div class="stat-info">
+                    <h3 class="stat-title">Kelas 10</h3>
+                    <p class="stat-number">{{ number_format($siswaKelas10) }}</p>
+                    <p class="stat-description">Total Siswa</p>
                 </div>
-                <div class="info-row">
-                    <span class="info-label">Semester</span>
-                    <span class="info-value">{{ $semester ?? 'Ganjil' }}</span>
+                <div class="stat-icon">
+                    <svg width="40" height="40" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 4V6C15 7.1 14.1 8 13 8V22H11V16H9V22H7V8C5.9 8 5 7.1 5 6V4L3 7V9H1V7C1 5.9 1.9 5 3 5L12 1L21 5C22.1 5 23 5.9 23 7V9H21Z"/>
+                    </svg>
                 </div>
-                <div class="info-row">
-                    <span class="info-label">Total Pengguna</span>
-                    <span class="info-value">{{ $totalPengguna ?? 0 }}</span>
+            </div>
+        </div>
+        
+        <!-- Card Kelas 11 -->
+        <div class="stat-card">
+            <div class="stat-card-content">
+                <div class="stat-info">
+                    <h3 class="stat-title">Kelas 11</h3>
+                    <p class="stat-number">{{ number_format($siswaKelas11) }}</p>
+                    <p class="stat-description">Total Siswa</p>
                 </div>
-                <div class="info-row">
-                    <span class="info-label">Status Sistem</span>
-                    <span class="status-badge">
-                        <span class="status-dot"></span>
-                        <span class="status-text">Aktif</span>
-                    </span>
+                <div class="stat-icon">
+                    <svg width="40" height="40" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 4V6C15 7.1 14.1 8 13 8V22H11V16H9V22H7V8C5.9 8 5 7.1 5 6V4L3 7V9H1V7C1 5.9 1.9 5 3 5L12 1L21 5C22.1 5 23 5.9 23 7V9H21Z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Card Kelas 12 -->
+        <div class="stat-card">
+            <div class="stat-card-content">
+                <div class="stat-info">
+                    <h3 class="stat-title">Kelas 12</h3>
+                    <p class="stat-number">{{ number_format($siswaKelas12) }}</p>
+                    <p class="stat-description">Total Siswa</p>
+                </div>
+                <div class="stat-icon">
+                    <svg width="40" height="40" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 4V6C15 7.1 14.1 8 13 8V22H11V16H9V22H7V8C5.9 8 5 7.1 5 6V4L3 7V9H1V7C1 5.9 1.9 5 3 5L12 1L21 5C22.1 5 23 5.9 23 7V9H21Z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Card Guru -->
+        <div class="stat-card">
+            <div class="stat-card-content">
+                <div class="stat-info">
+                    <h3 class="stat-title">Guru</h3>
+                    <p class="stat-number">{{ number_format($totalGuru) }}</p>
+                    <p class="stat-description">Total Guru</p>
+                </div>
+                <div class="stat-icon">
+                    <svg width="40" height="40" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12,2A3,3 0 0,1 15,5A3,3 0 0,1 12,8A3,3 0 0,1 9,5A3,3 0 0,1 12,2M21,9V7L15,4V6C15,7.1 14.1,8 13,8V22H11V16H13V22H15V8C16.1,8 17,7.1 17,6V4L21,7V9H23V7C23,5.9 22.1,5 21,5L12,1L3,5C1.9,5 1,5.9 1,7V9H3V7L7,4V6C7,7.1 7.9,8 9,8V22H11V16H9V22H7V8C5.9,8 5,7.1 5,6V4L1,7V9Z"/>
+                    </svg>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Chart.js Library -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+.dashboard-container {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
 
-<script>
-    // Grafik Login Harian (Line Chart)
-    const loginCtx = document.getElementById('loginChart').getContext('2d');
-    const loginChart = new Chart(loginCtx, {
-        type: 'line',
-        data: {
-            labels: {!! json_encode($chartDates ?? []) !!},
-            datasets: [
-                {
-                    label: 'Siswa Hadir',
-                    data: {!! json_encode($siswaloginData ?? []) !!},
-                    borderColor: '#3B82F6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.05)',
-                    borderWidth: 3,
-                    tension: 0.4,
-                    fill: false,
-                    pointRadius: 5,
-                    pointBackgroundColor: '#3B82F6',
-                },
-                {
-                    label: 'Guru Hadir',
-                    data: {!! json_encode($guruLoginData ?? []) !!},
-                    borderColor: '#10B981',
-                    backgroundColor: 'rgba(16, 185, 129, 0.05)',
-                    borderWidth: 3,
-                    tension: 0.4,
-                    fill: false,
-                    pointRadius: 5,
-                    pointBackgroundColor: '#10B981',
-                },
-                {
-                    label: 'Admin Login',
-                    data: {!! json_encode($adminLoginData ?? []) !!},
-                    borderColor: '#F97316',
-                    backgroundColor: 'rgba(249, 115, 22, 0.05)',
-                    borderWidth: 3,
-                    tension: 0.4,
-                    fill: false,
-                    pointRadius: 5,
-                    pointBackgroundColor: '#F97316',
-                },
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'bottom',
-                    labels: {
-                        usePointStyle: true,
-                        padding: 20,
-                        font: { size: 12 }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 80,
-                    ticks: {
-                        stepSize: 20
-                    }
-                }
-            }
-        }
-    });
+.dashboard-overview-container {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+}
 
-    // Distribusi Login Berdasarkan Peran (Doughnut Chart)
-    const roleCtx = document.getElementById('roleDistributionChart').getContext('2d');
-    const roleChart = new Chart(roleCtx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Siswa', 'Guru', 'Admin'],
-            datasets: [{
-                data: {!! json_encode($roleDistributionData ?? [0, 0, 0]) !!},
-                backgroundColor: [
-                    '#3B82F6',
-                    '#10B981',
-                    '#F97316',
-                ],
-                borderWidth: 0,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'right',
-                    labels: {
-                        padding: 20,
-                        font: { size: 12 }
-                    }
-                }
-            }
-        }
-    });
-</script>
+.overview-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #f3f4f6;
+}
+
+.overview-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+    text-align: center;
+}
+
+.stats-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 16px;
+    padding: 0;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    position: relative;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.1);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.stat-card:hover::before {
+    opacity: 1;
+}
+
+.stat-card-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.stat-info {
+    flex: 1;
+}
+
+.stat-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: white;
+    margin: 0;
+    margin-bottom: 0.5rem;
+    opacity: 0.9;
+}
+
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: white;
+    margin: 0;
+    margin-bottom: 0.5rem;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.stat-description {
+    font-size: 0.9rem;
+    color: white;
+    margin: 0;
+    opacity: 0.8;
+}
+
+.stat-icon {
+    margin-left: 1rem;
+    color: white;
+    opacity: 0.7;
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover .stat-icon {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+@media (max-width: 768px) {
+    .dashboard-container {
+        padding: 1rem;
+    }
+    
+    .dashboard-overview-container {
+        padding: 1.5rem;
+        border-radius: 16px;
+    }
+    
+    .stats-cards {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .overview-title {
+        font-size: 1.5rem;
+    }
+    
+    .stat-card-content {
+        padding: 1.5rem;
+    }
+    
+    .stat-number {
+        font-size: 2rem;
+    }
+}
+</style>
 @endsection

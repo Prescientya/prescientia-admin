@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\LoginHistoryController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\MbgOfficerController;
 use App\Http\Controllers\Admin\TeachedClassController;
+use App\Http\Controllers\ClassPeriodController;
 use Illuminate\Support\Facades\Route;
 
 // Redirect root to login
@@ -87,6 +88,15 @@ Route::prefix('admin')->middleware('admin')->name('admin.')->group(function () {
     Route::post('attendances/record', [AttendanceController::class, 'record'])->name('attendances.record');
     Route::get('attendances/{role}/{id}', [AttendanceController::class, 'show'])->name('attendances.show');
     Route::put('attendances/{role}/{id}', [AttendanceController::class, 'update'])->name('attendances.update');
+    
+    // Class Periods (Jam Pelajaran)
+    Route::get('class-periods', [ClassPeriodController::class, 'index'])->name('class-periods.index');
+    Route::get('class-periods/download-template', [ClassPeriodController::class, 'downloadTemplate'])->name('class-periods.download-template');
+    Route::post('class-periods/import', [ClassPeriodController::class, 'import'])->name('class-periods.import');
+    Route::patch('class-periods/update-note', [ClassPeriodController::class, 'updateNote'])->name('class-periods.update-note');
+    Route::delete('class-periods/delete-all', [ClassPeriodController::class, 'deleteAll'])->name('class-periods.delete-all');
+    Route::get('class-periods/check-status', [ClassPeriodController::class, 'checkStatus'])->name('class-periods.check-status');
+    Route::get('class-periods/{classPeriod}', [ClassPeriodController::class, 'show'])->name('class-periods.show');
     
     // Calendar
     Route::get('calendar', [CalendarController::class, 'index'])->name('calendar.index');

@@ -133,11 +133,6 @@ button, input[type="button"], input[type="submit"], input[type="reset"], a.btn {
     text-decoration: none;
 }
 
-button:hover, input[type="button"]:hover, input[type="submit"]:hover, input[type="reset"]:hover, a.btn:hover {
-    background-color: #0a0a08;
-    opacity: 0.9;
-}
-
 button:active, input[type="button"]:active, input[type="submit"]:active, input[type="reset"]:active, a.btn:active {
     transform: scale(0.98);
 }

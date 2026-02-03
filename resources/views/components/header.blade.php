@@ -1,14 +1,11 @@
 <!-- Header Component -->
 <header class="admin-header">
     <div class="header-container">
-        <!-- Mobile Menu Toggle -->
-        <button class="mobile-menu-toggle" id="mobileMenuToggle">
-            <span>☰</span>
-        </button>
-
-        <!-- Left Side: Page Title -->
+        <!-- Left Side: Menu Toggle -->
         <div class="header-left">
-            <h1 class="page-title">@yield('page-title', 'Dashboard')</h1>
+            <button class="mobile-menu-toggle" id="mobileMenuToggle" title="Toggle Sidebar">
+                <span id="menuToggleIcon">☰</span>
+            </button>
         </div>
 
         <!-- Right Side: Notifications & User Menu -->
@@ -84,6 +81,7 @@
             </div>
         </div>
     </div>
+    </div>
 </header>
 
 <script>
@@ -115,9 +113,73 @@
         }
     });
 
-    // Mobile Menu Toggle
+    // Mobile Menu Toggle with Minimize Feature
     document.getElementById('mobileMenuToggle')?.addEventListener('click', function() {
-        document.querySelector('.admin-sidebar')?.classList.toggle('show');
+        const sidebar = document.querySelector('.admin-sidebar');
+        const mainWrapper = document.querySelector('.admin-main-wrapper');
+        const toggleIcon = document.getElementById('menuToggleIcon');
+        
+        if (window.innerWidth <= 768) {
+            // Mobile behavior: toggle show/hide
+            sidebar?.classList.toggle('show');
+        } else {
+            // Desktop behavior: toggle minimize
+            if (sidebar?.classList.contains('minimized')) {
+                // Expand sidebar
+                sidebar.classList.remove('minimized');
+                mainWrapper?.classList.remove('sidebar-minimized');
+                
+                // Change icon
+                if (toggleIcon) {
+                    toggleIcon.innerHTML = '☰';
+                    toggleIcon.style.transform = 'rotate(0deg)';
+                }
+                
+                // Animate content opacity back in
+                setTimeout(() => {
+                    const menuTexts = sidebar.querySelectorAll('.menu-text');
+                    const sidebarTitle = sidebar.querySelector('.sidebar-title');
+                    
+                    menuTexts.forEach(text => {
+                        text.style.opacity = '1';
+                        text.style.transition = 'opacity 0.3s ease 0.1s';
+                    });
+                    
+                    if (sidebarTitle) {
+                        sidebarTitle.style.opacity = '1';
+                        sidebarTitle.style.transition = 'opacity 0.3s ease 0.1s';
+                    }
+                }, 50);
+            } else {
+                // Minimize sidebar
+                const menuTexts = sidebar.querySelectorAll('.menu-text');
+                const sidebarTitle = sidebar.querySelector('.sidebar-title');
+                
+                // Change icon
+                if (toggleIcon) {
+                    toggleIcon.innerHTML = '☰';
+                    toggleIcon.style.transform = 'rotate(0deg)';
+                    toggleIcon.style.transition = 'all 0.3s ease';
+                }
+                
+                // Fade out content first
+                menuTexts.forEach(text => {
+                    text.style.opacity = '0';
+                    text.style.transition = 'opacity 0.2s ease';
+                });
+                
+                if (sidebarTitle) {
+                    sidebarTitle.style.opacity = '0';
+                    sidebarTitle.style.transition = 'opacity 0.2s ease';
+                }
+                
+                // Then minimize sidebar
+                setTimeout(() => {
+                    sidebar?.classList.add('minimized');
+                    mainWrapper?.classList.add('sidebar-minimized');
+                }, 150);
+            }
+        }
     });
 
     // Close sidebar when clicking outside on mobile
@@ -127,6 +189,21 @@
         
         if (window.innerWidth <= 768 && sidebar && !sidebar.contains(e.target) && e.target !== toggle && !toggle.contains(e.target)) {
             sidebar.classList.remove('show');
+        }
+    });
+
+    // Handle window resize to reset sidebar state
+    window.addEventListener('resize', function() {
+        const sidebar = document.querySelector('.admin-sidebar');
+        const mainWrapper = document.querySelector('.admin-main-wrapper');
+        
+        if (window.innerWidth <= 768) {
+            // Mobile: remove minimize state and show mobile behavior
+            sidebar?.classList.remove('minimized');
+            mainWrapper?.classList.remove('sidebar-minimized');
+        } else {
+            // Desktop: remove mobile show state
+            sidebar?.classList.remove('show');
         }
     });
 </script>

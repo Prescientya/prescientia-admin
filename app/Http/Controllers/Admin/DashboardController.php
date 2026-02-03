@@ -26,6 +26,22 @@ class DashboardController extends Controller
         $totalGuru = Teacher::whereNull('deleted_at')->count();
         $totalKelas = ClassModel::count();
         
+        // Count students by class grade (assuming class naming convention like "10", "11", "12")
+        $siswaKelas10 = Student::whereNull('deleted_at')
+            ->whereHas('class', function($query) {
+                $query->where('class', 'LIKE', '10%');
+            })->count();
+            
+        $siswaKelas11 = Student::whereNull('deleted_at')
+            ->whereHas('class', function($query) {
+                $query->where('class', 'LIKE', '11%');
+            })->count();
+            
+        $siswaKelas12 = Student::whereNull('deleted_at')
+            ->whereHas('class', function($query) {
+                $query->where('class', 'LIKE', '12%');
+            })->count();
+        
         // Count total login today (distinct users)
         $loginHariIni = DB::table('history_login')
             ->whereDate('login_at', $today)
@@ -131,6 +147,9 @@ class DashboardController extends Controller
             'tahunAjaran' => $tahunAjaran,
             'semester' => $semester,
             'totalPengguna' => $totalPengguna,
+            'siswaKelas10' => $siswaKelas10,
+            'siswaKelas11' => $siswaKelas11,
+            'siswaKelas12' => $siswaKelas12,
         ]);
     }
 }
