@@ -26,21 +26,26 @@ class DashboardController extends Controller
         $totalGuru = Teacher::whereNull('deleted_at')->count();
         $totalKelas = ClassModel::count();
         
-        // Count students by class grade (assuming class naming convention like "10", "11", "12")
+        // Count students by class grade (using integer class column)
         $siswaKelas10 = Student::whereNull('deleted_at')
             ->whereHas('class', function($query) {
-                $query->where('class', 'LIKE', '10%');
+                $query->where('class', 10);
             })->count();
             
         $siswaKelas11 = Student::whereNull('deleted_at')
             ->whereHas('class', function($query) {
-                $query->where('class', 'LIKE', '11%');
+                $query->where('class', 11);
             })->count();
             
         $siswaKelas12 = Student::whereNull('deleted_at')
             ->whereHas('class', function($query) {
-                $query->where('class', 'LIKE', '12%');
+                $query->where('class', 12);
             })->count();
+
+        // Count total classes by grade
+        $totalKelas10 = ClassModel::where('class', 10)->count();
+        $totalKelas11 = ClassModel::where('class', 11)->count();
+        $totalKelas12 = ClassModel::where('class', 12)->count();
         
         // Count total login today (distinct users)
         $loginHariIni = DB::table('history_login')
@@ -150,6 +155,140 @@ class DashboardController extends Controller
             'siswaKelas10' => $siswaKelas10,
             'siswaKelas11' => $siswaKelas11,
             'siswaKelas12' => $siswaKelas12,
+            'totalKelas10' => $totalKelas10,
+            'totalKelas11' => $totalKelas11,
+            'totalKelas12' => $totalKelas12,
+        ]);
+    }
+
+    /**
+     * Get detail classes by grade (JSON endpoint)
+     */
+    public function getClassesByGrade($grade)
+    {
+        $today = Carbon::today();
+        
+        // Get all classes with the specified grade
+        $classes = ClassModel::where('class', (int)$grade)
+            ->with(['students' => function($query) {
+                $query->whereNull('deleted_at');
+            }])
+            ->orderBy('major')
+            ->get();
+
+        $classesData = $classes->map(function($class) use ($today) {
+            $totalSiswa = $class->students->count();
+            
+            // Count students present today
+            $siswaHadir = DB::table('student_attendances')
+                ->whereDate('check_in_time', $today)
+                ->where('status', 'hadir')
+                ->whereIn('student_id', $class->students->pluck('id'))
+                ->distinct('student_id')
+                ->count('student_id');
+            
+            $siswaBelumHadir = $totalSiswa - $siswaHadir;
+            
+            // Get class info from database columns
+            $grade = $class->class; // This is integer (10, 11, 12)
+            $major = $class->major ?? 'Umum'; // This is string (TKJ, RPL, etc.)
+            
+            // Generate display name
+            $displayName = $grade . ' ' . $major;
+            
+            return [
+                'id' => $class->id,
+                'name' => $displayName,
+                'grade' => $grade,
+                'major' => $major,
+                'displayName' => $displayName,
+                'totalSiswa' => $totalSiswa,
+                'siswaHadir' => $siswaHadir,
+                'siswaBelumHadir' => $siswaBelumHadir,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $classesData,
+        ]);
+    }
+
+    /**
+     * Get teacher statistics (JSON endpoint)
+     */
+    public function getTeacherStats()
+    {
+        $today = Carbon::today();
+        
+        $totalGuru = Teacher::whereNull('deleted_at')->count();
+        
+        // Count teachers present today
+        $guruHadir = DB::table('teacher_attendances')
+            ->whereDate('check_in_time', $today)
+            ->where('status', 'hadir')
+            ->distinct('teacher_id')
+            ->count('teacher_id');
+        
+        $guruTidakHadir = $totalGuru - $guruHadir;
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'totalGuru' => $totalGuru,
+                'guruHadir' => $guruHadir,
+                'guruTidakHadir' => $guruTidakHadir,
+            ],
+        ]);
+    }
+
+    /**
+     * Get students in specific class with attendance status (JSON endpoint)
+     */
+    public function getClassStudents($classId)
+    {
+        $today = Carbon::today();
+        
+        // Get class with students
+        $class = ClassModel::with(['students' => function($query) {
+            $query->whereNull('deleted_at')->orderBy('name');
+        }])->findOrFail($classId);
+
+        $studentsData = $class->students->map(function($student) use ($today) {
+            // Check if student attended today
+            $attendance = DB::table('student_attendances')
+                ->whereDate('check_in_time', $today)
+                ->where('student_id', $student->id)
+                ->where('status', 'hadir')
+                ->first();
+            
+            $checkInTime = null;
+            if ($attendance) {
+                $checkInTime = Carbon::parse($attendance->check_in_time)->format('H:i');
+            }
+            
+            return [
+                'id' => $student->id,
+                'name' => $student->name,
+                'nisn' => $student->nisn,
+                'isPresent' => $attendance ? true : false,
+                'checkInTime' => $checkInTime,
+                'status' => $attendance ? 'Hadir' : 'Belum Hadir',
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'class' => [
+                    'id' => $class->id,
+                    'name' => $class->class,
+                    'totalStudents' => $studentsData->count(),
+                    'presentCount' => $studentsData->where('isPresent', true)->count(),
+                    'absentCount' => $studentsData->where('isPresent', false)->count(),
+                ],
+                'students' => $studentsData,
+            ],
         ]);
     }
 }

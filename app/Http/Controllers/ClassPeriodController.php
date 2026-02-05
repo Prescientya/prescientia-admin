@@ -49,7 +49,33 @@ class ClassPeriodController extends Controller
         }
 
         // Jika request HTML, return view
-        return view('admin.class-periods.index');
+        // Dapatkan hari ini dalam bahasa Indonesia
+        $today = strtolower(\Carbon\Carbon::now()->locale('id')->translatedFormat('l'));
+        
+        // Mapping hari ke bahasa Indonesia
+        $dayMapping = [
+            'monday' => 'senin',
+            'tuesday' => 'selasa',
+            'wednesday' => 'rabu',
+            'thursday' => 'kamis',
+            'friday' => 'jumat',
+            'saturday' => 'sabtu',
+            'sunday' => 'minggu'
+        ];
+        
+        $dayEnglish = strtolower(\Carbon\Carbon::now()->format('l'));
+        $currentDay = $dayMapping[$dayEnglish] ?? $today;
+        
+        // Ambil jadwal hari ini saja
+        $todayPeriods = ClassPeriod::where('day', $currentDay)
+                                   ->orderBy('sequence')
+                                   ->get();
+        
+        return view('admin.class-periods.index', [
+            'currentDay' => $currentDay,
+            'todayPeriods' => $todayPeriods,
+            'dayName' => ucfirst($currentDay)
+        ]);
     }
 
     /**
@@ -61,6 +87,55 @@ class ClassPeriodController extends Controller
             'success' => true,
             'data' => $classPeriod,
         ]);
+    }
+
+    /**
+     * GET: Show edit form for a class period
+     */
+    public function edit(ClassPeriod $classPeriod)
+    {
+        $days = ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu'];
+        $activityTypes = ['belajar', 'istirahat', 'shalat'];
+        
+        return view('admin.class-periods.edit', compact('classPeriod', 'days', 'activityTypes'));
+    }
+
+    /**
+     * PUT/PATCH: Update a class period
+     */
+    public function update(Request $request, ClassPeriod $classPeriod)
+    {
+        $request->validate([
+            'day' => 'required|in:senin,selasa,rabu,kamis,jumat,sabtu,minggu',
+            'sequence' => 'required|integer|min:0',
+            'start_time' => 'required|date_format:H:i',
+            'end_time' => 'required|date_format:H:i|after:start_time',
+            'activity_type' => 'required|in:belajar,istirahat,shalat',
+            'note' => 'nullable|string|max:255',
+        ]);
+
+        $classPeriod->update([
+            'day' => $request->day,
+            'sequence' => $request->sequence,
+            'start_time' => $request->start_time,
+            'end_time' => $request->end_time,
+            'activity_type' => $request->activity_type,
+            'note' => $request->note,
+        ]);
+
+        return redirect()->route('admin.class-periods.index')
+                        ->with('success', 'Jadwal pelajaran berhasil diperbarui');
+    }
+
+    /**
+     * DELETE: Delete a single class period
+     */
+    public function destroy(ClassPeriod $classPeriod)
+    {
+        $classPeriod->delete();
+
+        return redirect()->route('admin.class-periods.index')
+                        ->with('success', 'Jadwal pelajaran berhasil dihapus');
     }
 
     /**
@@ -360,5 +435,35 @@ class ClassPeriodController extends Controller
         // Save file
         $writer = new Xlsx($spreadsheet);
         $writer->save($templatePath);
+    }
+
+    /**
+     * Seed class periods data via API
+     * 
+     * @return JsonResponse
+     */
+    public function seedData(): JsonResponse
+    {
+        try {
+            // Hapus data lama jika ada
+            ClassPeriod::truncate();
+            
+            // Jalankan seeder
+            $seeder = new \Database\Seeders\ClassPeriodSeeder();
+            $seeder->run();
+            
+            $totalPeriods = ClassPeriod::count();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Class periods data seeded successfully',
+                'total_periods' => $totalPeriods
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to seed data: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

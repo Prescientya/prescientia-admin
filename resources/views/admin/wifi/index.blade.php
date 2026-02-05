@@ -5,6 +5,7 @@
 @section('page-title', 'Data WiFi')
 
 @section('css')
+<link rel="stylesheet" href="{{ asset('css/action-dropdown.css') }}">
 <style>
     .wifi-section {
         margin-bottom: 2rem;
@@ -123,29 +124,7 @@
         color: #6c757d;
     }
 
-    .signal-badge {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 0.25rem;
-        font-size: 0.875rem;
-        background-color: #e7f3ff;
-        color: #004085;
-    }
 
-    .signal-strong {
-        background-color: #d4edda;
-        color: #155724;
-    }
-
-    .signal-medium {
-        background-color: #fff3cd;
-        color: #856404;
-    }
-
-    .signal-weak {
-        background-color: #f8d7da;
-        color: #721c24;
-    }
 
     .modal {
         display: none;
@@ -233,52 +212,7 @@
         animation: spin 1s linear infinite;
     }
 
-        /* Action menu (settings) */
-        .action-menu {
-            position: relative;
-            display: inline-block;
-        }
 
-        .action-menu .settings-btn {
-            padding: 0.4rem 0.6rem;
-            border-radius: 0.375rem;
-            background-color: #343a40;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-
-        .action-menu-dropdown {
-            display: none;
-            position: absolute;
-            right: 0;
-            top: calc(100% + 6px);
-            min-width: 140px;
-            background: #ffffff;
-            border: 1px solid #e9ecef;
-            border-radius: 6px;
-            padding: 0.25rem;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-            z-index: 2000;
-        }
-
-        .action-menu-dropdown a,
-        .action-menu-dropdown button {
-            display: block;
-            padding: 0.45rem 0.75rem;
-            text-decoration: none;
-            color: #212529;
-            background: transparent;
-            border: none;
-            text-align: left;
-            width: 100%;
-            cursor: pointer;
-        }
-
-        .action-menu-dropdown a:hover,
-        .action-menu-dropdown button:hover {
-            background-color: #f8f9fa;
-        }
 
     @keyframes spin {
         0% { transform: rotate(0deg); }
@@ -304,13 +238,6 @@
         @if (session('success'))
             <div class="alert alert-success">
                 {{ session('success') }}
-            </div>
-        @endif
-
-        @if ($error)
-            <div class="alert alert-warning">
-                <strong>⚠️ Peringatan:</strong><br>
-                <code style="background: #fff8e1; padding: 0.5rem; display: block; margin-top: 0.5rem; word-break: break-word; font-size: 0.85rem;">{{ $error }}</code>
             </div>
         @endif
 
@@ -340,16 +267,27 @@
                                     <td>{{ $wifi->ip_address ?? '-' }}</td>
                                     <td>{{ $wifi->created_at->format('d/m/Y H:i') }}</td>
                                     <td style="text-align: center; vertical-align: middle;">
-                                        <div class="action-menu">
-                                            <button type="button" class="settings-btn" onclick="toggleActionMenu('{{ $wifi->id }}')">⚙</button>
-                                            <div id="action-menu-{{ $wifi->id }}" class="action-menu-dropdown" aria-hidden="true">
-                                                <a href="{{ route('admin.wifi.edit', $wifi->id) }}">✏️ Edit</a>
-                                                <form action="{{ route('admin.wifi.destroy', $wifi->id) }}" method="POST" style="margin:0;">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" onclick="return confirm('Apakah Anda yakin ingin menghapus WiFi ini?');">🗑 Hapus</button>
-                                                </form>
-                                            </div>
+                                        <div class="action-menu-container">
+                                            <button class="action-menu-btn" type="button" onclick="toggleDropdown(event, this)" title="Pengaturan aksi">
+                                                <img src="{{ asset('assets/icons/setting.png') }}" alt="Setting" width="20" height="20">
+                                            </button>
+                                            <ul class="dropdown-menu" style="display: none;">
+                                                <li>
+                                                    <a class="dropdown-item" href="{{ route('admin.wifi.edit', $wifi->id) }}">
+                                                        ✏️ Edit
+                                                    </a>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <form method="POST" action="{{ route('admin.wifi.destroy', $wifi->id) }}" class="dropdown-delete-form">
+                                                        @csrf
+                                                        @method('DELETE')
+                                                        <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Apakah Anda yakin ingin menghapus WiFi ini?')">
+                                                            🗑 Hapus
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            </ul>
                                         </div>
                                     </td>
                                 </tr>
@@ -363,7 +301,7 @@
                 </div>
             @else
                 <div class="alert alert-warning">
-                    Belum ada WiFi yang terdaftar di database. Silakan cari dan tambahkan WiFi dari sekitar Anda.
+                    Belum ada WiFi yang terdaftar di database. Silakan tambah WiFi secara manual menggunakan tombol di bawah.
                 </div>
             @endif
         </div>
@@ -381,98 +319,6 @@
             <p style="color: #6c757d;">Tambahkan WiFi secara manual dengan memasukkan SSID dan BSSID (MAC Address) yang ingin dijadikan patokan di sekolah.</p>
         </div>
 
-        {{-- Section 2: Detected WiFi Networks --}}
-        <div class="wifi-section">
-            <h2 class="wifi-section-title">
-                🔍 WiFi yang Terdeteksi
-                <span style="float: right; font-size: 1rem;">
-                    <button onclick="location.reload()" class="btn btn-sm btn-primary" style="padding: 0.5rem 1rem;">
-                        🔄 Scan Ulang
-                    </button>
-                </span>
-            </h2>
-
-            @if (!empty($detectedNetworksFiltered) && count($detectedNetworksFiltered) > 0)
-                @foreach ($detectedNetworksFiltered as $network)
-                    <div style="margin-bottom: 2rem; padding: 1.5rem; background-color: #f8f9fa; border-radius: 0.5rem; border-left: 4px solid #0d6efd;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                            <div>
-                                <h3 style="margin: 0 0 0.5rem 0;">{{ $network['ssid'] }}</h3>
-                                <p style="margin: 0; color: #6c757d; font-size: 0.9rem;">
-                                    <strong>{{ count($network['bssids']) }}</strong> Access Point{{ count($network['bssids']) > 1 ? 's' : '' }}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div style="overflow-x: auto;">
-                            <table class="wifi-table" style="background-color: white; margin-bottom: 1rem;">
-                                <thead>
-                                    <tr>
-                                        <th>BSSID</th>
-                                        <th>Channel</th>
-                                        <th>Signal</th>
-                                        <th>Radio Type</th>
-                                        <th>Security</th>
-                                        <th>Encryption</th>
-                                        <th>Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($network['bssids'] as $bssid)
-                                        <tr>
-                                            <td><code style="font-size: 0.85rem;">{{ $bssid['bssid'] }}</code></td>
-                                            <td>{{ $bssid['channel'] ?? '-' }}</td>
-                                            <td>
-                                                @php
-                                                    $signal = $bssid['signal'];
-                                                    $signalClass = 'signal-weak';
-                                                    if ($signal >= 70) {
-                                                        $signalClass = 'signal-strong';
-                                                    } elseif ($signal >= 40) {
-                                                        $signalClass = 'signal-medium';
-                                                    }
-                                                @endphp
-                                                <span class="signal-badge {{ $signalClass }}">
-                                                    {{ $signal ?? '-' }}%
-                                                </span>
-                                            </td>
-                                            <td>{{ $bssid['radio'] ?? '-' }}</td>
-                                            <td>{{ $bssid['security'] ?? '-' }}</td>
-                                            <td>{{ $bssid['encryption'] ?? '-' }}</td>
-                                            <td>
-                                                <button type="button" class="btn btn-sm btn-success" onclick="openConvertModal('{{ $network['ssid'] }}', '{{ $bssid['bssid'] }}')">
-                                                    Convert
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                @endforeach
-            @else
-                <div class="alert alert-success">
-                    ✅ Semua WiFi yang terdeteksi sudah terdaftar di database, atau sedang melakukan pemindaian...
-                </div>
-            @endif
-        </div>
-    </div>
-</div>
-
-{{-- Convert Modal --}}
-<div id="convertModal" class="modal">
-    <div class="modal-content">
-        <span class="modal-close" onclick="closeConvertModal()">&times;</span>
-        <h2 style="margin-top: 0;">Konfirmasi Tambah WiFi</h2>
-        <p id="confirmMessage"></p>
-        <div class="modal-buttons">
-            <button type="button" class="btn-cancel" onclick="closeConvertModal()">Batal</button>
-            <button type="button" class="btn-confirm" id="confirmBtn" onclick="convertWifi()">
-                <span id="confirmBtnText">Ya, Tambahkan</span>
-                <span id="confirmBtnLoader" class="loader" style="display: none; margin-left: 0.5rem;"></span>
-            </button>
-        </div>
     </div>
 </div>
 
@@ -540,66 +386,6 @@
 </div>
 
 <script>
-    let currentConvertData = {
-        ssid: '',
-        bssid: ''
-    };
-
-    function openConvertModal(ssid, bssid) {
-        currentConvertData = { ssid, bssid };
-        document.getElementById('confirmMessage').textContent = 
-            `Apakah Anda yakin ingin menjadikan "${ssid}" (BSSID: ${bssid}) ini sebagai patokan WiFi sekolah?`;
-        document.getElementById('convertModal').classList.add('show');
-    }
-
-    function closeConvertModal() {
-        document.getElementById('convertModal').classList.remove('show');
-    }
-
-    function convertWifi() {
-        const confirmBtn = document.getElementById('confirmBtn');
-        const confirmBtnText = document.getElementById('confirmBtnText');
-        const confirmBtnLoader = document.getElementById('confirmBtnLoader');
-
-        confirmBtn.disabled = true;
-        confirmBtnText.style.display = 'none';
-        confirmBtnLoader.style.display = 'inline-block';
-
-        fetch('{{ route("admin.wifi.convert") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({
-                ssid: currentConvertData.ssid,
-                bssid: currentConvertData.bssid
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            confirmBtn.disabled = false;
-            confirmBtnText.style.display = 'inline';
-            confirmBtnLoader.style.display = 'none';
-
-            if (data.success) {
-                closeConvertModal();
-                // Show success message and reload
-                alert(data.message);
-                location.reload();
-            } else {
-                alert('Gagal: ' + data.message);
-            }
-        })
-        .catch(error => {
-            confirmBtn.disabled = false;
-            confirmBtnText.style.display = 'inline';
-            confirmBtnLoader.style.display = 'none';
-            console.error('Error:', error);
-            alert('Terjadi kesalahan: ' + error.message);
-        });
-    }
-
     // Manual WiFi Modal Functions
     function openManualWifiModal() {
         document.getElementById('manualWifiModal').classList.add('show');
@@ -673,39 +459,38 @@
     }
 
     // Action menu helpers
-    function closeAllActionMenus() {
-        document.querySelectorAll('.action-menu-dropdown').forEach(el => {
-            el.style.display = 'none';
-            el.setAttribute('aria-hidden', 'true');
+    function toggleDropdown(event, button) {
+        event.stopPropagation();
+        const dropdown = button.nextElementSibling;
+        
+        // Close all other dropdowns
+        document.querySelectorAll('.dropdown-menu').forEach(el => {
+            if (el !== dropdown) {
+                el.style.display = 'none';
+            }
         });
-    }
-
-    function toggleActionMenu(id) {
-        const el = document.getElementById('action-menu-' + id);
-        if (!el) return;
-        const isOpen = el.style.display === 'block';
-        closeAllActionMenus();
-        if (!isOpen) {
-            el.style.display = 'block';
-            el.setAttribute('aria-hidden', 'false');
+        
+        // Toggle current dropdown
+        if (dropdown.style.display === 'none' || dropdown.style.display === '') {
+            dropdown.style.display = 'block';
+        } else {
+            dropdown.style.display = 'none';
         }
     }
 
-    // Close modal or action menu when clicking outside
+    // Close action menus if click is outside an open menu or settings button
     window.addEventListener('click', function(event) {
-        const convertModal = document.getElementById('convertModal');
         const manualWifiModal = document.getElementById('manualWifiModal');
 
-        if (convertModal && event.target == convertModal) {
-            closeConvertModal();
-        }
         if (manualWifiModal && event.target == manualWifiModal) {
             closeManualWifiModal();
         }
 
-        // Close action menus if click is outside an open menu or settings button
-        if (!event.target.closest || !event.target.closest('.action-menu')) {
-            closeAllActionMenus();
+        // Close dropdown menus if click is outside
+        if (!event.target.closest('.action-menu-container')) {
+            document.querySelectorAll('.dropdown-menu').forEach(el => {
+                el.style.display = 'none';
+            });
         }
     });
 </script>

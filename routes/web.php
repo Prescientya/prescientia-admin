@@ -29,6 +29,9 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 Route::prefix('admin')->middleware('admin')->name('admin.')->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard/classes/{grade}', [DashboardController::class, 'getClassesByGrade'])->name('dashboard.classes');
+    Route::get('/dashboard/teachers', [DashboardController::class, 'getTeacherStats'])->name('dashboard.teachers');
+    Route::get('/dashboard/class/{classId}/students', [DashboardController::class, 'getClassStudents'])->name('dashboard.class.students');
     
     // Students
     // Bulk import template and upload - register before resource to avoid route parameter collision
@@ -74,7 +77,6 @@ Route::prefix('admin')->middleware('admin')->name('admin.')->group(function () {
     
     // WiFi Networks
     Route::resource('wifi', WifiController::class)->except(['show']);
-    Route::post('wifi/convert', [WifiController::class, 'convert'])->name('wifi.convert');
     
     // Attendances (separate pages for students and teachers)
     Route::get('attendances/students', [AttendanceController::class, 'students'])->name('attendances.students');
@@ -89,19 +91,35 @@ Route::prefix('admin')->middleware('admin')->name('admin.')->group(function () {
     Route::get('attendances/{role}/{id}', [AttendanceController::class, 'show'])->name('attendances.show');
     Route::put('attendances/{role}/{id}', [AttendanceController::class, 'update'])->name('attendances.update');
     
-    // Class Periods (Jam Pelajaran)
-    Route::get('class-periods', [ClassPeriodController::class, 'index'])->name('class-periods.index');
-    Route::get('class-periods/download-template', [ClassPeriodController::class, 'downloadTemplate'])->name('class-periods.download-template');
-    Route::post('class-periods/import', [ClassPeriodController::class, 'import'])->name('class-periods.import');
-    Route::patch('class-periods/update-note', [ClassPeriodController::class, 'updateNote'])->name('class-periods.update-note');
-    Route::delete('class-periods/delete-all', [ClassPeriodController::class, 'deleteAll'])->name('class-periods.delete-all');
-    Route::get('class-periods/check-status', [ClassPeriodController::class, 'checkStatus'])->name('class-periods.check-status');
-    Route::get('class-periods/{classPeriod}', [ClassPeriodController::class, 'show'])->name('class-periods.show');
+    // Class Periods (Jam Pelajaran) - CRUD Management
+    Route::resource('class-periods', \App\Http\Controllers\Admin\AdminClassPeriodController::class);
+    
+    // Class Periods - Import & Export Routes
+    Route::get('class-periods-download-template', [ClassPeriodController::class, 'downloadTemplate'])->name('class-periods.download-template');
+    Route::post('class-periods-import', [ClassPeriodController::class, 'import'])->name('class-periods.import');
+    Route::post('class-periods-seed-data', [ClassPeriodController::class, 'seedData'])->name('class-periods.seed-data');
+    Route::patch('class-periods-update-note', [ClassPeriodController::class, 'updateNote'])->name('class-periods.update-note');
+    Route::delete('class-periods-delete-all', [ClassPeriodController::class, 'deleteAll'])->name('class-periods.delete-all');
+    Route::get('class-periods-check-status', [ClassPeriodController::class, 'checkStatus'])->name('class-periods.check-status');
+    
+    // Teacher Schedules (Bulk Assignment & Import)
+    Route::get('teacher-schedules', [\App\Http\Controllers\Admin\AdminTeacherScheduleController::class, 'index'])->name('teacher-schedules.index');
+    Route::get('teacher-schedules/periods', [\App\Http\Controllers\Admin\AdminTeacherScheduleController::class, 'getPeriodsByDay'])->name('teacher-schedules.periods');
+    Route::post('teacher-schedules/bulk', [\App\Http\Controllers\Admin\AdminTeacherScheduleController::class, 'storeBulk'])->name('teacher-schedules.bulk');
+    Route::post('teacher-schedules/import', [\App\Http\Controllers\Admin\AdminTeacherScheduleController::class, 'importExcel'])->name('teacher-schedules.import');
+    Route::get('teacher-schedules/download-template', [\App\Http\Controllers\Admin\AdminTeacherScheduleController::class, 'downloadTemplate'])->name('teacher-schedules.download-template');
+    Route::delete('teacher-schedules/{schedule}', [\App\Http\Controllers\Admin\AdminTeacherScheduleController::class, 'destroy'])->name('teacher-schedules.destroy');
+    
+    // Attendance Recap Per Day
+    Route::get('attendance/recap', [\App\Http\Controllers\Admin\AdminTeacherAttendanceRecapController::class, 'index'])->name('attendance.recap');
     
     // Calendar
     Route::get('calendar', [CalendarController::class, 'index'])->name('calendar.index');
     Route::post('calendar', [CalendarController::class, 'store'])->name('calendar.store');
+    Route::get('calendar/check-exists', [CalendarController::class, 'checkCalendarExists'])->name('calendar.check-exists');
     Route::post('calendar/seed', [CalendarController::class, 'seed'])->name('calendar.seed');
+    Route::get('calendar/get-date-status', [CalendarController::class, 'getDateStatus'])->name('calendar.get-date-status');
+    Route::post('calendar/{id}/toggle-status', [CalendarController::class, 'toggleDateStatus'])->name('calendar.toggle-status');
     Route::put('calendar/{id}', [CalendarController::class, 'update'])->name('calendar.update');
     
     // Login History

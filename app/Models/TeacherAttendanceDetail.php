@@ -23,4 +23,12 @@ class TeacherAttendanceDetail extends Model
     {
         return $this->belongsTo(TeacherAttendance::class, 'attendance_id');
     }
+
+    /**
+     * Get the class period for this attendance detail.
+     */
+    public function period()
+    {
+        return $this->belongsTo(ClassPeriod::class, 'period_id');
+    }
 }

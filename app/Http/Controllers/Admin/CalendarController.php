@@ -77,6 +77,22 @@ class CalendarController extends Controller
     }
 
     /**
+     * Check if calendar already exists for a specific year
+     */
+    public function checkCalendarExists(Request $request)
+    {
+        $year = $request->get('year', now()->year);
+        
+        // Check if there's any calendar event for the requested year
+        $exists = SchoolCalendar::whereYear('date', $year)->exists();
+        
+        return response()->json([
+            'exists' => $exists,
+            'year' => $year,
+        ]);
+    }
+
+    /**
      * Run calendar seeder from admin UI (protected by admin middleware).
      */
     public function seed(Request $request)
@@ -103,5 +119,101 @@ class CalendarController extends Controller
             return redirect()->route('admin.calendar.index')
                 ->with('error', 'Seeder failed: '.$e->getMessage());
         }
+    }
+
+    /**
+     * Get the status of a specific date
+     */
+    public function getDateStatus(Request $request)
+    {
+        $request->validate([
+            'date' => 'required|date_format:Y-m-d',
+        ]);
+
+        $date = $request->get('date');
+        $calendar = SchoolCalendar::whereDate('date', $date)->first();
+
+        if (!$calendar) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tanggal tidak ditemukan dalam kalender sekolah',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'id' => $calendar->id,
+            'date' => $calendar->date->toDateString(),
+            'day' => $calendar->day,
+            'month' => $calendar->month,
+            'year' => $calendar->year,
+            'status' => $calendar->status,
+            'day_name' => $this->getDayName($calendar->date->dayOfWeek),
+            'month_name' => $this->getMonthName($calendar->month),
+        ]);
+    }
+
+    /**
+     * Toggle the status of a specific date
+     */
+    public function toggleDateStatus($id)
+    {
+        // Basic validation for id: ensure it's a positive integer and reasonable bigint length
+        if (!preg_match('/^\d{1,19}$/', (string) $id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid id',
+            ], 400);
+        }
+
+        $calendar = SchoolCalendar::find($id);
+
+        if (! $calendar) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Calendar entry not found',
+            ], 404);
+        }
+
+        // Only allow toggling known statuses
+        $allowed = ['aktif', 'libur'];
+        if (! in_array($calendar->status, $allowed, true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Current status is not allowed to be toggled',
+                'current_status' => $calendar->status,
+            ], 400);
+        }
+
+        $newStatus = $calendar->status === 'aktif' ? 'libur' : 'aktif';
+        $calendar->status = $newStatus;
+        $calendar->save();
+
+        return response()->json([
+            'success' => true,
+            'id' => $calendar->id,
+            'new_status' => $newStatus,
+        ]);
+    }
+
+    /**
+     * Get day name
+     */
+    private function getDayName($dayOfWeek)
+    {
+        $days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        return $days[$dayOfWeek] ?? 'Tidak diketahui';
+    }
+
+    /**
+     * Get month name
+     */
+    private function getMonthName($month)
+    {
+        $months = [
+            'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+        ];
+        return $months[$month - 1] ?? 'Tidak diketahui';
     }
 }

@@ -48,6 +48,14 @@ class TeacherAttendance extends Model
     }
 
     /**
+     * Get the class period for this attendance.
+     */
+    public function period()
+    {
+        return $this->belongsTo(ClassPeriod::class, 'period_id');
+    }
+
+    /**
      * Scope for present teachers.
      */
     public function scopePresent($query)

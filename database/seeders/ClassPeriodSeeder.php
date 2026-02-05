@@ -16,6 +16,7 @@ class ClassPeriodSeeder extends Seeder
      */
     public function run(): void
     {
+
         // Jadwal SENIN
         $senin = [
             ['seq' => 0, 'start' => '06:30', 'end' => '07:15', 'type' => 'ceremony', 'note' => 'Upacara'],
@@ -35,7 +36,7 @@ class ClassPeriodSeeder extends Seeder
 
         // Jadwal SELASA
         $selasa = [
-            ['seq' => 0, 'start' => '06:10', 'end' => '06:30', 'type' => 'cleaning', 'note' => 'Tadarus & Kebersiahan'],
+            ['seq' => 0, 'start' => '06:10', 'end' => '06:30', 'type' => 'cleaning', 'note' => 'Tadarus & Kebersihan'],
             ['seq' => 1, 'start' => '06:30', 'end' => '07:10', 'type' => 'lesson', 'note' => null],
             ['seq' => 2, 'start' => '07:10', 'end' => '07:50', 'type' => 'lesson', 'note' => null],
             ['seq' => 3, 'start' => '07:50', 'end' => '08:30', 'type' => 'lesson', 'note' => null],
@@ -59,16 +60,17 @@ class ClassPeriodSeeder extends Seeder
 
         // Jadwal JUMAT
         $jumat = [
-            ['seq' => 0, 'start' => '06:30', 'end' => '07:30', 'type' => 'other', 'note' => 'Kerohanian/Olahraga/Kebersiahan'],
+            ['seq' => 0, 'start' => '06:30', 'end' => '07:30', 'type' => 'other', 'note' => 'Kerohanian/Olahraga/Kebersihan'],
             ['seq' => 1, 'start' => '07:30', 'end' => '08:05', 'type' => 'lesson', 'note' => null],
             ['seq' => 2, 'start' => '08:05', 'end' => '08:40', 'type' => 'lesson', 'note' => null],
             ['seq' => 3, 'start' => '08:40', 'end' => '09:15', 'type' => 'lesson', 'note' => null],
             ['seq' => 4, 'start' => '09:15', 'end' => '09:50', 'type' => 'lesson', 'note' => null],
-            ['seq' => 5, 'start' => '09:50', 'end' => '10:25', 'type' => 'break', 'note' => 'Istirahat/MBG'],
-            ['seq' => 6, 'start' => '10:25', 'end' => '10:55', 'type' => 'lesson', 'note' => null],
+            ['seq' => 5, 'start' => '09:50', 'end' => '10:20', 'type' => 'break', 'note' => 'Istirahat/MBG'],
+            ['seq' => 6, 'start' => '10:20', 'end' => '10:55', 'type' => 'lesson', 'note' => null],
             ['seq' => 7, 'start' => '10:55', 'end' => '11:30', 'type' => 'lesson', 'note' => null],
             ['seq' => 8, 'start' => '11:30', 'end' => '12:30', 'type' => 'prayer', 'note' => 'Shalat Jum\'at / Keputian'],
-            ['seq' => 9, 'start' => '12:30', 'end' => '13:10', 'type' => 'break', 'note' => 'Istirahat'],
+            ['seq' => 9, 'start' => '12:30', 'end' => '13:10', 'type' => 'lesson', 'note' => null],
+            ['seq' => 10, 'start' => '13:10', 'end' => '13:50', 'type' => 'lesson', 'note' => null],
         ];
 
         // Insert ke database
@@ -87,10 +89,10 @@ class ClassPeriodSeeder extends Seeder
     private function insertPeriods(string $day, array $periods): void
     {
         foreach ($periods as $period) {
-            // Hitung durasi dalam menit
+            // Hitung durasi dalam menit (pastikan non-negatif)
             $startTime = \Carbon\Carbon::createFromFormat('H:i', $period['start']);
             $endTime = \Carbon\Carbon::createFromFormat('H:i', $period['end']);
-            $duration = $endTime->diffInMinutes($startTime);
+            $duration = (int) abs($endTime->diffInMinutes($startTime));
 
             DB::table('class_periods')->insert([
                 'day' => $day,

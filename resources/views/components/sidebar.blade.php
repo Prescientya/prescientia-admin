@@ -91,6 +91,7 @@ function toggleSubmenu(element) {
     const submenu = element.nextElementSibling;
     const arrow = element.querySelector('.submenu-arrow');
     const isOpen = submenu.classList.contains('open');
+    const menuText = element.querySelector('.menu-text').textContent;
     
     // Close all other submenus
     document.querySelectorAll('.submenu.open').forEach(menu => {
@@ -106,98 +107,45 @@ function toggleSubmenu(element) {
         submenu.classList.remove('open');
         element.classList.remove('active');
         arrow.textContent = '▼';
+        localStorage.removeItem('activeSubmenu');
     } else {
         submenu.classList.add('open');
         element.classList.add('active');
         arrow.textContent = '▲';
+        // Save state ke localStorage
+        localStorage.setItem('activeSubmenu', menuText);
     }
 }
 
-// Auto-open submenu if current route is one of the submenu items
+// Auto-open submenu based on current route or saved state
 document.addEventListener('DOMContentLoaded', function() {
     const activeSubmenuItem = document.querySelector('.submenu-item.active');
+    
     if (activeSubmenuItem) {
+        // If there's an active menu item, open its parent submenu
         const submenu = activeSubmenuItem.closest('.submenu');
         const parentMenu = submenu.previousElementSibling;
         submenu.classList.add('open');
         parentMenu.classList.add('active');
         parentMenu.querySelector('.submenu-arrow').textContent = '▲';
-    }
-
-    // Setup AJAX for sidebar links
-    setupSidebarAjax();
-});
-
-// Setup AJAX for sidebar links
-function setupSidebarAjax() {
-    const sidebarLinks = document.querySelectorAll('.sidebar-menu a.sidebar-link, .sidebar-menu a.menu-item:not(.has-submenu)');
-    
-    sidebarLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            const url = this.getAttribute('href');
-            loadPageContent(url);
-            updateActiveLink(this);
-        });
-    });
-}
-
-// Load page content via AJAX
-function loadPageContent(url) {
-    const mainContent = document.querySelector('.admin-content');
-    
-    // Show loading state
-    mainContent.style.opacity = '0.6';
-    mainContent.style.pointerEvents = 'none';
-    
-    fetch(url, {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.text())
-    .then(html => {
-        // Extract main content from response
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const newContent = doc.querySelector('.admin-content');
         
-        if (newContent) {
-            // Update page title
-            const title = doc.querySelector('title');
-            if (title) {
-                document.title = title.textContent;
-            }
-            
-            // Replace content
-            mainContent.innerHTML = newContent.innerHTML;
-            
-            // Update URL without reload
-            window.history.pushState({ path: url }, '', url);
-            
-            // Restore opacity
-            mainContent.style.opacity = '1';
-            mainContent.style.pointerEvents = 'auto';
-            
-            // Scroll to top
-            window.scrollTo(0, 0);
+        // Save to localStorage
+        const menuText = parentMenu.querySelector('.menu-text').textContent;
+        localStorage.setItem('activeSubmenu', menuText);
+    } else {
+        // If no active item but localStorage has saved submenu, restore it
+        const savedSubmenu = localStorage.getItem('activeSubmenu');
+        if (savedSubmenu) {
+            const parentMenus = document.querySelectorAll('.menu-item.has-submenu');
+            parentMenus.forEach(menu => {
+                if (menu.querySelector('.menu-text').textContent === savedSubmenu) {
+                    const submenu = menu.nextElementSibling;
+                    submenu.classList.add('open');
+                    menu.classList.add('active');
+                    menu.querySelector('.submenu-arrow').textContent = '▲';
+                }
+            });
         }
-    })
-    .catch(error => {
-        console.error('Error loading page:', error);
-        // Fallback to normal navigation on error
-        window.location.href = url;
-    });
-}
-
-// Update active link styling
-function updateActiveLink(link) {
-    // Remove active class from all links
-    document.querySelectorAll('.sidebar-menu a.sidebar-link, .sidebar-menu a.menu-item:not(.has-submenu)').forEach(l => {
-        l.classList.remove('active');
-    });
-    
-    // Add active class to current link
-    link.classList.add('active');
-}
+    }
+});
 </script>

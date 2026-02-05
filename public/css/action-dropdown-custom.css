@@ -1,0 +1,15 @@
+.action-menu-container{position:relative;display:inline-block}
+.action-menu-btn{background:#ffffff;border:1px solid #e6e6e6;padding:6px 8px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.action-menu-btn img{display:block}
+.action-menu-btn:focus{outline:none;box-shadow:0 0 0 3px rgba(255, 255, 255, 0.15)}
+.dropdown-menu{position:absolute;right:0;top:calc(100% + 8px);min-width:160px;background:#fff;border:1px solid #e9ecef;border-radius:6px;padding:6px 0;box-shadow:0 6px 18px rgba(0,0,0,0.08);z-index:20}
+.dropdown-menu li{list-style:none}
+.dropdown-item{display:block;padding:8px 12px;color:#ffffff;text-decoration:none}
+.dropdown-item:hover{background:#f8f9fa}
+.dropdown-divider{height:1px;margin:6px 0;background:#e9ecef;border:none}
+.dropdown-delete-form{margin:0}
+/* ensure gear icon area is compact */
+.action-menu-btn img{width:20px;height:20px}
+
+/* small responsive tweak */
+@media (max-width:576px){.dropdown-menu{right:auto;left:0;min-width:140px}}

@@ -9,7 +9,61 @@
 @endpush
 
 @push('styles')
-<link rel="stylesheet" href="{{ asset('css/action-dropdown-custom.css') }}">
+<style>
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    
+    .modal-container {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      width: 600px;
+      max-width: 90%;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+
+    .file-input-wrapper {
+      position: relative;
+      display: inline-block;
+      cursor: pointer;
+    }
+
+    .file-input-wrapper input[type="file"] {
+      position: absolute;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+
+    .file-input-label {
+      display: inline-block;
+      padding: 12px 24px;
+      background: #f8f9fa;
+      border: 2px dashed #dee2e6;
+      border-radius: 8px;
+      color: #6c757d;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      min-width: 200px;
+      text-align: center;
+    }
+
+    .file-input-wrapper:hover .file-input-label {
+      background: #e9ecef;
+      border-color: #adb5bd;
+    }
+</style>
 @endpush
 
 @section('content')
@@ -17,12 +71,12 @@
     <div class="row mb-4">
         <div class="col-md-12">
             <div class="d-flex justify-content-between align-items-center">
-                <h4 class="mb-0">Jadwal Pelajaran Hari Ini ({{ $dayName }})</h4>
+                <h4 class="mb-0">Daftar Jam Pelajaran</h4>
                 <div class="btn-group">
                     <button class="btn btn-success me-2" onclick="openImportModal()">
                         <i class="fas fa-file-import"></i> Import Excel
                     </button>
-                    <a href="{{ route('admin.class-periods.create') }}" class="btn btn-primary">
+                    <a href="{{ route('admin.manage.class-periods.create') }}" class="btn btn-primary">
                         <i class="fas fa-plus"></i> Tambah Manual
                     </a>
                 </div>
@@ -44,31 +98,32 @@
     </div>
     @endif
 
+    @foreach($days as $day)
     <div class="card mb-4">
         <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">{{ $dayName }}, {{ \Carbon\Carbon::now()->translatedFormat('d F Y') }}</h5>
+            <h5 class="mb-0">{{ ucfirst($day) }}</h5>
         </div>
         <div class="card-body p-0">
-            @if($todayPeriods->isNotEmpty())
+            @if(isset($groupedPeriods[$day]) && $groupedPeriods[$day]->isNotEmpty())
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th class="text-center">Urutan</th>
-                            <th class="text-center">Waktu Mulai</th>
-                            <th class="text-center">Waktu Selesai</th>
-                            <th class="text-center">Durasi (menit)</th>
+                            <th>Urutan</th>
+                            <th>Waktu Mulai</th>
+                            <th>Waktu Selesai</th>
+                            <th>Durasi (menit)</th>
                             <th>Jenis</th>
-                            <th class="text-center" style="width: 120px;">Aksi</th>
+                            <th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($todayPeriods as $period)
+                        @foreach($groupedPeriods[$day] as $period)
                         <tr>
-                            <td class="text-center">{{ $period->sequence }}</td>
-                            <td class="text-center">{{ \Carbon\Carbon::parse($period->start_time)->format('H:i') }}</td>
-                            <td class="text-center">{{ \Carbon\Carbon::parse($period->end_time)->format('H:i') }}</td>
-                            <td class="text-center">{{ $period->duration_minutes ?? '-' }}</td>
+                            <td>{{ $period->sequence }}</td>
+                            <td>{{ $period->start_time }}</td>
+                            <td>{{ $period->end_time }}</td>
+                            <td>{{ $period->duration_minutes ?? '-' }}</td>
                             <td>
                                 @if($period->activity_type === 'belajar')
                                     <span class="badge bg-success">Belajar</span>
@@ -79,27 +134,16 @@
                                 @endif
                             </td>
                             <td>
-                                <div class="action-menu-container" style="position: relative;">
-                                    <button class="action-menu-btn btn btn-sm btn-outline-secondary" type="button" onclick="toggleDropdown(event, this)" title="Pengaturan aksi">
-                                        Aksi
+                                <a href="{{ route('admin.manage.class-periods.edit', $period->id) }}" class="btn btn-sm btn-warning">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form action="{{ route('admin.manage.class-periods.destroy', $period->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Yakin hapus jam pelajaran ini?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <i class="fas fa-trash"></i>
                                     </button>
-                                    <ul class="dropdown-menu" style="display: none; min-width: 140px;">
-                                        <li>
-                                            <a class="dropdown-item" href="{{ route('admin.class-periods.edit', $period->id) }}">
-                                                <i class="fas fa-edit me-2"></i> Edit
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <form action="{{ route('admin.class-periods.destroy', $period->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus jadwal ini?')">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="dropdown-item text-danger">
-                                                    <i class="fas fa-trash me-2"></i> Hapus
-                                                </button>
-                                            </form>
-                                        </li>
-                                    </ul>
-                                </div>
+                                </form>
                             </td>
                         </tr>
                         @endforeach
@@ -107,14 +151,13 @@
                 </table>
             </div>
             @else
-            <div class="p-5 text-center">
-                <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
-                <h5 class="text-muted">Tidak ada kegiatan pembelajaran</h5>
-                <p class="text-muted">Tidak ada jadwal pelajaran untuk hari {{ $dayName }}</p>
+            <div class="p-4 text-center text-muted">
+                Belum ada jam pelajaran untuk hari {{ ucfirst($day) }}
             </div>
             @endif
         </div>
     </div>
+    @endforeach
 </div>
 
 <!-- Import Modal -->
@@ -239,5 +282,4 @@
         });
     }
 </script>
-<script src="{{ asset('js/action-dropdown.js') }}"></script>
 @endpush
