@@ -1,0 +1,428 @@
+/* ============================================================
+   PRESCIENTIA – Login Page Styles + Theme System
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ============================================================
+   CSS VARIABLES – Default: blue light
+   ============================================================ */
+:root {
+    --login-grad-a:  #1e3a5f;
+    --login-grad-b:  #1a56a0;
+    --card-bg:       #ffffff;
+    --card-shadow:   0 20px 60px rgba(0,0,0,0.22);
+    --title-color:   #1e3a5f;
+    --label-color:   #374151;
+    --text-color:    #111827;
+    --text-muted:    #6b7280;
+    --input-bg:      #f9fafb;
+    --input-border:  #d1d5db;
+    --input-focus:   #1e3a5f;
+    --input-shadow:  rgba(30,58,95,0.12);
+    --btn-grad-a:    #1e3a5f;
+    --btn-grad-b:    #1a56a0;
+    --gear-bg:       rgba(255,255,255,0.18);
+    --gear-color:    #ffffff;
+    --gear-hover-bg: rgba(255,255,255,0.28);
+    --popup-bg:      #ffffff;
+    --popup-border:  #e5e7eb;
+    --popup-shadow:  0 16px 60px rgba(0,0,0,0.18);
+    --popup-title:   #111827;
+    --popup-label:   #6b7280;
+    --popup-item-hover: #f3f4f6;
+    --mode-toggle-bg:   #f3f4f6;
+    --mode-btn-text:    #6b7280;
+    --mode-active-bg:   #ffffff;
+    --mode-active-text: #111827;
+    --swatch-ring:   #111827;
+}
+
+/* ── blue dark ─────────────────── */
+body[data-color="blue"][data-mode="dark"] {
+    --login-grad-a: #0f1f3d; --login-grad-b: #0d1b2a;
+    --card-bg: #1a2942; --card-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    --title-color: #93c5fd; --label-color: #9ca3af; --text-color: #e5e7eb;
+    --input-bg: #0f1f3d; --input-border: #1e3a5f;
+    --input-focus: #3b82f6; --input-shadow: rgba(59,130,246,0.15);
+    --btn-grad-a: #1e3a8f; --btn-grad-b: #1e3a5f;
+    --gear-bg: rgba(255,255,255,0.1); --gear-color: rgba(255,255,255,0.9);
+    --popup-bg: #1a2942; --popup-border: #1e3a5f; --popup-shadow: 0 16px 60px rgba(0,0,0,0.5);
+    --popup-title: #e5e7eb; --popup-label: #6b7280; --popup-item-hover: #0f1f3d;
+    --mode-toggle-bg: #0f1f3d; --mode-btn-text: #6b7280;
+    --mode-active-bg: #1a2942; --mode-active-text: #e5e7eb;
+}
+
+/* ── black light ───────────────── */
+body[data-color="black"][data-mode="light"] {
+    --login-grad-a: #111827; --login-grad-b: #1f2937;
+    --title-color: #111827; --input-focus: #111827; --btn-grad-a: #111827; --btn-grad-b: #374151;
+    --input-shadow: rgba(17,24,39,0.12);
+}
+
+/* ── black dark ────────────────── */
+body[data-color="black"][data-mode="dark"] {
+    --login-grad-a: #030712; --login-grad-b: #111827;
+    --card-bg: #111827; --card-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    --title-color: #9ca3af; --label-color: #9ca3af; --text-color: #e5e7eb;
+    --input-bg: #030712; --input-border: #1f2937;
+    --input-focus: #6b7280; --input-shadow: rgba(107,114,128,0.15);
+    --btn-grad-a: #1f2937; --btn-grad-b: #374151;
+    --gear-bg: rgba(255,255,255,0.08); --gear-color: rgba(255,255,255,0.8);
+    --popup-bg: #111827; --popup-border: #1f2937; --popup-shadow: 0 16px 60px rgba(0,0,0,0.6);
+    --popup-title: #e5e7eb; --popup-label: #6b7280; --popup-item-hover: #030712;
+    --mode-toggle-bg: #030712; --mode-active-bg: #1f2937; --mode-active-text: #e5e7eb;
+}
+
+/* ── white light ───────────────── */
+body[data-color="white"][data-mode="light"] {
+    --login-grad-a: #e5e7eb; --login-grad-b: #d1d5db;
+    --card-bg: #ffffff; --card-shadow: 0 20px 60px rgba(0,0,0,0.12);
+    --title-color: #374151;
+    --btn-grad-a: #374151; --btn-grad-b: #4b5563;
+    --gear-bg: rgba(0,0,0,0.08); --gear-color: #374151; --gear-hover-bg: rgba(0,0,0,0.14);
+}
+
+/* ── white dark ────────────────── */
+body[data-color="white"][data-mode="dark"] {
+    --login-grad-a: #1f2937; --login-grad-b: #111827;
+    --card-bg: #1f2937; --card-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    --title-color: #d1d5db; --label-color: #9ca3af; --text-color: #e5e7eb;
+    --input-bg: #111827; --input-border: #374151;
+    --input-focus: #9ca3af; --input-shadow: rgba(156,163,175,0.12);
+    --btn-grad-a: #374151; --btn-grad-b: #4b5563;
+    --gear-bg: rgba(255,255,255,0.08); --gear-color: rgba(255,255,255,0.8);
+    --popup-bg: #1f2937; --popup-border: #374151; --popup-shadow: 0 16px 60px rgba(0,0,0,0.5);
+    --popup-title: #e5e7eb; --popup-label: #9ca3af; --popup-item-hover: #111827;
+    --mode-toggle-bg: #111827; --mode-active-bg: #374151; --mode-active-text: #e5e7eb;
+}
+
+/* ── purple light ──────────────── */
+body[data-color="purple"][data-mode="light"] {
+    --login-grad-a: #4c1d95; --login-grad-b: #6d28d9;
+    --title-color: #4c1d95;
+    --input-focus: #7c3aed; --input-shadow: rgba(124,58,237,0.12);
+    --btn-grad-a: #4c1d95; --btn-grad-b: #7c3aed;
+}
+
+/* ── purple dark ───────────────── */
+body[data-color="purple"][data-mode="dark"] {
+    --login-grad-a: #2e1065; --login-grad-b: #12091f;
+    --card-bg: #1e1035; --card-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    --title-color: #c4b5fd; --label-color: #a78bfa; --text-color: #e9d5ff;
+    --input-bg: #12091f; --input-border: #2e1065;
+    --input-focus: #a78bfa; --input-shadow: rgba(167,139,250,0.15);
+    --btn-grad-a: #4c1d95; --btn-grad-b: #6d28d9;
+    --gear-bg: rgba(167,139,250,0.15); --gear-color: #c4b5fd;
+    --popup-bg: #1e1035; --popup-border: #2e1065; --popup-shadow: 0 16px 60px rgba(0,0,0,0.5);
+    --popup-title: #e9d5ff; --popup-label: #a78bfa; --popup-item-hover: #12091f;
+    --mode-toggle-bg: #12091f; --mode-active-bg: #2e1065; --mode-active-text: #e9d5ff;
+}
+
+/* ── green light ───────────────── */
+body[data-color="green"][data-mode="light"] {
+    --login-grad-a: #064e3b; --login-grad-b: #065f46;
+    --title-color: #065f46;
+    --input-focus: #059669; --input-shadow: rgba(5,150,105,0.12);
+    --btn-grad-a: #064e3b; --btn-grad-b: #059669;
+}
+
+/* ── green dark ────────────────── */
+body[data-color="green"][data-mode="dark"] {
+    --login-grad-a: #022c22; --login-grad-b: #012017;
+    --card-bg: #0a2f23; --card-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    --title-color: #6ee7b7; --label-color: #34d399; --text-color: #d1fae5;
+    --input-bg: #022c22; --input-border: #065f46;
+    --input-focus: #34d399; --input-shadow: rgba(52,211,153,0.15);
+    --btn-grad-a: #064e3b; --btn-grad-b: #059669;
+    --gear-bg: rgba(52,211,153,0.12); --gear-color: #6ee7b7;
+    --popup-bg: #0a2f23; --popup-border: #065f46; --popup-shadow: 0 16px 60px rgba(0,0,0,0.5);
+    --popup-title: #d1fae5; --popup-label: #34d399; --popup-item-hover: #022c22;
+    --mode-toggle-bg: #022c22; --mode-active-bg: #065f46; --mode-active-text: #d1fae5;
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, var(--login-grad-a) 0%, var(--login-grad-b) 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.35s;
+}
+
+/* ============================================================
+   GEAR BUTTON
+   ============================================================ */
+.theme-gear-btn {
+    position: fixed;
+    top: 18px; right: 18px;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: var(--gear-bg);
+    color: var(--gear-color);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+    transition: background 0.2s, transform 0.3s;
+    backdrop-filter: blur(4px);
+}
+.theme-gear-btn:hover {
+    background: var(--gear-hover-bg);
+    transform: rotate(45deg);
+}
+
+/* ============================================================
+   THEME POPUP
+   ============================================================ */
+.theme-popup {
+    position: fixed;
+    top: 72px; right: 18px;
+    width: 280px;
+    background: var(--popup-bg);
+    border: 1px solid var(--popup-border);
+    border-radius: 16px;
+    box-shadow: var(--popup-shadow);
+    z-index: 999;
+    display: none;
+    overflow: hidden;
+    animation: popFade 0.18s ease;
+    transition: background 0.25s, border-color 0.25s;
+}
+.theme-popup.open { display: block; }
+
+@keyframes popFade {
+    from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.theme-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--popup-border);
+}
+.theme-popup-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--popup-title);
+}
+.theme-popup-close {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 1.3rem;
+    line-height: 1;
+    color: var(--popup-label);
+    padding: 0 2px;
+    transition: color 0.15s;
+}
+.theme-popup-close:hover { color: var(--popup-title); }
+
+.theme-popup-body { padding: 14px 16px 16px; }
+
+.tp-section-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--popup-label);
+    margin-bottom: 8px;
+}
+
+/* Mode toggle */
+.tp-mode-toggle {
+    display: flex;
+    background: var(--mode-toggle-bg);
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+}
+.tp-mode-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 8px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    background: transparent;
+    color: var(--mode-btn-text);
+    transition: background 0.15s, color 0.15s;
+}
+.tp-mode-btn.active {
+    background: var(--mode-active-bg);
+    color: var(--mode-active-text);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    font-weight: 600;
+}
+
+/* Color grid */
+.tp-color-grid {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.tp-swatch-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+.tp-swatch {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    cursor: pointer;
+    outline: none;
+    transition: transform 0.15s, border-color 0.15s;
+}
+.tp-swatch:hover { transform: scale(1.12); }
+.tp-swatch.active {
+    border-color: var(--swatch-ring);
+    transform: scale(1.08);
+}
+.tp-swatch-label {
+    font-size: 0.68rem;
+    color: var(--popup-label);
+    white-space: nowrap;
+}
+
+/* ============================================================
+   LOGIN WRAPPER & CARD
+   ============================================================ */
+.login-wrapper {
+    width: 100%;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.login-card {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 2.5rem 2rem;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: var(--card-shadow);
+    transition: background 0.25s, box-shadow 0.25s;
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+.login-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--title-color);
+    letter-spacing: 1px;
+    transition: color 0.25s;
+}
+.login-header p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-top: 0.35rem;
+}
+
+/* Alert */
+.alert { padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.875rem; margin-bottom: 1.25rem; }
+.alert-error { background-color: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+
+/* Form */
+.form-group { margin-bottom: 1.25rem; }
+.form-group label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--label-color);
+    margin-bottom: 0.5rem;
+    transition: color 0.25s;
+}
+
+.input-wrapper { position: relative; display: flex; align-items: center; }
+
+.input-icon {
+    position: absolute;
+    left: 0.9rem;
+    color: #9ca3af;
+    display: flex; align-items: center;
+    pointer-events: none;
+}
+
+.input-wrapper input {
+    width: 100%;
+    padding: 0.75rem 0.9rem 0.75rem 2.75rem;
+    border: 1.5px solid var(--input-border);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: var(--text-color);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.25s;
+    background: var(--input-bg);
+}
+.input-wrapper input:focus {
+    border-color: var(--input-focus);
+    box-shadow: 0 0 0 3px var(--input-shadow);
+    background: var(--card-bg);
+}
+.input-wrapper input::placeholder { color: #9ca3af; }
+
+.toggle-password {
+    position: absolute; right: 0.9rem;
+    background: none; border: none;
+    cursor: pointer; color: #9ca3af;
+    display: flex; align-items: center;
+    padding: 0; transition: color 0.2s;
+}
+.toggle-password:hover { color: var(--label-color); }
+
+/* Button */
+.btn-login {
+    width: 100%;
+    padding: 0.85rem;
+    background: linear-gradient(135deg, var(--btn-grad-a), var(--btn-grad-b));
+    color: #ffffff;
+    border: none; border-radius: 8px;
+    font-size: 1rem; font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    margin-top: 0.5rem;
+    display: flex; align-items: center; justify-content: center;
+    gap: 0.5rem; letter-spacing: 0.5px;
+}
+.btn-login:hover { opacity: 0.9; }
+.btn-login:active { transform: scale(0.98); }
+.btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Spinner */
+.btn-spinner {
+    width: 18px; height: 18px;
+    border: 2.5px solid rgba(255,255,255,0.4);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Responsive */
+@media (max-width: 480px) {
+    .login-card { padding: 2rem 1.25rem; border-radius: 12px; }
+    .login-header h1 { font-size: 1.6rem; }
+    .theme-popup { width: calc(100vw - 36px); right: 18px; }
+}
+
