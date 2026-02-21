@@ -285,6 +285,11 @@
     justify-content: space-between;
 }
 
+/* make card a positioned container so badge can be absolute */
+.detail-card.class-item {
+    position: relative;
+}
+
 .class-info-header {
     margin-bottom: 1rem;
 }
@@ -410,6 +415,29 @@
     border: 1px solid #f87171;
 }
 
+/* Day status badge for classes */
+.day-status {
+    padding: 0.35rem 0.9rem;
+    border-radius: 18px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    display: inline-block;
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+}
+.day-status.masuk {
+    background: rgba(255,255,255,0.08);
+    color: #d1fae5;
+    border: 1px solid rgba(16,185,129,0.18);
+}
+.day-status.libur {
+    background: rgba(255,255,255,0.06);
+    color: #ffd7d7;
+    border: 1px solid rgba(248,113,113,0.18);
+}
+
 .check-in-time {
     font-size: 0.75rem;
     opacity: 0.7;
@@ -515,6 +543,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="class-info-header">
                                 <h4 class="class-name">${cls.displayName}</h4>
                                 <p class="class-major">Jurusan ${cls.major}</p>
+                                <div style="margin-top:0.75rem;">
+                                    <span class="day-status ${cls.dayStatus === 'libur' ? 'libur' : 'masuk'}">${cls.dayStatusLabel}</span>
+                                </div>
                             </div>
                             <div class="class-stats">
                                 <div class="stat-item">

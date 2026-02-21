@@ -50,4 +50,32 @@ class StudentAttendanceSummary extends Model
         $total = $this->getTotalDaysAttribute();
         return $total > 0 ? round(($this->total_hadir / $total) * 100, 2) : 0;
     }
+
+    // Backwards-compatible accessors used across views
+    public function getTotalPresentAttribute()
+    {
+        return $this->total_hadir ?? 0;
+    }
+
+    public function getTotalPermissionAttribute()
+    {
+        return $this->total_izin ?? 0;
+    }
+
+    public function getTotalSickAttribute()
+    {
+        return $this->total_sakit ?? 0;
+    }
+
+    public function getTotalAbsentAttribute()
+    {
+        return $this->total_alpha ?? 0;
+    }
+
+    public function getTotalLateAttribute()
+    {
+        return \App\Models\StudentAttendance::where('student_id', $this->student_id)
+            ->where('status', 'terlambat')
+            ->count();
+    }
 }

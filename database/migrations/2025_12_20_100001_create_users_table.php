@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('email', 100)->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            $table->enum('role', ['admin', 'teacher', 'student'])->comment('Role pengguna: admin, teacher, atau student');
             $table->string('device_id', 255)->nullable();
             $table->string('wifi_mac', 50)->nullable();
             $table->boolean('is_active')->default(true);
@@ -25,6 +26,7 @@ return new class extends Migration
             $table->softDeletes();
             
             // Indexes
+            $table->index('role');
             $table->index('device_id');
             $table->index('wifi_mac');
             $table->index('is_active');

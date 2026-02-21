@@ -20,13 +20,28 @@ class UpdateTeacherRequest extends FormRequest
      */
     public function rules(): array
     {
-        $teacherId = $this->route('id');
+        // Resolve teacher id from possible route parameter names ('teacher' or 'id')
+        $teacherParam = $this->route('teacher') ?? $this->route('id');
+        $teacherId = null;
+        $teacherUserId = null;
+
+        if ($teacherParam) {
+            if ($teacherParam instanceof \App\Models\Teacher) {
+                $teacherId = $teacherParam->id;
+                $teacherUserId = $teacherParam->user_id ?? null;
+            } else {
+                $teacherId = $teacherParam;
+                // attempt to load teacher to get user_id, but avoid throwing if not present
+                $t = \App\Models\Teacher::find($teacherParam);
+                $teacherUserId = $t?->user_id;
+            }
+        }
 
         return [
             'email' => [
                 'required',
                 'email',
-                Rule::unique('users', 'email')->ignore($this->getTeacher()->user_id),
+                Rule::unique('users', 'email')->ignore($teacherUserId),
             ],
             'nip' => [
                 'required',
@@ -74,6 +89,11 @@ class UpdateTeacherRequest extends FormRequest
      */
     protected function getTeacher()
     {
-        return \App\Models\Teacher::findOrFail($this->route('id'));
+        $param = $this->route('teacher') ?? $this->route('id');
+        if ($param instanceof \App\Models\Teacher) {
+            return $param;
+        }
+
+        return \App\Models\Teacher::findOrFail($param);
     }
 }

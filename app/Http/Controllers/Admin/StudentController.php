@@ -27,9 +27,72 @@ class StudentController extends Controller
      */
     public function index()
     {
-        $students = Student::with(['user', 'class'])->paginate(10);
+        $q = request()->query('q');
+        $name = request()->query('name');
+        $nis = request()->query('nis');
+        $email = request()->query('email');
+        $classId = request()->query('class_id');
+
+        // Base query with relations
+        $query = Student::with(['user', 'class']);
+
+        // Apply individual filters if provided
+        if (!empty($name)) {
+            $query->where('name', 'ilike', "%{$name}%");
+        }
+
+        if (!empty($nis)) {
+            $query->where('nis', 'ilike', "%{$nis}%");
+        }
+
+        if (!empty($email)) {
+            $query->whereHas('user', function($u) use ($email) {
+                $u->where('email', 'ilike', "%{$email}%");
+            });
+        }
+
+        if (!empty($classId)) {
+            $query->where('class_id', $classId);
+        }
+
+        // Apply general search filter if provided (for backward compatibility)
+        if (!empty($q)) {
+            $query->where(function($sub) use ($q) {
+                $sub->where('nis', 'ilike', "%{$q}%")
+                    ->orWhere('name', 'ilike', "%{$q}%")
+                    ->orWhereHas('user', function($u) use ($q) {
+                        $u->where('email', 'ilike', "%{$q}%");
+                    })
+                    ->orWhereHas('class', function($c) use ($q) {
+                        $c->where('major', 'ilike', "%{$q}%")
+                          ->orWhere('class', '::text' , 'ilike');
+                    });
+            });
+        }
+
+        // If client expects JSON (AJAX live search), return a compact JSON payload
+        if (request()->wantsJson() || request()->ajax()) {
+            $students = $query->orderBy('name')->limit(300)->get();
+            $data = $students->map(function($s) {
+                return [
+                    'id' => $s->id,
+                    'nis' => $s->nis,
+                    'name' => $s->name,
+                    'email' => $s->user?->email,
+                    'class' => $s->class ? trim(($s->class->class ?? '') . ' ' . ($s->class->major ?? '')) : null,
+                    'gender' => $s->gender,
+                ];
+            });
+            return response()->json(['success' => true, 'data' => $data]);
+        }
+
+        $students = $query->orderBy('name')->paginate(10)->withQueryString();
         $totalStudents = Student::count();
-        return view('admin.students.index', compact('students', 'totalStudents'));
+
+        // Load classes for class dropdown filter
+        $classes = ClassModel::orderBy('class')->orderBy('major')->get();
+
+        return view('admin.students.index', compact('students', 'totalStudents', 'classes'));
     }
 
     /**
@@ -148,7 +211,29 @@ class StudentController extends Controller
             ->where('class_id', $student->class_id)
             ->value('role') ?? StudentRole::PELAJAR;
 
-        return view('admin.students.show', compact('student', 'currentRole'));
+        // If attendanceSummary is missing, compute fallback from attendances
+        if (!$student->attendanceSummary) {
+            $att = $student->attendances()->get();
+            $attendanceSummary = [
+                'present' => $att->whereIn('status', ['hadir', 'terlambat'])->count(),
+                'permission' => $att->where('status', 'izin')->count(),
+                'sick' => $att->where('status', 'sakit')->count(),
+                'absent' => $att->where('status', 'alpa')->count(),
+                'late' => $att->where('status', 'terlambat')->count(),
+            ];
+        } else {
+            // Use values from attendanceSummary model but map to view keys
+            $as = $student->attendanceSummary;
+            $attendanceSummary = [
+                'present' => $as->total_hadir ?? $as->total_present ?? 0,
+                'permission' => $as->total_izin ?? $as->total_permission ?? 0,
+                'sick' => $as->total_sakit ?? $as->total_sick ?? 0,
+                'absent' => $as->total_alpha ?? $as->total_absent ?? 0,
+                'late' => method_exists($as, 'getTotalLateAttribute') ? $as->getTotalLateAttribute() : ($as->total_late ?? 0),
+            ];
+        }
+
+        return view('admin.students.show', compact('student', 'currentRole', 'attendanceSummary'));
     }
 
     /**

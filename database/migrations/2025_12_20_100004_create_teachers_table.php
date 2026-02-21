@@ -20,14 +20,13 @@ return new class extends Migration
             $table->date('date_of_birth');
             $table->string('phone_number', 20)->nullable();
             $table->text('address')->nullable();
-            $table->string('department', 100)->nullable();
+            $table->jsonb('department')->nullable()->comment('Array jurusan/bidang yang diajar guru, disimpan sebagai JSON array');
             $table->string('photo_profile', 255)->nullable();
             $table->timestamps();
             $table->softDeletes();
             
             // Indexes
             $table->index('name');
-            $table->index('department');
         });
     }
 

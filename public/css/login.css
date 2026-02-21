@@ -226,12 +226,12 @@ html, body {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
-    background-color: white;
+    background-color: transparent;
 }
 
 @media (prefers-color-scheme: dark) {
     .form-control:focus {
-        background-color: #3a3a3a;
+        background-color: transparent;
         box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
     }
 }

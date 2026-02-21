@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('teacher_attendance_details', function (Blueprint $table) {
             $table->id();
             $table->foreignId('attendance_id')->unique()->constrained('teacher_attendances')->onDelete('cascade');
+            $table->foreignId('period_id')->nullable()->constrained('class_periods')->cascadeOnDelete();
             $table->enum('reason', ['sakit', 'izin', 'dinas', 'alpa', 'terlambat']);
             $table->text('description')->nullable();
             $table->string('evidence_url', 255)->nullable();

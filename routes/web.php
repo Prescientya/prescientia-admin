@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\LoginHistoryController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\MbgOfficerController;
 use App\Http\Controllers\Admin\TeachedClassController;
+use App\Http\Controllers\Admin\DeviceAccountController;
 use App\Http\Controllers\ClassPeriodController;
 use Illuminate\Support\Facades\Route;
 
@@ -129,6 +130,11 @@ Route::prefix('admin')->middleware('admin')->name('admin.')->group(function () {
     Route::get('profile', [ProfileController::class, 'index'])->name('profile.index');
     Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::put('profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+
+    // Device Accounts
+    Route::get('device-accounts', [DeviceAccountController::class, 'index'])->name('device-accounts.index');
+    Route::put('device-accounts/{id}/approve', [DeviceAccountController::class, 'approve'])->name('device-accounts.approve');
+    Route::put('device-accounts/{id}/deny', [DeviceAccountController::class, 'deny'])->name('device-accounts.deny');
     
     // Petugas MBG
     Route::resource('mbg-officers', MbgOfficerController::class);

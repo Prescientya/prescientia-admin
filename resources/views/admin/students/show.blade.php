@@ -41,9 +41,15 @@
                     <p><strong>NIS:</strong> {{ $student->nis }}</p>
                     <p><strong>Email:</strong> {{ $student->user->email }}</p>
                     <div class="badge-row">
-                        <span class="badge bg-info">{{ $student->class?->name ?? 'Belum ada kelas' }}</span>
+                        @php
+                            $classDisplay = '-';
+                            if ($student->class) {
+                                $classDisplay = trim(($student->class->class ?? '') . ' ' . ($student->class->major ?? '')) ?: '-';
+                            }
+                        @endphp
+                        <span class="badge bg-info">{{ $classDisplay !== '-' ? $classDisplay : 'Belum ada kelas' }}</span>
                         <span class="badge bg-primary">Peran: {{ $currentRole ?? 'Pelajar' }}</span>
-                        @if ($student->user->is_active)
+                        @if ($student->user?->is_active)
                             <span class="badge bg-success">Aktif</span>
                         @else
                             <span class="badge bg-secondary">Tidak Aktif</span>
@@ -98,7 +104,7 @@
                     <div class="info-grid">
                         <div class="info-item">
                             <span class="info-item-label">Kelas</span>
-                            <span class="info-item-value">{{ $student->class?->name ?? '-' }}</span>
+                            <span class="info-item-value">{{ $classDisplay !== '-' ? $classDisplay : '-' }}</span>
                         </div>
                         <div class="info-item">
                             <span class="info-item-label">Peran Siswa</span>
@@ -115,7 +121,7 @@
                     <div class="info-grid">
                         <div class="info-item">
                             <span class="info-item-label">Email</span>
-                            <span class="info-item-value">{{ $student->user->email }}</span>
+                            <span class="info-item-value">{{ $student->user?->email ?? '-' }}</span>
                         </div>
                         <div class="info-item">
                             <span class="info-item-label">Status Akun</span>
@@ -129,11 +135,11 @@
                         </div>
                         <div class="info-item">
                             <span class="info-item-label">Device ID</span>
-                            <span class="info-item-value text-muted">{{ $student->user->device_id ?? '-' }}</span>
+                            <span class="info-item-value text-muted">{{ $student->user?->device_id ?? '-' }}</span>
                         </div>
                         <div class="info-item">
                             <span class="info-item-label">WiFi MAC</span>
-                            <span class="info-item-value text-muted">{{ $student->user->wifi_mac ?? '-' }}</span>
+                            <span class="info-item-value text-muted">{{ $student->user?->wifi_mac ?? '-' }}</span>
                         </div>
                         <div class="info-item">
                             <span class="info-item-label">Dibuat</span>
@@ -165,44 +171,38 @@
             <h5 style="margin: 0;">Ringkasan Kehadiran</h5>
         </div>
         <div class="card-body card-body-form">
-            @if($student->attendanceSummary)
                 <div class="info-grid-3">
                     <div class="info-item">
                         <span class="info-item-label">Total Hadir</span>
                         <span class="info-item-value">
-                            <span class="badge bg-success">{{ $student->attendanceSummary->total_present ?? 0 }}</span>
+                            <span class="badge bg-success">{{ $attendanceSummary['present'] ?? ($student->attendanceSummary->total_present ?? 0) }}</span>
                         </span>
                     </div>
                     <div class="info-item">
                         <span class="info-item-label">Total Izin</span>
                         <span class="info-item-value">
-                            <span class="badge bg-warning">{{ $student->attendanceSummary->total_permission ?? 0 }}</span>
+                            <span class="badge bg-warning">{{ $attendanceSummary['permission'] ?? ($student->attendanceSummary->total_permission ?? 0) }}</span>
                         </span>
                     </div>
                     <div class="info-item">
                         <span class="info-item-label">Total Sakit</span>
                         <span class="info-item-value">
-                            <span class="badge bg-info">{{ $student->attendanceSummary->total_sick ?? 0 }}</span>
+                            <span class="badge bg-info">{{ $attendanceSummary['sick'] ?? ($student->attendanceSummary->total_sick ?? 0) }}</span>
                         </span>
                     </div>
                     <div class="info-item">
                         <span class="info-item-label">Total Alfa</span>
                         <span class="info-item-value">
-                            <span class="badge bg-danger">{{ $student->attendanceSummary->total_absent ?? 0 }}</span>
+                            <span class="badge bg-danger">{{ $attendanceSummary['absent'] ?? ($student->attendanceSummary->total_absent ?? 0) }}</span>
                         </span>
                     </div>
                     <div class="info-item">
                         <span class="info-item-label">Total Terlambat</span>
                         <span class="info-item-value">
-                            <span class="badge bg-warning">{{ $student->attendanceSummary->total_late ?? 0 }}</span>
+                            <span class="badge bg-warning">{{ $attendanceSummary['late'] ?? ($student->attendanceSummary->total_late ?? 0) }}</span>
                         </span>
                     </div>
                 </div>
-            @else
-                <div class="empty-state">
-                    <p class="empty-state-text">Data kehadiran belum tersedia</p>
-                </div>
-            @endif
         </div>
     </div>
 </div>

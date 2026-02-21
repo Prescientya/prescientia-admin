@@ -94,92 +94,149 @@
 
                 <x-forms.row-full>
                     <div class="form-group">
-                        <label class="form-label">
-                            Mata Pelajaran yang Diajar
-                            <small class="text-muted">(Pilih satu atau lebih)</small>
-                        </label>
-                        
+                        <label class="form-label">Daftar Pelajaran</label>
+
                         @php
                             $selectedSubjectIds = old('subject_ids', $teacher->subjects->pluck('id')->toArray());
                         @endphp
-                        
-                        @if($subjects->count() > 0)
-                            <!-- Live Search -->
-                            <div class="mb-3">
-                                <input 
-                                    type="text" 
-                                    id="searchSubjects" 
-                                    class="form-control" 
-                                    placeholder="🔍 Cari mata pelajaran..."
-                                >
-                            </div>
 
-                            <div class="subjects-container" style="max-height: 400px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px; padding: 15px; background: #f8f9fa;">
-                                @foreach($subjects as $major => $subjectList)
-                                    <div class="subject-major-group mb-4">
-                                        <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">📚 {{ $major }}</h6>
-                                        <div class="d-flex flex-wrap gap-2">
-                                            @foreach($subjectList as $subject)
-                                                <div class="subject-item" data-subject-name="{{ strtolower($subject->name) }}" data-subject-code="{{ strtolower($subject->code) }}">
-                                                    <label class="d-flex align-items-center" for="subject_{{ $subject->id }}" style="background: white; border: 1px solid #dee2e6; border-radius: 6px; padding: 10px 14px; min-width: 220px; cursor: pointer; margin: 0; transition: all 0.2s;" onmouseover="this.style.borderColor='#0d6efd'; this.style.boxShadow='0 2px 4px rgba(13,110,253,0.2)';" onmouseout="this.style.borderColor='#dee2e6'; this.style.boxShadow='none';">
-                                                        <input 
-                                                            class="form-check-input" 
-                                                            type="checkbox" 
-                                                            name="subject_ids[]" 
-                                                            value="{{ $subject->id }}" 
-                                                            id="subject_{{ $subject->id }}"
-                                                            {{ in_array($subject->id, $selectedSubjectIds) ? 'checked' : '' }}
-                                                            style="margin-top: 0; margin-right: 10px; flex-shrink: 0;"
-                                                        >
-                                                        <span class="badge bg-secondary" style="margin-right: 8px; font-size: 10px; flex-shrink: 0;">{{ $subject->code }}</span>
-                                                        <span style="flex: 1; font-size: 14px;">{{ $subject->name }}</span>
-                                                    </label>
-                                                </div>
+                        <div class="mb-3">
+                            <div class="d-flex flex-wrap gap-2 existing-subject-badges" style="background:#f1f3f5; padding:12px; border-radius:8px;">
+                                @forelse($teacher->subjects as $sub)
+                                    <span class="badge bg-info text-white d-inline-flex align-items-center subject-badge" data-subject-id="{{ $sub->id }}" style="display:inline-flex; align-items:center; padding:8px 14px; border-radius:999px;">
+                                        <span class="subject-name">{{ $sub->name }}</span>
+                                        <button type="button" class="btn-close btn-close-white btn-sm ms-2 remove-subject" aria-label="Remove" style="opacity:0.9; margin-left:8px;"></button>
+                                    </span>
+                                    <input type="hidden" name="subject_ids[]" value="{{ $sub->id }}">
+                                @empty
+                                    <span class="text-muted">Belum ada mata pelajaran yang ditugaskan untuk guru ini.</span>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        <button type="button" id="showAddSubject" class="btn btn-sm btn-primary mb-3">Tambahkan Mapel</button>
+
+                        <div id="addSubjectRow" style="display: none; margin-bottom:12px;">
+                            @if(count($subjects) > 0)
+                                <div class="mb-3">
+                                    <div class="d-flex gap-2 align-items-center" style="max-width:760px;">
+                                        <select id="selectSubjectToAdd" class="form-select">
+                                            <option value="">Pilih mata pelajaran...</option>
+                                            @foreach($subjects as $major => $subjectList)
+                                                <optgroup label="{{ $major }}">
+                                                    @foreach($subjectList as $subject)
+                                                        <option value="{{ $subject->id }}" data-name="{{ $subject->name }}">{{ $subject->name }}</option>
+                                                    @endforeach
+                                                </optgroup>
                                             @endforeach
-                                        </div>
+                                        </select>
+                                        <button type="button" id="btnAddSubject" class="btn btn-success" style="width:48px; height:48px; font-size:22px; display:flex; align-items:center; justify-content:center; padding:0;">+</button>
+                                        <button type="button" id="btnCloseAddRow" class="btn btn-outline-secondary" style="height:48px;">Tutup</button>
                                     </div>
-                                @endforeach
-                            </div>
+                                </div>
+                                <script>
+                                document.addEventListener('DOMContentLoaded', function() {
+                                    const showBtn = document.getElementById('showAddSubject');
+                                    const addRow = document.getElementById('addSubjectRow');
+                                    const select = document.getElementById('selectSubjectToAdd');
+                                    const btnAdd = document.getElementById('btnAddSubject');
+                                    const badgesContainer = document.querySelector('.existing-subject-badges');
+                                    const form = document.querySelector('form');
 
-                            <script>
-                            document.addEventListener('DOMContentLoaded', function() {
-                                const searchInput = document.getElementById('searchSubjects');
-                                const subjectItems = document.querySelectorAll('.subject-item');
-                                const majorGroups = document.querySelectorAll('.subject-major-group');
+                                    showBtn.addEventListener('click', function() {
+                                        if (addRow.style.display === 'none') {
+                                            addRow.style.display = 'block';
+                                            showBtn.style.display = 'none';
+                                        }
+                                    });
 
-                                searchInput.addEventListener('input', function() {
-                                    const searchTerm = this.value.toLowerCase().trim();
+                                    const btnCloseAdd = document.getElementById('btnCloseAddRow');
+                                    if (btnCloseAdd) {
+                                        btnCloseAdd.addEventListener('click', function() {
+                                            addRow.style.display = 'none';
+                                            showBtn.style.display = 'inline-block';
+                                        });
+                                    }
 
-                                    majorGroups.forEach(group => {
-                                        let hasVisibleItems = false;
-                                        const items = group.querySelectorAll('.subject-item');
-                                        
-                                        items.forEach(item => {
-                                            const name = item.dataset.subjectName;
-                                            const code = item.dataset.subjectCode;
-                                            const matches = name.includes(searchTerm) || code.includes(searchTerm);
-                                            
-                                            if (matches || searchTerm === '') {
-                                                item.style.display = 'block';
-                                                hasVisibleItems = true;
-                                            } else {
-                                                item.style.display = 'none';
-                                            }
+                                    function createHiddenInput(id) {
+                                        const input = document.createElement('input');
+                                        input.type = 'hidden';
+                                        input.name = 'subject_ids[]';
+                                        input.value = id;
+                                        return input;
+                                    }
+
+                                    btnAdd.addEventListener('click', function() {
+                                        const id = select.value;
+                                        if (!id) return;
+
+                                        // prevent duplicates
+                                        if (document.querySelector('input[name="subject_ids[]"][value="' + id + '"]')) {
+                                            alert('Mapel sudah ditambahkan.');
+                                            return;
+                                        }
+
+                                        const option = select.querySelector('option[value="' + id + '"]');
+                                        const name = option ? option.dataset.name : select.options[select.selectedIndex].text;
+
+                                        // add badge
+
+                                        const span = document.createElement('span');
+                                        span.className = 'badge bg-info text-white d-inline-flex align-items-center me-2 mb-2 subject-badge';
+                                        span.dataset.subjectId = id;
+                                        span.style.display = 'inline-flex';
+                                        span.style.alignItems = 'center';
+                                        span.style.padding = '8px 14px';
+                                        span.style.borderRadius = '999px';
+
+                                        const nameSpan = document.createElement('span');
+                                        nameSpan.className = 'subject-name';
+                                        nameSpan.innerText = name;
+
+                                        const removeBtn = document.createElement('button');
+                                        removeBtn.type = 'button';
+                                        removeBtn.className = 'btn-close btn-close-white btn-sm ms-2 remove-subject';
+                                        removeBtn.setAttribute('aria-label', 'Remove');
+                                        removeBtn.style.opacity = '0.9';
+                                        removeBtn.style.marginLeft = '8px';
+                                        removeBtn.addEventListener('click', function() {
+                                            const hidden = form.querySelector('input[name="subject_ids[]"][value="' + id + '"]');
+                                            if (hidden) hidden.remove();
+                                            span.remove();
                                         });
 
-                                        // Hide/show entire major group if no items match
-                                        group.style.display = hasVisibleItems ? 'block' : 'none';
+                                        span.appendChild(nameSpan);
+                                        span.appendChild(removeBtn);
+                                        badgesContainer.appendChild(span);
+
+                                        // add hidden input to form
+                                        form.appendChild(createHiddenInput(id));
+
+                                        // reset select
+                                        select.value = '';
+                                    });
+
+                                    // handle removal for existing badges
+                                    document.querySelectorAll('.remove-subject').forEach(btn => {
+                                        btn.addEventListener('click', function(e) {
+                                            const span = e.currentTarget.closest('span[data-subject-id]');
+                                            if (!span) return;
+                                            const id = span.dataset.subjectId;
+                                            const hidden = form.querySelector('input[name="subject_ids[]"][value="' + id + '"]');
+                                            if (hidden) hidden.remove();
+                                            span.remove();
+                                        });
                                     });
                                 });
-                            });
-                            </script>
-                        @else
-                            <div class="alert alert-warning">
-                                <i class="bi bi-exclamation-triangle"></i> 
-                                Belum ada mata pelajaran aktif. Silakan tambah mata pelajaran terlebih dahulu.
-                            </div>
-                        @endif
-                        
+                                </script>
+                            @else
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    Belum ada mata pelajaran aktif. Silakan tambah mata pelajaran terlebih dahulu.
+                                </div>
+                            @endif
+                        </div>
+
                         @error('subject_ids')
                             <div class="invalid-feedback d-block">{{ $message }}</div>
                         @enderror

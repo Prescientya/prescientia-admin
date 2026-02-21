@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('class_id')->constrained('classes')->onDelete('cascade');
             $table->foreignId('student_id')->constrained('students')->onDelete('cascade');
-            $table->enum('role', ['KM', 'WKM', 'Sekretaris']);
+            $table->string('role', 50)->default('pelajar')->comment('Role siswa di kelas: KM, WKM, Sekretaris, atau pelajar');
             $table->timestamps();
             
             // Unique constraint: satu siswa hanya punya satu role per kelas

@@ -86,7 +86,20 @@
         </div>
     </div>
     <div class="card-body">
-        @if ($students->count() > 0)
+            <div style="display:flex; gap:0.75rem; align-items:center; margin-bottom:1rem;">
+                <input id="nameSearch" type="search" class="form-control" placeholder="Nama" style="max-width: 260px;">
+                <input id="nisSearch" type="search" class="form-control" placeholder="NIS" style="max-width: 180px;">
+                <input id="emailSearch" type="search" class="form-control" placeholder="Email" style="max-width: 260px;">
+                <select id="classSearch" class="form-control" style="max-width: 220px;">
+                    <option value="">Semua Kelas</option>
+                    @foreach($classes as $c)
+                        <option value="{{ $c->id }}">{{ trim($c->class . ' ' . $c->major) }}</option>
+                    @endforeach
+                </select>
+                
+            </div>
+
+            @if ($students->count() > 0)
             <div class="table-responsive">
                 <table class="table table-hover table-compact">
                     <thead class="table-light">
@@ -100,7 +113,7 @@
                             <th style="width: 100px; text-align: center;">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="studentsTableBody">
                         @foreach ($students as $key => $student)
                             <tr>
                                 <td>{{ $students->firstItem() + $key }}</td>
@@ -113,21 +126,29 @@
                                         -
                                     @endif
                                 </td>
-                                <td>{{ $student->class ? $student->class->class . ' ' . $student->class->major : '-' }}</td>
+                                    <td>{{ $student->class ? trim($student->class->class . ' ' . $student->class->major) : '-' }}</td>
                                 <td class="text-center">{{ $student->gender === 'L' ? 'L' : 'P' }}</td>
-                                <td>
-                                    <div class="action-menu-container">
+                                <td style="text-align: center; vertical-align: middle;">
+                                    <div class="action-menu-container" style="position: relative; display: inline-block;">
                                         <button class="action-menu-btn" type="button" onclick="toggleDropdown(event, this)" title="Pengaturan aksi">
                                             <img src="{{ asset('assets/icons/setting.png') }}" alt="Setting" width="20" height="20">
                                         </button>
                                         <ul class="dropdown-menu" style="display: none;">
                                             <li>
                                                 <a class="dropdown-item" href="{{ route('admin.students.show', $student->id) }}">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                        <circle cx="12" cy="12" r="3"></circle>
+                                                    </svg>
                                                     Lihat Detail
                                                 </a>
                                             </li>
                                             <li>
                                                 <a class="dropdown-item" href="{{ route('admin.students.edit', $student->id) }}">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                                    </svg>
                                                     Edit
                                                 </a>
                                             </li>
@@ -137,6 +158,10 @@
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Apakah Anda yakin ingin menghapus siswa ini?')">
+                                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                        </svg>
                                                         Hapus
                                                     </button>
                                                 </form>
@@ -215,6 +240,108 @@
 </div>
 
 <script src="{{ asset('js/action-dropdown.js') }}"></script>
+
+<script>
+// Real-time student search (AJAX) with debounce
+document.addEventListener('DOMContentLoaded', function() {
+    const nameInput = document.getElementById('nameSearch');
+    const nisInput = document.getElementById('nisSearch');
+    const emailInput = document.getElementById('emailSearch');
+    const classSelect = document.getElementById('classSearch');
+    const tbody = document.getElementById('studentsTableBody');
+    const paginationSection = document.querySelector('.pagination-section');
+    let timeout = null;
+
+    function renderRows(items) {
+        if (!items || items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">Tidak ada data siswa.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = items.map((s, idx) => `
+            <tr>
+                <td>${idx + 1}</td>
+                <td><strong>${s.nis ?? '-'}</strong></td>
+                <td>${s.name ?? '-'}</td>
+                <td style="text-align:center">${s.email ? (s.email.length > 20 ? s.email.substring(0,5) + '...' + s.email.substring(s.email.indexOf('@')) : s.email) : '-'}</td>
+                <td style="text-align:center">${s.class ?? '-'}</td>
+                <td class="text-center">${s.gender === 'L' ? 'L' : 'P'}</td>
+                <td style="text-align:center">
+                    <div class="action-menu-container">
+                        <button class="action-menu-btn" type="button" onclick="toggleDropdown(event, this)">
+                            <img src="{{ asset('assets/icons/setting.png') }}" alt="Setting" width="20" height="20">
+                        </button>
+                        <ul class="dropdown-menu" style="display: none;">
+                            <li><a class="dropdown-item" href="/admin/students/${s.id}">Lihat Detail</a></li>
+                            <li><a class="dropdown-item" href="/admin/students/${s.id}/edit">Edit</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="POST" action="/admin/students/${s.id}" class="dropdown-delete-form">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Apakah Anda yakin ingin menghapus siswa ini?')">Hapus</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    async function fetchStudents(params) {
+        const url = new URL('{{ route("admin.students.index") }}');
+        if (params.name) url.searchParams.set('name', params.name);
+        if (params.nis) url.searchParams.set('nis', params.nis);
+        if (params.email) url.searchParams.set('email', params.email);
+        if (params.class_id) url.searchParams.set('class_id', params.class_id);
+        
+        // Hide pagination when actively filtering
+        const isFiltering = params.name || params.nis || params.email || params.class_id;
+        if (paginationSection) {
+            paginationSection.style.display = isFiltering ? 'none' : 'block';
+        }
+        
+        // Show loading state
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center"><span class="spinner-border spinner-border-sm me-2"></span>Memuat data...</td></tr>';
+        
+        try {
+            const res = await fetch(url.toString(), {
+                headers: { 
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const json = await res.json();
+            if (json.success) {
+                renderRows(json.data);
+            } else {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Gagal memuat data</td></tr>';
+            }
+        } catch (e) {
+            console.error('Search failed', e);
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Terjadi kesalahan saat memuat data</td></tr>';
+        }
+    }
+
+    function scheduleFetch() {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            const name = nameInput.value.trim();
+            const nis = nisInput.value.trim();
+            const email = emailInput.value.trim();
+            const class_id = classSelect.value;
+
+            // Always fetch - if filters are empty, backend will return all students
+            fetchStudents({ name, nis, email, class_id });
+        }, 250);
+    }
+
+    [nameInput, nisInput, emailInput, classSelect].forEach(el => {
+        el.addEventListener('input', scheduleFetch);
+        el.addEventListener('change', scheduleFetch);
+    });
+});
+</script>
 
 <!-- Simple modal (no Bootstrap JS dependency) -->
 <div id="importModal" class="simple-modal" aria-hidden="true">

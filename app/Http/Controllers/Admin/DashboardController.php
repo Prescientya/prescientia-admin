@@ -167,6 +167,10 @@ class DashboardController extends Controller
     public function getClassesByGrade($grade)
     {
         $today = Carbon::today();
+        // Get today's calendar entry to determine whether today is active or holiday
+        $todayCalendar = SchoolCalendar::whereDate('date', $today)->first();
+        $dayStatus = $todayCalendar ? $todayCalendar->status : 'aktif';
+        $dayStatusLabel = $dayStatus === 'libur' ? 'Hari Libur' : 'Hari Masuk';
         
         // Get all classes with the specified grade
         $classes = ClassModel::where('class', (int)$grade)
@@ -176,18 +180,22 @@ class DashboardController extends Controller
             ->orderBy('major')
             ->get();
 
-        $classesData = $classes->map(function($class) use ($today) {
+        $classesData = $classes->map(function($class) use ($today, $dayStatus, $dayStatusLabel) {
             $totalSiswa = $class->students->count();
             
-            // Count students present today
-            $siswaHadir = DB::table('student_attendances')
-                ->whereDate('check_in_time', $today)
-                ->where('status', 'hadir')
-                ->whereIn('student_id', $class->students->pluck('id'))
-                ->distinct('student_id')
-                ->count('student_id');
-            
-            $siswaBelumHadir = $totalSiswa - $siswaHadir;
+            // Count students present today (unless today is a holiday)
+            $siswaHadir = 0;
+            $siswaBelumHadir = 0;
+            if ($dayStatus !== 'libur') {
+                $siswaHadir = DB::table('student_attendances')
+                    ->whereDate('check_in_time', $today)
+                    ->where('status', 'hadir')
+                    ->whereIn('student_id', $class->students->pluck('id'))
+                    ->distinct('student_id')
+                    ->count('student_id');
+
+                $siswaBelumHadir = $totalSiswa - $siswaHadir;
+            }
             
             // Get class info from database columns
             $grade = $class->class; // This is integer (10, 11, 12)
@@ -205,6 +213,9 @@ class DashboardController extends Controller
                 'totalSiswa' => $totalSiswa,
                 'siswaHadir' => $siswaHadir,
                 'siswaBelumHadir' => $siswaBelumHadir,
+                // include day status (frontend will use this to render badge)
+                'dayStatus' => $dayStatus ?? 'aktif',
+                'dayStatusLabel' => $dayStatusLabel ?? 'Hari Masuk',
             ];
         });
 

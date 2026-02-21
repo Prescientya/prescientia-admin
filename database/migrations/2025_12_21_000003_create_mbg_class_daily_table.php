@@ -17,9 +17,9 @@ return new class extends Migration
             $table->foreignId('class_id')->constrained('classes')->onDelete('cascade');
             $table->integer('total_students')->default(0); // Total siswa di kelas
             $table->integer('attended_students')->default(0); // Siswa yang hadir
-            $table->integer('returned_plates')->default(0); // Piring yang dikembalikan
-            $table->string('class_code')->nullable(); // Kode kelas-jurusan (contoh: "Kuliner-1")
-            $table->string('student_representative')->nullable(); // Nama siswa perwakilan kelas
+            $table->integer('returned_plates')->default(0)->comment('Piring yang dikembalikan');
+            $table->integer('given_plates')->nullable()->comment('Piring yang diberikan');
+            $table->string('student_representative')->nullable()->comment('Nama siswa perwakilan kelas');
             $table->timestamps();
 
             // Unique constraint: satu kelas hanya bisa punya satu record per piring_mbg_id

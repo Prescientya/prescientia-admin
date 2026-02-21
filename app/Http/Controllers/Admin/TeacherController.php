@@ -28,9 +28,58 @@ class TeacherController extends Controller
      */
     public function index()
     {
-        $teachers = Teacher::with('user')->paginate(10);
+        $name = request()->query('name');
+        $nip = request()->query('nip');
+        $email = request()->query('email');
+        $subjectId = request()->query('subject_id');
+
+        // Base query with relations
+        $query = Teacher::with(['user', 'subjects']);
+
+        // Apply individual filters if provided
+        if (!empty($name)) {
+            $query->where('name', 'ilike', "%{$name}%");
+        }
+
+        if (!empty($nip)) {
+            $query->where('nip', 'ilike', "%{$nip}%");
+        }
+
+        if (!empty($email)) {
+            $query->whereHas('user', function($u) use ($email) {
+                $u->where('email', 'ilike', "%{$email}%");
+            });
+        }
+
+        if (!empty($subjectId)) {
+            $query->whereHas('subjects', function($s) use ($subjectId) {
+                $s->where('subjects.id', $subjectId);
+            });
+        }
+
+        // If client expects JSON (AJAX live search), return a compact JSON payload
+        if (request()->wantsJson() || request()->ajax()) {
+            $teachers = $query->orderBy('name')->limit(300)->get();
+            $data = $teachers->map(function($t) {
+                return [
+                    'id' => $t->id,
+                    'nip' => $t->nip,
+                    'name' => $t->name,
+                    'email' => $t->user?->email,
+                    'gender' => $t->gender,
+                    'subjects' => $t->subjects->pluck('name')->join(', '),
+                ];
+            });
+            return response()->json(['success' => true, 'data' => $data]);
+        }
+
+        $teachers = $query->orderBy('name')->paginate(10)->withQueryString();
         $totalTeachers = Teacher::count();
-        return view('admin.teachers.index', compact('teachers', 'totalTeachers'));
+
+        // Load subjects for subject dropdown filter
+        $subjects = Subject::orderBy('name')->get();
+
+        return view('admin.teachers.index', compact('teachers', 'totalTeachers', 'subjects'));
     }
 
     /**
@@ -893,8 +942,27 @@ class TeacherController extends Controller
      */
     public function show(string $id)
     {
-        $teacher = Teacher::with('user')->findOrFail($id);
-        return view('admin.teachers.show', compact('teacher'));
+        $teacher = Teacher::with(['user', 'subjects', 'classRoles', 'homeroomClasses', 'attendances'])->findOrFail($id);
+
+        // Determine role label: prefer walikelas when present
+        $hasWali = $teacher->classRoles->contains(function($r) {
+            return $r->role === 'wali_kelas';
+        });
+        $roleLabel = $hasWali ? 'Walikelas' : 'Pengajar';
+
+        // Build attendance summary for teacher (computed on the loaded collection to avoid query/collation issues)
+        $teacher->loadMissing('attendances');
+        $attendances = $teacher->attendances ?? collect();
+
+        $attendanceSummary = [
+            'present' => (int) $attendances->whereIn('status', ['hadir', 'terlambat'])->count(),
+            'permission' => (int) $attendances->where('status', 'izin')->count(),
+            'sick' => (int) $attendances->where('status', 'sakit')->count(),
+            'absent' => (int) $attendances->where('status', 'alpa')->count(),
+            'late' => (int) $attendances->where('status', 'terlambat')->count(),
+        ];
+
+        return view('admin.teachers.show', compact('teacher', 'roleLabel', 'attendanceSummary'));
     }
 
     /**

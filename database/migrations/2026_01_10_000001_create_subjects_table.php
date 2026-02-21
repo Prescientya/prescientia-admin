@@ -16,20 +16,19 @@ return new class extends Migration
             $table->id();
             // Nama mata pelajaran (contoh: Matematika, dll)
             $table->string('name', 100);
-            // Kode mata pelajaran (contoh: MAT, FIS, BIO)
-            $table->string('code', 10);
             // Jurusan/major yang memiliki mata pelajaran ini (IPA, IPS, RPL, TKJ, dll)
             // Bisa null jika mata pelajaran umum untuk semua jurusan
             $table->string('major', 50)->nullable()->comment('Jurusan yang memiliki mata pelajaran ini (IPA, IPS, RPL, TKJ, Bahasa, Umum)');
+            // Kelas untuk mata pelajaran ini (10, 11, 12). Null berarti berlaku untuk semua kelas
+            $table->integer('kelas')->nullable()->comment('Kelas untuk mata pelajaran ini (10, 11, 12, dll). Null berarti berlaku untuk semua kelas.');
             // Deskripsi mata pelajaran (opsional)
             $table->text('description')->nullable();
             // Status aktif/tidak aktif
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             
-            // Unique constraint: kombinasi code + major harus unique
-            // Karena mata pelajaran yang sama (code) bisa ada di banyak jurusan
-            $table->unique(['code', 'major']);
+            // Unique constraint: kombinasi name + major + kelas harus unique
+            $table->unique(['name', 'major', 'kelas'], 'subjects_name_major_kelas_unique');
             
             // Indexes untuk pencarian lebih cepat
             $table->index('name');

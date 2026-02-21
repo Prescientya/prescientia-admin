@@ -105,6 +105,18 @@
         </div>
     </div>
     <div class="card-body">
+            <div style="display:flex; gap:0.75rem; align-items:center; margin-bottom:1rem;">
+                <input id="nameSearch" type="search" class="form-control" placeholder="Nama" style="max-width: 260px;">
+                <input id="nipSearch" type="search" class="form-control" placeholder="NIP" style="max-width: 180px;">
+                <input id="emailSearch" type="search" class="form-control" placeholder="Email" style="max-width: 260px;">
+                <select id="subjectSearch" class="form-control" style="max-width: 220px;">
+                    <option value="">Semua Mata Pelajaran</option>
+                    @foreach($subjects as $subject)
+                        <option value="{{ $subject->id }}">{{ $subject->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
         @if ($teachers->count() > 0)
             <div class="table-responsive">
                 <table class="table table-hover table-compact">
@@ -118,7 +130,7 @@
                             <th style="width: 100px; text-align: center;">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="teachersTableBody">
                         @foreach ($teachers as $key => $teacher)
                             <tr>
                                 <td>{{ $teachers->firstItem() + $key }}</td>
@@ -245,6 +257,126 @@
 </div>
 
 <script src="{{ asset('js/action-dropdown.js') }}"></script>
+
+<script>
+// Real-time teacher search (AJAX) with debounce
+document.addEventListener('DOMContentLoaded', function() {
+    const nameInput = document.getElementById('nameSearch');
+    const nipInput = document.getElementById('nipSearch');
+    const emailInput = document.getElementById('emailSearch');
+    const subjectSelect = document.getElementById('subjectSearch');
+    const tbody = document.getElementById('teachersTableBody');
+    const paginationSection = document.querySelector('.pagination-section');
+    let timeout = null;
+
+    function renderRows(items) {
+        if (!items || items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">Tidak ada data guru.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = items.map((t, idx) => `
+            <tr>
+                <td>${idx + 1}</td>
+                <td><strong>${t.nip ?? '-'}</strong></td>
+                <td>${t.name ?? '-'}</td>
+                <td style="text-align:center">${t.email ? (t.email.length > 20 ? t.email.substring(0,5) + '...' + t.email.substring(t.email.indexOf('@')) : t.email) : '-'}</td>
+                <td class="text-center">${t.gender === 'L' ? 'L' : 'P'}</td>
+                <td style="text-align:center; vertical-align:middle;">
+                    <div class="action-menu-container" style="position: relative; display: inline-block;">
+                        <button class="action-menu-btn" type="button" onclick="toggleDropdown(event, this)">
+                            <img src="{{ asset('assets/icons/setting.png') }}" alt="Setting" width="20" height="20">
+                        </button>
+                        <ul class="dropdown-menu" style="display: none;">
+                            <li><a class="dropdown-item" href="/admin/teachers/${t.id}">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                Lihat Detail
+                            </a></li>
+                            <li><a class="dropdown-item" href="/admin/teachers/${t.id}/edit">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                                Edit
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="POST" action="/admin/teachers/${t.id}" class="dropdown-delete-form">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Apakah Anda yakin ingin menghapus guru ini?')">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="3 6 5 6 21 6"></polyline>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        </svg>
+                                        Hapus
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    async function fetchTeachers(params) {
+        const url = new URL('{{ route("admin.teachers.index") }}');
+        if (params.name) url.searchParams.set('name', params.name);
+        if (params.nip) url.searchParams.set('nip', params.nip);
+        if (params.email) url.searchParams.set('email', params.email);
+        if (params.subject_id) url.searchParams.set('subject_id', params.subject_id);
+        
+        // Hide pagination when actively filtering
+        const isFiltering = params.name || params.nip || params.email || params.subject_id;
+        if (paginationSection) {
+            paginationSection.style.display = isFiltering ? 'none' : 'block';
+        }
+        
+        // Show loading state
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center"><span class="spinner-border spinner-border-sm me-2"></span>Memuat data...</td></tr>';
+        
+        try {
+            const res = await fetch(url.toString(), {
+                headers: { 
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            const json = await res.json();
+            if (json.success) {
+                renderRows(json.data);
+            } else {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Gagal memuat data</td></tr>';
+            }
+        } catch (e) {
+            console.error('Search failed', e);
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Terjadi kesalahan saat memuat data</td></tr>';
+        }
+    }
+
+    function scheduleFetch() {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            const name = nameInput.value.trim();
+            const nip = nipInput.value.trim();
+            const email = emailInput.value.trim();
+            const subject_id = subjectSelect.value;
+
+            // Always fetch - if filters are empty, backend will return all teachers
+            fetchTeachers({ name, nip, email, subject_id });
+        }, 250);
+    }
+
+    [nameInput, nipInput, emailInput, subjectSelect].forEach(el => {
+        el.addEventListener('input', scheduleFetch);
+        el.addEventListener('change', scheduleFetch);
+    });
+});
+</script>
+
 <!-- Teacher import modal -->
 <div id="importTeacherModal" class="simple-modal" aria-hidden="true">
     <div class="simple-modal-backdrop" data-modal-close></div>

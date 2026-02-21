@@ -22,7 +22,6 @@ class User extends Authenticatable
         'email',
         'password',
         'device_id',
-        'wifi_mac',
         'is_active',
         'last_login_at',
     ];

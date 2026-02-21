@@ -8,6 +8,9 @@ return new class extends Migration
 {
     /**
      * Run the migrations.
+     * 
+     * Tabel ini menyimpan jadwal jam pelajaran per hari.
+     * Harus dibuat sebelum teacher_attendances karena ada FK period_id.
      */
     public function up(): void
     {

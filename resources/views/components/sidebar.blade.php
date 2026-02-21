@@ -78,10 +78,19 @@
             </a>
         </div>
         
-        <a href="{{ route('admin.profile.index') }}" class="menu-item {{ request()->routeIs('admin.profile.*') ? 'active' : '' }}" title="Profil">
-            <img src="{{ asset('assets/icons/user.png') }}" alt="Profil" class="menu-icon">
-            <span class="menu-text">Profil</span>
-        </a>
+        <div class="menu-item has-submenu" onclick="toggleSubmenu(this)" title="Akun">
+            <img src="{{ asset('assets/icons/user.png') }}" alt="Akun" class="menu-icon">
+            <span class="menu-text">Akun</span>
+            <span class="submenu-arrow">▼</span>
+        </div>
+        <div class="submenu">
+            <a href="{{ route('admin.profile.index') }}" class="submenu-item sidebar-link {{ request()->routeIs('admin.profile.*') ? 'active' : '' }}" title="Profil">
+                <span class="submenu-text">Profil</span>
+            </a>
+            <a href="{{ route('admin.device-accounts.index') }}" class="submenu-item sidebar-link {{ request()->routeIs('admin.device-accounts.*') ? 'active' : '' }}" title="Device Akun">
+                <span class="submenu-text">Device Akun</span>
+            </a>
+        </div>
     </nav>
 </aside>
 

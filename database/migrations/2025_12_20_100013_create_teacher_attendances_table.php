@@ -15,10 +15,11 @@ return new class extends Migration
             $table->id();
             $table->foreignId('teacher_id')->constrained('teachers')->onDelete('cascade');
             $table->foreignId('calendar_id')->constrained('school_calendar')->onDelete('cascade');
-            $table->dateTime('check_in_time')->nullable();
-            $table->dateTime('check_out_time')->nullable();
+            $table->foreignId('period_id')->nullable()->constrained('class_periods')->cascadeOnDelete();
+            $table->timestampTz('check_in_time')->nullable();
+            $table->timestampTz('check_out_time')->nullable();
             $table->enum('status', ['hadir', 'sakit', 'izin', 'dinas', 'alpa', 'terlambat']);
-            $table->enum('source', ['digital_wifi', 'manual', 'self_report']);
+            $table->enum('source', ['digital_wifi', 'manual', 'self_report'])->nullable();
             $table->timestamps();
             
             // Unique: satu guru satu absensi per hari

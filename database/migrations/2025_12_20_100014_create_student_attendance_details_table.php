@@ -14,10 +14,17 @@ return new class extends Migration
         Schema::create('student_attendance_details', function (Blueprint $table) {
             $table->id();
             $table->foreignId('attendance_id')->unique()->constrained('student_attendances')->onDelete('cascade');
-            $table->enum('reason', ['sakit', 'izin', 'alpa', 'terlambat']);
+            $table->enum('status', ['sakit', 'izin', 'alpa', 'terlambat'])->comment('Status ketidakhadiran siswa');
+            $table->string('approval_status', 50)->default('pending')->comment('Status persetujuan: pending, approved, rejected');
+            $table->unsignedBigInteger('approved_by')->nullable()->comment('ID guru yang menyetujui');
+            $table->timestampTz('approved_at')->nullable();
             $table->text('description')->nullable();
             $table->string('evidence_url', 255)->nullable();
             $table->timestamps();
+
+            $table->index('approval_status', 'idx_student_attendance_details_approval_status');
+            $table->foreign('approved_by', 'student_attendance_details_approved_by_foreign')
+                ->references('id')->on('teachers')->onDelete('set null');
         });
     }
 

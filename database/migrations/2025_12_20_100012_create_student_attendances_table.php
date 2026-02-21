@@ -16,10 +16,10 @@ return new class extends Migration
             $table->foreignId('student_id')->constrained('students')->onDelete('cascade');
             $table->foreignId('class_id')->constrained('classes')->onDelete('cascade');
             $table->foreignId('calendar_id')->constrained('school_calendar')->onDelete('cascade');
-            $table->dateTime('check_in_time')->nullable();
-            $table->dateTime('check_out_time')->nullable();
+            $table->timestampTz('check_in_time')->nullable();
+            $table->timestampTz('check_out_time')->nullable();
             $table->enum('status', ['hadir', 'sakit', 'izin', 'alpa', 'terlambat']);
-            $table->enum('source', ['digital_wifi', 'guru_pengajar', 'wali_kelas', 'self_report']);
+            $table->enum('source', ['digital_wifi', 'guru_pengajar', 'wali_kelas', 'manual', 'self_report'])->nullable();
             $table->timestamps();
             
             // Unique: satu siswa satu absensi per hari
