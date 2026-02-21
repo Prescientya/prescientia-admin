@@ -11,16 +11,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Trust all proxies for ngrok and similar services
-        $middleware->trustProxies(at: '*');
-        
-        $middleware->web(append: [
-            \App\Http\Middleware\AutoAttendanceMarking::class,
-        ]);
-        
-        $middleware->alias([
-            'admin' => \App\Http\Middleware\AdminMiddleware::class,
-        ]);
+        //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

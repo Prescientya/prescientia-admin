@@ -1,9 +1,0 @@
-_HiStOrY_V2_
-DB::connection()->getPdo();
-DB::select('SELECT\040*\040FROM\040nama_tabel\040LIMIT\0401');
-DB::select('SELECT\040*\040FROM\040users\040LIMIT\0401');
-DB::select('SELECT\040*\040FROM\040admins\040LIMIT\0401');
-DB::select('SELECT\040*\040FROM\040admins');
-select\040*\040from\040users;
-SELECT\040*\040FROM\040users
-q
