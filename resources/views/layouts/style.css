@@ -363,6 +363,7 @@ body {
     z-index: 200;
     transition: width 0.28s cubic-bezier(.4,0,.2,1), background 0.25s;
     overflow: hidden;
+    border-right: 1px solid var(--header-border);
 }
 
 /* Brand */

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Data Siswa')
+@section('title', 'Data Guru')
 
 @section('breadcrumb')
     <span style="color:var(--text-muted);">Data Master</span>
@@ -9,15 +9,15 @@
          style="color:var(--text-muted);">
         <polyline points="9 18 15 12 9 6"/>
     </svg>
-    <span>Data Siswa</span>
+    <span>Data Guru</span>
 @endsection
 
 @push('styles')
-<style>{!! file_get_contents(resource_path('views/Data_Siswa/style.css')) !!}</style>
+<style>{!! file_get_contents(resource_path('views/Data_Guru/style.css')) !!}</style>
 @endpush
 
 @section('content')
-<div class="ds-page">
+<div class="dg-page">
 
     {{-- ── Flash Messages ─────────────────────────────── --}}
     @if(session('success'))
@@ -53,13 +53,12 @@
     @endif
 
     {{-- ── Page Header ─────────────────────────────────── --}}
-    <div class="ds-header">
+    <div class="dg-header">
         <div>
-            <h1 class="ds-title">Data Siswa</h1>
-            <p class="ds-subtitle">Total <strong>{{ $students->total() }}</strong> siswa terdaftar</p>
+            <h1 class="dg-title">Data Guru</h1>
+            <p class="dg-subtitle">Total <strong>{{ $teachers->total() }}</strong> guru terdaftar</p>
         </div>
-        <div class="ds-header__actions">
-            {{-- Import Excel --}}
+        <div class="dg-header__actions">
             <button class="btn btn--secondary" data-open-modal="modalTambahExcel">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                      fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -68,34 +67,33 @@
                 </svg>
                 Import Excel
             </button>
-            {{-- Tambah Manual --}}
             <button class="btn btn--primary" data-open-modal="modalTambahManual">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                      fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
-                Tambah Siswa
+                Tambah Guru
             </button>
         </div>
     </div>
 
     {{-- ── Search & Filter ─────────────────────────────── --}}
-    <div class="ds-toolbar">
-        <form method="GET" action="{{ route('siswa.index') }}" class="ds-search-form">
-            <div class="ds-search">
+    <div class="dg-toolbar">
+        <form method="GET" action="{{ route('guru.index') }}" class="dg-search-form">
+            <div class="dg-search">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
                      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 </svg>
                 <input type="text" name="search"
-                       placeholder="Cari nama, NIS, atau email..."
+                       placeholder="Cari nama, NIP, atau email..."
                        value="{{ request('search') }}">
             </div>
-            <select name="class_id" class="ds-filter-select">
-                <option value="">Semua Kelas</option>
-                @foreach($classes as $kelas)
-                    <option value="{{ $kelas->id }}" {{ request('class_id') == $kelas->id ? 'selected' : '' }}>
-                        Kelas {{ $kelas->class }}{{ $kelas->major ? ' – ' . $kelas->major : '' }}
+            <select name="subject_id" class="dg-filter-select">
+                <option value="">Semua Mapel</option>
+                @foreach($subjects as $subject)
+                    <option value="{{ $subject->id }}" {{ request('subject_id') == $subject->id ? 'selected' : '' }}>
+                        {{ $subject->name }}
                     </option>
                 @endforeach
             </select>
@@ -106,8 +104,8 @@
                 </svg>
                 Cari
             </button>
-            @if(request('search') || request('class_id'))
-            <a href="{{ route('siswa.index') }}" class="btn btn--ghost btn--sm">Reset</a>
+            @if(request('search') || request('subject_id'))
+            <a href="{{ route('guru.index') }}" class="btn btn--ghost btn--sm">Reset</a>
             @endif
         </form>
     </div>
@@ -119,90 +117,87 @@
                 <thead>
                     <tr>
                         <th style="width:48px;">No</th>
-                        <th>Nama Siswa</th>
-                        <th style="width:120px;">NIS</th>
+                        <th>Nama Guru</th>
+                        <th style="width:150px;">NIP</th>
                         <th>Email</th>
-                        <th style="width:80px;">Kelas</th>
-                        <th style="width:110px;">Jurusan</th>
+                        <th>Mata Pelajaran</th>
                         <th style="width:90px;">Status</th>
                         <th style="width:56px; text-align:center;">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($students as $i => $siswa)
+                    @forelse($teachers as $i => $guru)
                     <tr>
                         <td style="color:var(--text-muted);font-size:0.82rem;">
-                            {{ $students->firstItem() + $i }}
+                            {{ $teachers->firstItem() + $i }}
                         </td>
                         <td>
-                            <span class="ds-student-name">{{ $siswa->name }}</span>
+                            <span class="dg-teacher-name">{{ $guru->name }}</span>
                         </td>
-                        <td style="font-family:monospace;font-size:0.85rem;letter-spacing:0.03em;">
-                            {{ $siswa->nis }}
+                        <td style="font-family:monospace;font-size:0.84rem;letter-spacing:0.03em;">
+                            {{ $guru->nip }}
                         </td>
                         <td style="color:var(--text-secondary);font-size:0.84rem;">
-                            {{ optional($siswa->user)->email ?? '–' }}
-                        </td>
-                        <td style="text-align:center;font-weight:600;">
-                            {{ $siswa->schoolClass?->class ?? '–' }}
+                            {{ optional($guru->user)->email ?? '–' }}
                         </td>
                         <td>
-                            @if($siswa->schoolClass?->major)
-                                <span style="font-size:0.82rem;padding:2px 8px;border-radius:5px;background:var(--accent-light);color:var(--accent);font-weight:600;">
-                                    {{ $siswa->schoolClass->major }}
-                                </span>
+                            @if($guru->subjects->isNotEmpty())
+                                <div class="subject-chips">
+                                    @foreach($guru->subjects as $subject)
+                                        <span class="subject-chip">{{ $subject->name }}</span>
+                                    @endforeach
+                                </div>
                             @else
-                                <span style="color:var(--text-muted);">–</span>
+                                <span style="color:var(--text-muted);font-size:0.82rem;">–</span>
                             @endif
                         </td>
                         <td>
-                            @if(optional($siswa->user)->is_active)
+                            @if(optional($guru->user)->is_active)
                                 <span class="badge badge--active">Aktif</span>
                             @else
                                 <span class="badge badge--inactive">Nonaktif</span>
                             @endif
                         </td>
                         <td style="text-align:center;">
-                            <div class="ds-action">
-                                <button class="ds-action__btn" aria-label="Aksi">
+                            <div class="dg-action">
+                                <button class="dg-action__btn" aria-label="Aksi">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
                                          fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                         <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
                                     </svg>
                                 </button>
-                                <div class="ds-dropdown">
+                                <div class="dg-dropdown">
                                     {{-- Detail --}}
-                                    <a href="#" class="ds-dropdown__item"
-                                       data-action="detail" data-id="{{ $siswa->id }}">
+                                    <a href="#" class="dg-dropdown__item"
+                                       data-action="detail" data-id="{{ $guru->id }}">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
                                              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                                         </svg>
-                                        Detail Siswa
+                                        Detail Guru
                                     </a>
                                     {{-- Edit --}}
-                                    <a href="{{ route('siswa.edit', $siswa->id) }}" class="ds-dropdown__item">
+                                    <a href="{{ route('guru.edit', $guru->id) }}" class="dg-dropdown__item">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
                                              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                                         </svg>
-                                        Edit Siswa
+                                        Edit Guru
                                     </a>
-                                    <div class="ds-dropdown__separator"></div>
+                                    <div class="dg-dropdown__separator"></div>
                                     {{-- Hapus --}}
-                                    <button type="button" class="ds-dropdown__item ds-dropdown__item--danger"
+                                    <button type="button" class="dg-dropdown__item dg-dropdown__item--danger"
                                             data-action="delete"
-                                            data-id="{{ $siswa->id }}"
-                                            data-name="{{ $siswa->name }}"
-                                            data-nis="{{ $siswa->nis }}"
-                                            data-email="{{ optional($siswa->user)->email }}">
+                                            data-id="{{ $guru->id }}"
+                                            data-name="{{ $guru->name }}"
+                                            data-nip="{{ $guru->nip }}">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
                                              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                             <polyline points="3 6 5 6 21 6"/>
                                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                                         </svg>
-                                        Hapus Siswa
+                                        Hapus Guru
                                     </button>
                                 </div>
                             </div>
@@ -210,18 +205,17 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="8">
+                        <td colspan="7">
                             <div class="data-empty">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24"
                                      fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                                    <circle cx="9" cy="7" r="4"/>
-                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="12" cy="7" r="4"/>
+                                    <polyline points="16 11 18 13 22 9"/>
                                 </svg>
-                                <p>Tidak ada data siswa ditemukan.</p>
-                                @if(request('search') || request('class_id'))
-                                    <a href="{{ route('siswa.index') }}" class="btn btn--ghost btn--sm" style="margin-top:10px;">Reset filter</a>
+                                <p>Tidak ada data guru ditemukan.</p>
+                                @if(request('search') || request('subject_id'))
+                                    <a href="{{ route('guru.index') }}" class="btn btn--ghost btn--sm" style="margin-top:10px;">Reset filter</a>
                                 @endif
                             </div>
                         </td>
@@ -232,9 +226,9 @@
         </div>
 
         {{-- Pagination --}}
-        @if($students->hasPages())
+        @if($teachers->hasPages())
         <div class="data-pagination">
-            {{ $students->onEachSide(1)->links('vendor.pagination.prescientia') }}
+            {{ $teachers->onEachSide(1)->links('vendor.pagination.prescientia') }}
         </div>
         @endif
     </div>
@@ -242,13 +236,13 @@
 </div>
 
 {{-- ── Modals ─────────────────────────────────────────── --}}
-@include('Data_Siswa.tambah_siswa')
-@include('Data_Siswa.tambah_siswa_excel')
-@include('Data_Siswa.detail')
-@include('Data_Siswa.delete')
+@include('Data_Guru.tambah_guru')
+@include('Data_Guru.tambah_guru_excel')
+@include('Data_Guru.detail')
+@include('Data_Guru.delete')
 
 @endsection
 
 @push('scripts')
-<script>{!! file_get_contents(resource_path('views/Data_Siswa/main.js')) !!}</script>
+<script>{!! file_get_contents(resource_path('views/Data_Guru/main.js')) !!}</script>
 @endpush

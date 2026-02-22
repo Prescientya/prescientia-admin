@@ -2,8 +2,8 @@
 
 namespace App\Imports;
 
-use App\Models\ClassModel;
-use App\Models\Student;
+use App\Models\Subject;
+use App\Models\Teacher;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +14,7 @@ use Maatwebsite\Excel\Concerns\SkipsOnError;
 use Maatwebsite\Excel\Concerns\SkipsErrors;
 use Throwable;
 
-class StudentsImport implements ToModel, WithHeadingRow, SkipsOnError
+class TeachersImport implements ToModel, WithHeadingRow, SkipsOnError
 {
     use SkipsErrors;
 
@@ -23,56 +23,34 @@ class StudentsImport implements ToModel, WithHeadingRow, SkipsOnError
 
     /**
      * Column mapping (heading row):
-     * nis | nama | email | gender | tanggal_lahir | no_hp | alamat | tingkat | jurusan
+     * nip | nama | email | gender | tanggal_lahir | no_hp | alamat | mapel
      *
-     * - gender  : L / P
-     * - tingkat : 10 / 11 / 12
-     * - jurusan : harus sesuai data kelas yang sudah ada di tabel classes
-     * - password: otomatis = NIS
+     * - gender       : L / P
+     * - tanggal_lahir: Y-m-d atau format yang dikenali Carbon
+     * - mapel        : nama mata pelajaran, pisah koma (cth: "Matematika,Fisika Dasar")
+     * - password     : otomatis = NIP
      */
-    public function model(array $row): ?Student
+    public function model(array $row): ?Teacher
     {
         // Skip empty rows
-        if (empty($row['nis']) || empty($row['nama'])) {
+        if (empty($row['nip']) || empty($row['nama'])) {
             return null;
         }
 
-        $nis   = trim((string) $row['nis']);
+        $nip   = trim((string) $row['nip']);
         $nama  = trim($row['nama']);
         $email = trim($row['email'] ?? '');
 
-        // Default email from NIS if not provided
+        // Default email from NIP if not provided
         if (empty($email)) {
-            $email = $nis . '@siswa.prescientia.id';
+            $email = $nip . '@guru.prescientia.id';
         }
 
         // Skip duplicates silently
-        if (Student::where('nis', $nis)->exists()) return null;
+        if (Teacher::where('nip', $nip)->exists()) return null;
         if (User::where('email', $email)->exists())  return null;
 
-        // Validate class — must already exist, NO auto-create
-        $classId = null;
-        if (!empty($row['tingkat'])) {
-            $tingkat = (int) $row['tingkat'];
-            $jurusan = strtoupper(trim($row['jurusan'] ?? ''));
-
-            $class = ClassModel::where('class', $tingkat)
-                               ->where('major', $jurusan ?: null)
-                               ->first();
-
-            if (!$class) {
-                $this->failedRows[] = [
-                    'nis'    => $nis,
-                    'nama'   => $nama,
-                    'reason' => "Kelas {$tingkat}" . ($jurusan ? " - {$jurusan}" : '') . " tidak ditemukan. Pastikan data kelas sudah tersedia di menu Data Kelas.",
-                ];
-                return null;
-            }
-
-            $classId = $class->id;
-        }
-
-        // Parse date
+        // Parse date of birth
         $dob = now()->format('Y-m-d');
         if (!empty($row['tanggal_lahir'])) {
             try {
@@ -80,25 +58,42 @@ class StudentsImport implements ToModel, WithHeadingRow, SkipsOnError
             } catch (\Exception) {}
         }
 
+        // Resolve mata pelajaran → Subject IDs (create if not yet exist)
+        $subjectIds = [];
+        if (!empty($row['mapel'])) {
+            $mapelNames = array_map('trim', explode(',', (string) $row['mapel']));
+            foreach ($mapelNames as $name) {
+                if (empty($name)) continue;
+                $subject = Subject::firstOrCreate(
+                    ['name' => $name, 'major' => null, 'kelas' => null],
+                    ['is_active' => true]
+                );
+                $subjectIds[] = $subject->id;
+            }
+        }
+
         DB::beginTransaction();
         try {
             $user = User::create([
                 'email'     => $email,
-                'password'  => Hash::make($nis), // password = NIS
-                'role'      => 'student',
+                'password'  => Hash::make($nip), // default password = NIP
+                'role'      => 'teacher',
                 'is_active' => true,
             ]);
 
-            Student::create([
+            $teacher = Teacher::create([
                 'user_id'       => $user->id,
-                'nis'           => $nis,
+                'nip'           => $nip,
                 'name'          => $nama,
                 'gender'        => strtoupper(trim($row['gender'] ?? 'L')) === 'P' ? 'P' : 'L',
                 'date_of_birth' => $dob,
                 'phone_number'  => $row['no_hp'] ?? null,
                 'address'       => $row['alamat'] ?? null,
-                'class_id'      => $classId,
             ]);
+
+            if (!empty($subjectIds)) {
+                $teacher->subjects()->sync($subjectIds);
+            }
 
             DB::commit();
             $this->imported++;
@@ -106,7 +101,7 @@ class StudentsImport implements ToModel, WithHeadingRow, SkipsOnError
         } catch (\Exception $e) {
             DB::rollback();
             $this->failedRows[] = [
-                'nis'    => $nis,
+                'nip'    => $nip,
                 'nama'   => $nama,
                 'reason' => 'Gagal disimpan: ' . $e->getMessage(),
             ];

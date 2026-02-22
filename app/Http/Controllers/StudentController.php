@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\StudentTemplateExport;
 use App\Imports\StudentsImport;
 use App\Models\ClassModel;
 use App\Models\Student;
@@ -18,8 +19,7 @@ class StudentController extends Controller
 
     public function index(Request $request)
     {
-        $query = Student::with(['user', 'schoolClass'])
-            ->whereNull('students.deleted_at');
+        $query = Student::with(['user', 'schoolClass']);
 
         if ($request->filled('search')) {
             $s = $request->search;
@@ -34,7 +34,7 @@ class StudentController extends Controller
             $query->where('students.class_id', $request->class_id);
         }
 
-        $students = $query->orderBy('students.name')->paginate(15)->withQueryString();
+        $students = $query->orderBy('students.name')->paginate(10)->withQueryString();
         $classes  = ClassModel::orderBy('class')->orderBy('major')->get();
 
         return view('Data_Siswa.index', compact('students', 'classes'));
@@ -48,7 +48,6 @@ class StudentController extends Controller
             'name'          => 'required|string|max:100',
             'nis'           => 'required|string|max:20|unique:students,nis',
             'email'         => 'required|email|max:100|unique:users,email',
-            'password'      => 'required|string|min:8',
             'gender'        => 'required|in:L,P',
             'date_of_birth' => 'required|date',
             'class_id'      => 'nullable|exists:classes,id',
@@ -58,14 +57,13 @@ class StudentController extends Controller
         ], [
             'nis.unique'   => 'NIS sudah terdaftar.',
             'email.unique' => 'Email sudah digunakan.',
-            'password.min' => 'Password minimal 8 karakter.',
         ]);
 
         DB::beginTransaction();
         try {
             $user = User::create([
                 'email'     => $request->email,
-                'password'  => Hash::make($request->password),
+                'password'  => Hash::make($request->nis), // default password = NIS
                 'role'      => 'student',
                 'is_active' => true,
             ]);
@@ -201,8 +199,9 @@ class StudentController extends Controller
         DB::beginTransaction();
         try {
             $name = $siswa->name;
-            $siswa->delete();                     // soft-delete student
-            optional($siswa->user)->delete();     // soft-delete user account
+            $user = $siswa->user;
+            $siswa->delete();                 // hard delete student
+            optional($user)->delete();        // hard delete user account
 
             DB::commit();
             return redirect()->route('siswa.index')
@@ -211,6 +210,13 @@ class StudentController extends Controller
             DB::rollback();
             return back()->with('error', 'Gagal menghapus data siswa: ' . $e->getMessage());
         }
+    }
+
+    /* ── DOWNLOAD TEMPLATE ──────────────────────────── */
+
+    public function downloadTemplate()
+    {
+        return Excel::download(new StudentTemplateExport, 'template_import_siswa.xlsx');
     }
 
     /* ── IMPORT EXCEL ───────────────────────────────── */
@@ -228,7 +234,22 @@ class StudentController extends Controller
         try {
             $import = new StudentsImport;
             Excel::import($import, $request->file('file'));
-            $count = $import->getImportedCount();
+            $count  = $import->getImportedCount();
+            $failed = $import->getFailedRows();
+
+            if (count($failed) > 0) {
+                $failedNames = collect($failed)
+                    ->map(fn($f) => "• [{$f['nis']}] {$f['nama']}: {$f['reason']}")
+                    ->implode("\n");
+
+                $msg = "Berhasil mengimpor {$count} siswa.";
+                if ($count === 0) $msg = "Tidak ada siswa yang berhasil diimpor.";
+
+                return redirect()->route('siswa.index')
+                    ->with('success', $count > 0 ? $msg : null)
+                    ->with('warning', count($failed) . " siswa gagal diimpor:\n" . $failedNames);
+            }
+
             return redirect()->route('siswa.index')
                 ->with('success', "Berhasil mengimpor {$count} data siswa.");
         } catch (\Exception $e) {

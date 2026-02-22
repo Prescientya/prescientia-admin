@@ -1,76 +1,13 @@
 /* ============================================================
    DATA SISWA – main.js
+   Module-specific only. Shared utilities → components/global.js
    ============================================================ */
 (function () {
     'use strict';
 
-    /* ── helpers ──────────────────────────────────────────── */
-    const $  = (sel, ctx = document) => ctx.querySelector(sel);
-    const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
+    const { $, $$, openModal, closeModal } = window.PSC;
 
-    /* ── 1. ACTION DROPDOWNS (3-dot menu) ─────────────────── */
-    function initActionDropdowns() {
-        let currentDrop = null;
-
-        $$('.ds-action__btn').forEach(btn => {
-            btn.addEventListener('click', e => {
-                e.stopPropagation();
-                const drop = btn.nextElementSibling;
-                const isOpen = drop.classList.contains('open');
-
-                // close any open one
-                if (currentDrop && currentDrop !== drop) {
-                    currentDrop.classList.remove('open');
-                }
-                drop.classList.toggle('open', !isOpen);
-                currentDrop = isOpen ? null : drop;
-            });
-        });
-
-        document.addEventListener('click', () => {
-            if (currentDrop) {
-                currentDrop.classList.remove('open');
-                currentDrop = null;
-            }
-        });
-    }
-
-    /* ── 2. GENERIC MODAL HELPER ──────────────────────────── */
-    function openModal(overlayId)  { $('#' + overlayId)?.classList.add('open');    }
-    function closeModal(overlayId) { $('#' + overlayId)?.classList.remove('open'); }
-
-    function initModalCloseButtons() {
-        $$('[data-close-modal]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = btn.dataset.closeModal;
-                closeModal(id);
-            });
-        });
-
-        // Close on overlay click
-        $$('.modal-overlay').forEach(overlay => {
-            overlay.addEventListener('click', e => {
-                if (e.target === overlay) overlay.classList.remove('open');
-            });
-        });
-
-        // Close on Escape key
-        document.addEventListener('keydown', e => {
-            if (e.key === 'Escape') {
-                $$('.modal-overlay.open').forEach(o => o.classList.remove('open'));
-            }
-        });
-    }
-
-    /* ── 3. TAMBAH SISWA button ───────────────────────────── */
-    function initTambahButtons() {
-        // "Tambah Manual" button → open manual modal
-        $$('[data-open-modal]').forEach(btn => {
-            btn.addEventListener('click', () => openModal(btn.dataset.openModal));
-        });
-    }
-
-    /* ── 4. TABS inside modal ─────────────────────────────── */
+    /* ── 1. TABS inside modal ─────────────────────────────── */
     function initTabs() {
         $$('.modal-tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -87,7 +24,7 @@
         });
     }
 
-    /* ── 5. PASSWORD TOGGLE ───────────────────────────────── */
+    /* ── 2. PASSWORD TOGGLE ───────────────────────────────── */
     function initPasswordToggles() {
         $$('.input-password__toggle').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -101,7 +38,7 @@
         });
     }
 
-    /* ── 6. PHOTO PREVIEW ─────────────────────────────────── */
+    /* ── 3. PHOTO PREVIEW ─────────────────────────────────── */
     function initPhotoPreview() {
         $$('input[data-preview]').forEach(input => {
             input.addEventListener('change', () => {
@@ -118,7 +55,7 @@
         });
     }
 
-    /* ── 7. DETAIL MODAL (AJAX) ───────────────────────────── */
+    /* ── 4. DETAIL MODAL (AJAX) ───────────────────────────── */
     function initDetailButtons() {
         $$('[data-action="detail"]').forEach(btn => {
             btn.addEventListener('click', async e => {
@@ -175,7 +112,7 @@
         }
     }
 
-    /* ── 8. DELETE MODAL ──────────────────────────────────── */
+    /* ── 5. DELETE MODAL ──────────────────────────────────── */
     function initDeleteButtons() {
         $$('[data-action="delete"]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -203,7 +140,7 @@
         });
     }
 
-    /* ── 9. EXCEL DROPZONE ────────────────────────────────── */
+    /* ── 6. EXCEL DROPZONE ────────────────────────────────── */
     function initExcelDropzone() {
         const zone     = $('#excelDropzone');
         const input    = $('#excelFileInput');
@@ -245,40 +182,19 @@
         });
     }
 
-    /* ── 10. FORM SUBMIT SPINNER ──────────────────────────── */
-    function initFormSpinner() {
-        $$('form[data-loading]').forEach(form => {
-            form.addEventListener('submit', () => {
-                const btn = form.querySelector('[type="submit"]');
-                if (btn) btn.classList.add('loading');
-            });
-        });
-    }
-
-    /* ── 11. AUTO-DISMISS ALERTS ──────────────────────────── */
-    function initAlerts() {
-        $$('.alert').forEach(a => {
-            setTimeout(() => {
-                a.style.transition = 'opacity 0.5s';
-                a.style.opacity = '0';
-                setTimeout(() => a.remove(), 500);
-            }, 4000);
-        });
-    }
-
     /* ── INIT ALL ─────────────────────────────────────────── */
     document.addEventListener('DOMContentLoaded', () => {
-        initActionDropdowns();
-        initModalCloseButtons();
-        initTambahButtons();
+        PSC.initActionDropdowns('.ds-action__btn', '.ds-dropdown');
+        PSC.initModalClose();
+        PSC.initOpenButtons();
         initTabs();
         initPasswordToggles();
         initPhotoPreview();
         initDetailButtons();
         initDeleteButtons();
         initExcelDropzone();
-        initFormSpinner();
-        initAlerts();
+        PSC.initFormSpinner();
+        PSC.initAlerts();
     });
 
 })();

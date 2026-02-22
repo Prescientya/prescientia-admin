@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Dashboard') &mdash; Prescientia Admin</title>
 
     {{-- Anti-flash: apply theme BEFORE render --}}
@@ -17,6 +18,7 @@
     </script>
 
     <style>{!! file_get_contents(resource_path('views/layouts/style.css')) !!}</style>
+    <style>{!! file_get_contents(resource_path('views/components/global.css')) !!}</style>
     @stack('styles')
 </head>
 <body>
@@ -90,7 +92,7 @@
                     <span class="nav-item-label">Data Siswa</span>
                 </a>
 
-                <a href="#" title="Data Guru" class="nav-item {{ request()->routeIs('teachers*') ? 'active' : '' }}">
+                <a href="{{ route('guru.index') }}" title="Data Guru" class="nav-item {{ request()->routeIs('guru*') ? 'active' : '' }}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -100,7 +102,7 @@
                     <span class="nav-item-label">Data Guru</span>
                 </a>
 
-                <a href="#" title="Data Kelas" class="nav-item {{ request()->routeIs('classes*') ? 'active' : '' }}">
+                <a href="{{ route('kelas.index') }}" title="Data Kelas" class="nav-item {{ request()->routeIs('kelas*') ? 'active' : '' }}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
@@ -114,7 +116,7 @@
             <div class="nav-section">
                 <span class="nav-section-label">Kehadiran</span>
 
-                <a href="#" title="Kehadiran Siswa" class="nav-item {{ request()->routeIs('attendance.student*') ? 'active' : '' }}">
+                <a href="{{ route('attendance.student.index') }}" title="Kehadiran Siswa" class="nav-item {{ request()->routeIs('attendance.student*') ? 'active' : '' }}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
@@ -164,6 +166,16 @@
             {{-- Sistem --}}
             <div class="nav-section">
                 <span class="nav-section-label">Sistem</span>
+
+                <a href="{{ route('device-requests.index') }}" title="Permintaan Device"
+                   class="nav-item {{ request()->routeIs('device-requests*') ? 'active' : '' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                        <line x1="12" y1="18" x2="12.01" y2="18"/>
+                    </svg>
+                    <span class="nav-item-label">Permintaan Device</span>
+                </a>
 
                 <a href="#" title="Pengaturan" class="nav-item {{ request()->routeIs('settings*') ? 'active' : '' }}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
@@ -355,6 +367,7 @@
 {{-- End App Wrapper --}}
 
 <script>{!! file_get_contents(resource_path('views/layouts/main.js')) !!}</script>
+<script>{!! file_get_contents(resource_path('views/components/global.js')) !!}</script>
 @stack('scripts')
 
 </body>
