@@ -93,8 +93,11 @@
                             <input type="text" class="mapel-text-input" id="addMapelInput"
                                    placeholder="Ketik nama mapel, tekan Enter atau koma...">
                         </div>
-                        <input type="hidden" name="mapel_text" id="addMapelHidden">
-                        <p class="mapel-hint">Contoh: Matematika → tekan Enter, lalu Fisika → Enter</p>
+                        <input type="hidden" name="mapel_text" id="addMapelHidden" value="{{ old('mapel_text') }}">
+                        <p class="mapel-hint">Contoh: Matematika &rarr; tekan Enter, lalu Fisika &rarr; Enter</p>
+                        @error('mapel_text')
+                        <p class="mapel-error">{{ $message }}</p>
+                        @enderror
                     </div>
                     <div class="form-group form-col-full">
                         <label class="form-label">Alamat</label>

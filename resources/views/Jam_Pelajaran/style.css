@@ -1,0 +1,139 @@
+/* ============================================================
+   JAM PELAJARAN — style.css
+   ============================================================ */
+
+.jp-page { display: flex; flex-direction: column; gap: 20px; }
+
+/* ── Header ──────────────────────────────────────────── */
+.jp-header {
+    display: flex; align-items: center;
+    justify-content: space-between; flex-wrap: wrap; gap: 12px;
+}
+.jp-subtitle { font-size: 0.875rem; color: var(--text-secondary); }
+
+/* ── Day Tabs ──────────────────────────────────── */
+.jp-tabs {
+    display: flex; gap: 0; flex-wrap: wrap;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-bottom: 2px solid var(--accent);
+    border-radius: 12px 12px 0 0;
+    padding: 0;
+    overflow: hidden;
+}
+.jp-tab-btn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 11px 20px; font-size: 0.875rem; font-weight: 600;
+    color: var(--text-muted); cursor: pointer; border: none;
+    background: transparent;
+    border-right: 1px solid var(--card-border);
+    border-bottom: 3px solid transparent;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.jp-tab-btn:last-child { border-right: none; }
+.jp-tab-btn:hover { color: var(--text-primary); background: var(--table-stripe); }
+.jp-tab-btn.active {
+    color: var(--accent); border-bottom-color: var(--accent);
+    background: var(--table-head-bg);
+}
+.jp-tab-count {
+    font-size: 0.72rem; font-weight: 700; padding: 2px 7px;
+    border-radius: 20px; background: var(--table-stripe); color: var(--text-secondary);
+}
+.jp-tab-btn.active .jp-tab-count { background: rgba(var(--accent-rgb), 0.12); color: var(--accent); }
+
+/* ── Panel ───────────────────────────────────────────── */
+.jp-panel { display: none; flex-direction: column; gap: 12px; }
+.jp-panel.active { display: flex; }
+
+.jp-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 8px;
+}
+.jp-panel-title { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
+
+/* ── Table ───────────────────────────────────────────── */
+.jp-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    border-radius: 10px;
+    border: 1px solid var(--card-border);
+}
+.jp-table-wrap::-webkit-scrollbar        { height: 6px; }
+.jp-table-wrap::-webkit-scrollbar-track  { background: var(--scrollbar-track); border-radius: 0 0 6px 6px; }
+.jp-table-wrap::-webkit-scrollbar-thumb  { background: var(--scrollbar-thumb); border-radius: 3px; }
+.jp-table-wrap::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+.jp-table {
+    width: 100%; border-collapse: collapse;
+    font-size: 0.875rem;
+}
+.jp-table th {
+    padding: 10px 14px; text-align: left; font-size: 0.75rem;
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-muted); background: var(--table-head-bg);
+    border-bottom: 1px solid var(--card-border);
+}
+.jp-table td { padding: 10px 14px; border-bottom: 1px solid var(--card-border); vertical-align: middle; }
+.jp-table tbody tr:last-child td { border-bottom: none; }
+
+/* Row type background colors */
+.jp-row--lesson   { background: var(--card-bg); }
+.jp-row--break    { background: rgba(34, 197, 94, 0.08); }
+.jp-row--ceremony { background: rgba(234, 179, 8, 0.10); }
+.jp-row--prayer   { background: rgba(59, 130, 246, 0.08); }
+.jp-row--cleaning { background: rgba(168, 85, 247, 0.08); }
+.jp-row--other    { background: var(--table-stripe); }
+
+/* ── Jam Ke Badge ────────────────────────────────────── */
+.jp-jam-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 50%;
+    font-weight: 700; font-size: 0.85rem;
+    background: var(--accent); color: #fff;
+}
+.jp-jam-badge--off { background: var(--card-border); color: var(--text-muted); }
+
+/* ── Activity Badges ─────────────────────────────────── */
+.jp-badge {
+    display: inline-block; padding: 3px 10px; border-radius: 20px;
+    font-size: 0.76rem; font-weight: 600;
+}
+.jp-badge--lesson   { background: rgba(var(--accent-rgb), 0.12); color: var(--accent); }
+.jp-badge--break    { background: rgba(34, 197, 94, 0.15);  color: #16a34a; }
+.jp-badge--ceremony { background: rgba(234, 179, 8, 0.20);  color: #a16207; }
+.jp-badge--prayer   { background: rgba(59, 130, 246, 0.15); color: #1d4ed8; }
+.jp-badge--cleaning { background: rgba(168, 85, 247, 0.15); color: #7e22ce; }
+.jp-badge--other    { background: var(--table-stripe);       color: var(--text-secondary); }
+
+/* Dark mode adjustments */
+[data-mode="dark"] .jp-badge--break    { color: #4ade80; }
+[data-mode="dark"] .jp-badge--ceremony { color: #fbbf24; }
+[data-mode="dark"] .jp-badge--prayer   { color: #60a5fa; }
+[data-mode="dark"] .jp-badge--cleaning { color: #c084fc; }
+
+/* ── Waktu & Note ────────────────────────────────────── */
+.jp-waktu { font-feature-settings: "tnum"; white-space: nowrap; }
+.jp-durasi { color: var(--text-muted); font-size: 0.82rem; }
+.jp-note { color: var(--text-secondary); font-size: 0.83rem; }
+
+/* ── Actions ─────────────────────────────────────────── */
+.jp-actions { display: flex; gap: 6px; }
+.jp-btn-edit, .jp-btn-delete {
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border: none; border-radius: 8px;
+    cursor: pointer; transition: background 0.15s, color 0.15s;
+    background: transparent; color: var(--text-muted);
+}
+.jp-btn-edit:hover  { background: rgba(var(--accent-rgb), 0.1); color: var(--accent); }
+.jp-btn-delete:hover{ background: rgba(220, 38, 38, 0.1); color: #dc2626; }
+
+/* ── Legend ──────────────────────────────────────────── */
+.jp-legend {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+    padding: 12px 16px; background: var(--table-stripe);
+    border-radius: 10px; font-size: 0.8rem;
+}
+.jp-legend-title { font-weight: 600; color: var(--text-muted); margin-right: 4px; }

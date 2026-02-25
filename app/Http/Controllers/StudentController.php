@@ -6,6 +6,7 @@ use App\Exports\StudentTemplateExport;
 use App\Imports\StudentsImport;
 use App\Models\ClassModel;
 use App\Models\Student;
+use App\Models\StudentClassRole;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -126,9 +127,44 @@ class StudentController extends Controller
 
     public function edit(Student $siswa)
     {
-        $siswa->load(['user', 'schoolClass']);
+        $siswa->load(['user', 'schoolClass', 'classRole']);
         $classes = ClassModel::orderBy('class')->orderBy('major')->get();
-        return view('Data_Siswa.edit', compact('siswa', 'classes'));
+
+        $currentRole   = $siswa->classRole?->role ?? 'pelajar';
+        $classRoleData = $siswa->class_id
+            ? $this->getRoleHolders($siswa->class_id, $siswa->id)
+            : ['km' => null, 'wakil_km' => null, 'sekretaris' => []];
+
+        return view('Data_Siswa.edit', compact('siswa', 'classes', 'currentRole', 'classRoleData'));
+    }
+
+    /* ── CHECK ROLE (AJAX) ──────────────────────────────── */
+
+    public function checkRole(Request $request)
+    {
+        $classId   = $request->integer('class_id');
+        $studentId = $request->integer('student_id');
+        if (!$classId) {
+            return response()->json(['km' => null, 'wakil_km' => null, 'sekretaris' => []]);
+        }
+        return response()->json($this->getRoleHolders($classId, $studentId));
+    }
+
+    private function getRoleHolders(int $classId, int $excludeStudentId): array
+    {
+        $rows = StudentClassRole::with('student')
+            ->where('class_id', $classId)
+            ->where('student_id', '!=', $excludeStudentId)
+            ->whereIn('role', ['km', 'wakil_km', 'sekretaris'])
+            ->get();
+
+        $data = ['km' => null, 'wakil_km' => null, 'sekretaris' => []];
+        foreach ($rows as $r) {
+            if ($r->role === 'km')           $data['km']          = $r->student->name;
+            elseif ($r->role === 'wakil_km') $data['wakil_km']    = $r->student->name;
+            elseif ($r->role === 'sekretaris') $data['sekretaris'][] = $r->student->name;
+        }
+        return $data;
     }
 
     /* ── UPDATE ─────────────────────────────────────── */
@@ -181,6 +217,31 @@ class StudentController extends Controller
                 'class_id'      => $request->class_id,
                 'photo_profile' => $photoPath,
             ]);
+
+            // ── Role siswa di kelas ─────────────────────────
+            $role    = $request->input('role', 'pelajar');
+            $classId = $request->class_id;
+
+            if ($classId) {
+                if (in_array($role, ['km', 'wakil_km', 'sekretaris'])) {
+                    $limits = StudentClassRole::limits();
+                    $taken  = StudentClassRole::where('class_id', $classId)
+                                ->where('student_id', '!=', $siswa->id)
+                                ->where('role', $role)
+                                ->count();
+                    if ($taken >= $limits[$role]) {
+                        DB::rollback();
+                        return back()->withInput()
+                            ->with('error', 'Slot role ' . StudentClassRole::roleLabel($role) . ' sudah penuh di kelas ini.');
+                    }
+                }
+                StudentClassRole::updateOrCreate(
+                    ['student_id' => $siswa->id],
+                    ['class_id' => $classId, 'role' => $role]
+                );
+            } else {
+                StudentClassRole::where('student_id', $siswa->id)->delete();
+            }
 
             DB::commit();
             return redirect()->route('siswa.index')
@@ -238,16 +299,16 @@ class StudentController extends Controller
             $failed = $import->getFailedRows();
 
             if (count($failed) > 0) {
-                $failedNames = collect($failed)
-                    ->map(fn($f) => "• [{$f['nis']}] {$f['nama']}: {$f['reason']}")
-                    ->implode("\n");
-
-                $msg = "Berhasil mengimpor {$count} siswa.";
-                if ($count === 0) $msg = "Tidak ada siswa yang berhasil diimpor.";
-
                 return redirect()->route('siswa.index')
-                    ->with('success', $count > 0 ? $msg : null)
-                    ->with('warning', count($failed) . " siswa gagal diimpor:\n" . $failedNames);
+                    ->with('import_failed', $failed)
+                    ->with('import_success_count', $count)
+                    ->with('import_type', 'siswa')
+                    ->with('success', $count > 0 ? "Berhasil mengimpor {$count} data siswa." : null);
+            }
+
+            if ($count === 0) {
+                return redirect()->route('siswa.index')
+                    ->with('error', 'Tidak ada data siswa baru yang berhasil diimpor. Pastikan format file sesuai template.');
             }
 
             return redirect()->route('siswa.index')

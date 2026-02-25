@@ -15,21 +15,29 @@
      * @param {string} hiddenId   id of the hidden input that stores CSV value
      * @param {string[]} initial  pre-existing tags (for edit page)
      */
-    function initMapelTagInput(wrapperId, textInputId, hiddenId, initial = []) {
+    function initMapelTagInput(wrapperId, textInputId, hiddenId, initial = null) {
         const wrap    = $('#' + wrapperId);
         const input   = $('#' + textInputId);
         const hidden  = $('#' + hiddenId);
         if (!wrap || !input || !hidden) return;
 
-        let tags = [...initial];
+        // If initial not explicitly provided, seed from hidden.value
+        // (handles old() restoration after a validation error)
+        let tags = initial !== null
+            ? [...initial]
+            : (hidden.value ? hidden.value.split(',').map(s => s.trim()).filter(Boolean) : []);
 
         function renderTags() {
             // Remove existing tag elements (leave input)
             wrap.querySelectorAll('.mapel-tag').forEach(el => el.remove());
             // Insert before the text input
             tags.forEach(tag => {
+                const validMapel = window.VALID_MAPEL;
+                const isValid = !validMapel ||
+                    validMapel.some(s => s.toLowerCase() === tag.toLowerCase());
                 const pill = document.createElement('span');
-                pill.className = 'mapel-tag';
+                pill.className = 'mapel-tag' + (isValid ? '' : ' mapel-tag--invalid');
+                if (!isValid) pill.title = `Mapel "${tag}" tidak ditemukan di sistem sekolah ini`;
                 pill.innerHTML = `${tag}<button type="button" class="mapel-tag__remove" data-tag="${tag}" aria-label="Hapus ${tag}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
                          fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">

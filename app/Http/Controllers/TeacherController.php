@@ -59,6 +59,15 @@ class TeacherController extends Controller
             'email.unique' => 'Email sudah digunakan.',
         ]);
 
+        // Validate mapel names against subjects table BEFORE touching the DB
+        $resolved = $this->resolveSubjectIds($request->mapel_text ?? '');
+        if (!empty($resolved['notFound'])) {
+            $list = collect($resolved['notFound'])->map(fn($n) => "\"$n\"")->implode(', ');
+            return back()->withInput()->withErrors([
+                'mapel_text' => "Mapel {$list} tidak ditemukan di sistem sekolah ini.",
+            ]);
+        }
+
         DB::beginTransaction();
         try {
             $user = User::create([
@@ -85,9 +94,8 @@ class TeacherController extends Controller
             ]);
 
             // Sync subjects from mapel_text
-            $subjectIds = $this->resolveSubjectIds($request->mapel_text ?? '');
-            if (!empty($subjectIds)) {
-                $teacher->subjects()->sync($subjectIds);
+            if (!empty($resolved['ids'])) {
+                $teacher->subjects()->sync($resolved['ids']);
             }
 
             DB::commit();
@@ -156,6 +164,15 @@ class TeacherController extends Controller
             'email.unique' => 'Email sudah digunakan akun lain.',
         ]);
 
+        // Validate mapel names against subjects table BEFORE touching the DB
+        $resolved = $this->resolveSubjectIds($request->mapel_text ?? '');
+        if (!empty($resolved['notFound'])) {
+            $list = collect($resolved['notFound'])->map(fn($n) => "\"$n\"")->implode(', ');
+            return back()->withInput()->withErrors([
+                'mapel_text' => "Mapel {$list} tidak ditemukan di sistem sekolah ini.",
+            ]);
+        }
+
         DB::beginTransaction();
         try {
             $userUpdate = [
@@ -184,8 +201,7 @@ class TeacherController extends Controller
             ]);
 
             // Sync subjects (empty = detach all)
-            $subjectIds = $this->resolveSubjectIds($request->mapel_text ?? '');
-            $guru->subjects()->sync($subjectIds);
+            $guru->subjects()->sync($resolved['ids']);
 
             DB::commit();
             return redirect()->route('guru.index')
@@ -243,16 +259,16 @@ class TeacherController extends Controller
             $failed = $import->getFailedRows();
 
             if (count($failed) > 0) {
-                $failedNames = collect($failed)
-                    ->map(fn($f) => "• [{$f['nip']}] {$f['nama']}: {$f['reason']}")
-                    ->implode("\n");
-
-                $msg = "Berhasil mengimpor {$count} guru.";
-                if ($count === 0) $msg = "Tidak ada guru yang berhasil diimpor.";
-
                 return redirect()->route('guru.index')
-                    ->with('success', $count > 0 ? $msg : null)
-                    ->with('warning', count($failed) . " guru gagal diimpor:\n" . $failedNames);
+                    ->with('import_failed', $failed)
+                    ->with('import_success_count', $count)
+                    ->with('import_type', 'guru')
+                    ->with('success', $count > 0 ? "Berhasil mengimpor {$count} data guru." : null);
+            }
+
+            if ($count === 0) {
+                return redirect()->route('guru.index')
+                    ->with('error', 'Tidak ada data guru baru yang berhasil diimpor. Pastikan format file sesuai template.');
             }
 
             return redirect()->route('guru.index')
@@ -265,25 +281,27 @@ class TeacherController extends Controller
     /* ── PRIVATE HELPER ─────────────────────────────── */
 
     /**
-     * Convert comma-separated mapel names to array of Subject IDs.
-     * Creates subjects that don't exist yet.
+     * Lookup subjects by name (case-insensitive). Does NOT create new subjects.
+     * Returns ['ids' => [...], 'notFound' => [...names not in DB]]
      */
     private function resolveSubjectIds(string $mapelText): array
     {
-        if (empty(trim($mapelText))) return [];
+        if (empty(trim($mapelText))) return ['ids' => [], 'notFound' => []];
 
-        $names      = array_filter(array_map('trim', explode(',', $mapelText)));
-        $subjectIds = [];
+        $names    = array_filter(array_map('trim', explode(',', $mapelText)));
+        $ids      = [];
+        $notFound = [];
 
         foreach ($names as $name) {
             if (empty($name)) continue;
-            $subject = Subject::firstOrCreate(
-                ['name' => $name, 'major' => null, 'kelas' => null],
-                ['is_active' => true]
-            );
-            $subjectIds[] = $subject->id;
+            $subject = Subject::whereRaw('LOWER(name) = LOWER(?)', [$name])->first();
+            if ($subject) {
+                $ids[] = $subject->id;
+            } else {
+                $notFound[] = $name;
+            }
         }
 
-        return $subjectIds;
+        return ['ids' => $ids, 'notFound' => $notFound];
     }
 }

@@ -1,0 +1,44 @@
+/* ============================================================
+   WIFI NETWORKS  style.css
+   Shared patterns are in components/global.css.
+   Only Wifi-Networks-specific styles live here.
+   ============================================================ */
+
+/* ── BSSID badge ─────────────────────────────────────────── */
+.wn-bssid {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.82rem; letter-spacing: 0.04em;
+    color: var(--text-primary); font-weight: 600;
+}
+.wn-ssid {
+    font-size: 0.9rem; font-weight: 700; color: var(--text-primary);
+}
+.wn-ip {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.82rem; color: var(--text-secondary);
+}
+.wn-ip--none {
+    font-size: 0.82rem; color: var(--text-muted); font-style: italic;
+}
+
+/* ── WiFi signal icon badge ──────────────────────────────── */
+.wn-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 9px;
+    background: var(--accent-light); color: var(--accent); flex-shrink: 0;
+}
+
+/* ── Delete modal card ───────────────────────────────────── */
+.delete-wn-card {
+    background: var(--content-bg); border: 1px solid var(--card-border);
+    border-radius: 10px; padding: 12px 16px; margin: 14px 0;
+    display: flex; align-items: center; gap: 12px;
+}
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 640px) {
+    .data-table th:nth-child(4),
+    .data-table td:nth-child(4) { display: none; }
+    .data-table th:nth-child(5),
+    .data-table td:nth-child(5) { display: none; }
+}

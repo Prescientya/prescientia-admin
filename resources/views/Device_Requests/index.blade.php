@@ -42,7 +42,6 @@
     {{-- ── Page Header ─────────────────────────────────── --}}
     <div class="dr-header">
         <div>
-            <h1 class="dr-title">Permintaan Ganti Device</h1>
             <p class="dr-subtitle">
                 <span class="dr-badge dr-badge--pending">{{ $counts['pending'] ?? 0 }} Menunggu</span>
                 <span class="dr-badge dr-badge--approved">{{ $counts['approved'] ?? 0 }} Disetujui</span>
@@ -51,13 +50,38 @@
         </div>
     </div>
 
-    {{-- ── Filter Bar ───────────────────────────────────── --}}
+    {{-- ── Primary Type Tabs (Siswa / Guru) ────────────── --}}
+    <div class="dr-type-tabs">
+        <a href="{{ route('device-requests.index', ['type' => 'siswa', 'status' => $status]) }}"
+           class="dr-type-tab {{ $type === 'siswa' ? 'dr-type-tab--active' : '' }}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            Siswa
+        </a>
+        <a href="{{ route('device-requests.index', ['type' => 'guru', 'status' => $status]) }}"
+           class="dr-type-tab {{ $type === 'guru' ? 'dr-type-tab--active' : '' }}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2"/>
+                <line x1="8" y1="21" x2="16" y2="21"/>
+                <line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+            Guru
+        </a>
+    </div>
+
+    {{-- ── Secondary Status Tabs + Search ─────────────── --}}
     <form method="GET" action="{{ route('device-requests.index') }}" class="dr-filters">
+        <input type="hidden" name="type" value="{{ $type }}">
 
         {{-- Status tabs --}}
         <div class="dr-tabs">
             @foreach(['all' => 'Semua', 'pending' => 'Menunggu', 'approved' => 'Disetujui', 'rejected' => 'Ditolak'] as $val => $label)
-            <a href="{{ route('device-requests.index', array_merge(request()->except('status','page'), ['status' => $val])) }}"
+            <a href="{{ route('device-requests.index', ['type' => $type, 'status' => $val]) }}"
                class="dr-tab {{ $status === $val ? 'dr-tab--active' : '' }}">
                 {{ $label }}
                 @if($val === 'pending' && ($counts['pending'] ?? 0) > 0)
@@ -67,13 +91,8 @@
             @endforeach
         </div>
 
-        {{-- Right-side filters --}}
+        {{-- Search --}}
         <div class="dr-filter-right">
-            <select name="type" class="form-input form-input--sm" onchange="this.form.submit()">
-                <option value="all"  {{ $type === 'all'  ? 'selected' : '' }}>Semua Tipe</option>
-                <option value="siswa"{{ $type === 'siswa'? 'selected' : '' }}>Siswa</option>
-                <option value="guru" {{ $type === 'guru' ? 'selected' : '' }}>Guru</option>
-            </select>
             <div class="search-wrap">
                 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
                      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -94,12 +113,11 @@
         </div>
 
         <div class="table-wrap">
-            <table class="data-table">
+            <table class="data-table" style="min-width:820px;">
                 <thead>
                     <tr>
                         <th style="width:40px;">No</th>
                         <th>Nama</th>
-                        <th style="width:80px;">Tipe</th>
                         <th>NIS / NIP</th>
                         <th>Device ID Lama</th>
                         <th>Device ID Baru</th>
@@ -117,12 +135,6 @@
                     <td>
                         <div class="requester-name">{{ $r->requester_name ?? '—' }}</div>
                         <div class="requester-email">{{ $r->email }}</div>
-                    </td>
-
-                    <td>
-                        <span class="type-badge type-badge--{{ $r->requester_type }}">
-                            {{ $r->requester_type === 'siswa' ? 'Siswa' : 'Guru' }}
-                        </span>
                     </td>
 
                     <td class="td-mono">{{ $r->requester_no ?? '—' }}</td>
@@ -184,7 +196,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="10" class="td-empty">
+                    <td colspan="9" class="td-empty">
                         <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24"
                              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
                              style="color:var(--text-muted)">

@@ -127,7 +127,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Kelas</label>
-                            <select name="class_id" class="form-control">
+                            <select name="class_id" id="classSelect" class="form-control">
                                 <option value="">– Tidak ada –</option>
                                 @foreach($classes as $kelas)
                                     <option value="{{ $kelas->id }}"
@@ -136,6 +136,19 @@
                                     </option>
                                 @endforeach
                             </select>
+                        </div>
+                        <div class="form-group form-col-full" id="roleSection"
+                             style="{{ !$siswa->class_id ? 'display:none' : '' }}">
+                            <label class="form-label">Role di Kelas</label>
+                            <div class="role-select-wrap">
+                                <select name="role" id="roleSelect" class="form-control">
+                                    <option value="pelajar" {{ old('role', $currentRole) === 'pelajar' ? 'selected' : '' }}>Pelajar</option>
+                                    <option value="km"        id="opt-km"        {{ old('role', $currentRole) === 'km'        ? 'selected' : '' }}>KM (Ketua Murid)</option>
+                                    <option value="wakil_km"  id="opt-wakil_km"  {{ old('role', $currentRole) === 'wakil_km'  ? 'selected' : '' }}>Wakil KM</option>
+                                    <option value="sekretaris" id="opt-sekretaris" {{ old('role', $currentRole) === 'sekretaris' ? 'selected' : '' }}>Sekretaris</option>
+                                </select>
+                            </div>
+                            <div id="roleHints" class="role-hints"></div>
                         </div>
                         <div class="form-group form-col-full">
                             <label class="form-label">Alamat</label>
@@ -227,5 +240,12 @@
 @endsection
 
 @push('scripts')
+<script>
+window.SISWA_EDIT = {
+    studentId:     {{ $siswa->id }},
+    classRoleData: @json($classRoleData),
+    currentRole:   '{{ old('role', $currentRole) }}'
+};
+</script>
 <script>{!! file_get_contents(resource_path('views/Data_Siswa/main.js')) !!}</script>
 @endpush

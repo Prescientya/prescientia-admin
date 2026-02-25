@@ -182,6 +182,86 @@
         });
     }
 
+    /* ── ROLE CHECK (edit page) ───────────────────────────── */
+    function initRoleCheck() {
+        const classSelect = document.getElementById('classSelect');
+        const roleSection = document.getElementById('roleSection');
+        const roleSelect  = document.getElementById('roleSelect');
+        const roleHints   = document.getElementById('roleHints');
+        if (!classSelect || !roleSelect) return;
+
+        const cfg = window.SISWA_EDIT || {};
+
+        const LABELS = { km: 'KM', wakil_km: 'Wakil KM', sekretaris: 'Sekretaris' };
+
+        function buildHints(data) {
+            roleHints.innerHTML = '';
+            const items = [];
+            if (data.km)        items.push({ key: 'km',        label: LABELS.km,        holder: data.km });
+            if (data.wakil_km)  items.push({ key: 'wakil_km',  label: LABELS.wakil_km,  holder: data.wakil_km });
+            if (data.sekretaris && data.sekretaris.length) {
+                data.sekretaris.forEach(name => {
+                    items.push({ key: 'sekretaris', label: LABELS.sekretaris, holder: name });
+                });
+            }
+            items.forEach(item => {
+                const el = document.createElement('span');
+                el.className = 'role-hint-item';
+                el.innerHTML =
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"' +
+                    ' fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">' +
+                    '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+                    'Sudah ada ' + item.label + ': <strong>' + item.holder + '</strong>';
+                roleHints.appendChild(el);
+            });
+
+            // Update option labels
+            ['km', 'wakil_km', 'sekretaris'].forEach(key => {
+                const opt = document.getElementById('opt-' + key);
+                if (!opt) return;
+                const base = key === 'km' ? 'KM (Ketua Murid)' : (key === 'wakil_km' ? 'Wakil KM' : 'Sekretaris');
+                if (key === 'sekretaris') {
+                    const count = (data.sekretaris || []).length;
+                    opt.textContent = count >= 2
+                        ? base + ' — Slot penuh (2/2)'
+                        : base + (count === 1 ? ' — Slot tersisa 1' : '');
+                } else {
+                    const holder = data[key];
+                    opt.textContent = holder ? base + ' — Sudah ada: ' + holder : base;
+                }
+            });
+        }
+
+        async function fetchAndRefresh(classId) {
+            if (!classId) {
+                roleSection.style.display = 'none';
+                return;
+            }
+            roleSection.style.display = '';
+            try {
+                const res = await fetch(
+                    `/siswa/check-role?class_id=${classId}&student_id=${cfg.studentId || 0}`,
+                    { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } }
+                );
+                const data = await res.json();
+                buildHints(data);
+            } catch (e) {
+                roleHints.innerHTML = '';
+            }
+        }
+
+        // Initial render from PHP-passed data
+        if (classSelect.value && cfg.classRoleData) {
+            buildHints(cfg.classRoleData);
+        }
+
+        classSelect.addEventListener('change', () => {
+            fetchAndRefresh(classSelect.value);
+            // Reset role to pelajar when class changes
+            if (roleSelect) roleSelect.value = 'pelajar';
+        });
+    }
+
     /* ── INIT ALL ─────────────────────────────────────────── */
     document.addEventListener('DOMContentLoaded', () => {
         PSC.initActionDropdowns('.ds-action__btn', '.ds-dropdown');
@@ -193,6 +273,7 @@
         initDetailButtons();
         initDeleteButtons();
         initExcelDropzone();
+        initRoleCheck();
         PSC.initFormSpinner();
         PSC.initAlerts();
     });

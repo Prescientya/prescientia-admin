@@ -41,7 +41,6 @@
     {{-- ── Page Header ─────────────────────────────────── --}}
     <div class="dk-header">
         <div>
-            <h1 class="dk-title">Data Kelas</h1>
             <p class="dk-subtitle">Total <strong>{{ $classes->total() }}</strong> kelas terdaftar</p>
         </div>
         <button type="button" class="btn btn--primary" data-open-modal="modalTambahKelas">
@@ -83,7 +82,8 @@
 
     {{-- ── Table ───────────────────────────────────────── --}}
     <div class="data-card">
-        <table class="data-table">
+        <div class="table-scroll">
+        <table class="data-table" style="min-width:540px;">
             <thead>
                 <tr>
                     <th style="width:50px;">No</th>
@@ -179,6 +179,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>{{-- end table-scroll --}}
 
         {{-- Pagination --}}
         @if($classes->hasPages())

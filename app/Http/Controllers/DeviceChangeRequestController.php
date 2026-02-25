@@ -13,7 +13,7 @@ class DeviceChangeRequestController extends Controller
     public function index(Request $request)
     {
         $status = $request->input('status', 'all');
-        $type   = $request->input('type',   'all'); // all | siswa | guru
+        $type   = $request->input('type',   'siswa'); // siswa | guru (no 'all' default)
         $search = trim($request->input('search', ''));
 
         $query = DB::table('device_change_requests as dcr')
@@ -35,25 +35,27 @@ class DeviceChangeRequestController extends Controller
                 DB::raw("CASE WHEN students.id IS NOT NULL THEN 'siswa' ELSE 'guru' END AS requester_type")
             );
 
+        // Always filter by type (siswa or guru — no 'all')
+        if ($type === 'guru') {
+            $query->whereNotNull('teachers.id');
+        } else {
+            // default: siswa
+            $type = 'siswa';
+            $query->whereNotNull('students.id');
+        }
+
         // Filter by status
         if ($status !== 'all') {
             $query->where('dcr.status', $status);
         }
 
-        // Filter by type
-        if ($type === 'siswa') {
-            $query->whereNotNull('students.id');
-        } elseif ($type === 'guru') {
-            $query->whereNotNull('teachers.id');
-        }
-
-        // Search by name / NIS / NIP / device id
+        // Search
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
-                $q->where('students.name',     'ilike', "%{$search}%")
-                  ->orWhere('teachers.name',   'ilike', "%{$search}%")
-                  ->orWhere('students.nis',    'ilike', "%{$search}%")
-                  ->orWhere('teachers.nip',    'ilike', "%{$search}%")
+                $q->where('students.name',       'ilike', "%{$search}%")
+                  ->orWhere('teachers.name',     'ilike', "%{$search}%")
+                  ->orWhere('students.nis',      'ilike', "%{$search}%")
+                  ->orWhere('teachers.nip',      'ilike', "%{$search}%")
                   ->orWhere('dcr.device_id_old', 'ilike', "%{$search}%")
                   ->orWhere('dcr.device_id_new', 'ilike', "%{$search}%");
             });
@@ -64,10 +66,20 @@ class DeviceChangeRequestController extends Controller
                           ->paginate(20)
                           ->withQueryString();
 
-        // Summary counts
-        $counts = DB::table('device_change_requests')
-            ->select('status', DB::raw('count(*) as total'))
-            ->groupBy('status')
+        // Summary counts for the current type
+        $countsQuery = DB::table('device_change_requests as dcr')
+            ->join('users', 'users.id', '=', 'dcr.user_id')
+            ->leftJoin('students', 'students.user_id', '=', 'users.id')
+            ->leftJoin('teachers', 'teachers.user_id', '=', 'users.id');
+
+        if ($type === 'guru') {
+            $countsQuery->whereNotNull('teachers.id');
+        } else {
+            $countsQuery->whereNotNull('students.id');
+        }
+
+        $counts = $countsQuery->select('dcr.status', DB::raw('count(*) as total'))
+            ->groupBy('dcr.status')
             ->pluck('total', 'status');
 
         return view('Device_Requests.index', compact('requests', 'counts', 'status', 'type', 'search'));

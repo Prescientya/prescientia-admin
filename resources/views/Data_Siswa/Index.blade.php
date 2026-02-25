@@ -41,21 +41,61 @@
     </div>
     @endif
 
-    @if(session('warning'))
-    <div class="alert alert--warning">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-             fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-        </svg>
-        <div style="white-space:pre-line">{{ session('warning') }}</div>
+    @if(session('import_failed'))
+    <div class="import-report">
+        <div class="import-report__header">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <div class="import-report__meta">
+                <div class="import-report__title">Import selesai dengan peringatan</div>
+                <div class="import-report__counts">
+                    @if(session('import_success_count', 0) > 0)
+                    <span class="irc irc--ok">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        {{ session('import_success_count') }} siswa berhasil diimpor
+                    </span>
+                    @endif
+                    <span class="irc irc--fail">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        {{ count(session('import_failed')) }} siswa gagal diimpor
+                    </span>
+                </div>
+            </div>
+        </div>
+        <details class="import-report__body">
+            <summary>Lihat detail kegagalan ({{ count(session('import_failed')) }} data)</summary>
+            <div class="import-report__table-wrap">
+                <table class="import-report__table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>NIS</th>
+                            <th>Nama</th>
+                            <th>Alasan Gagal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach(session('import_failed') as $i => $row)
+                        <tr>
+                            <td>{{ $i + 1 }}</td>
+                            <td><code>{{ $row['nis'] ?? '-' }}</code></td>
+                            <td>{{ $row['nama'] ?? '-' }}</td>
+                            <td>{{ $row['reason'] ?? '-' }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </details>
     </div>
     @endif
 
     {{-- ── Page Header ─────────────────────────────────── --}}
     <div class="ds-header">
         <div>
-            <h1 class="ds-title">Data Siswa</h1>
             <p class="ds-subtitle">Total <strong>{{ $students->total() }}</strong> siswa terdaftar</p>
         </div>
         <div class="ds-header__actions">
@@ -114,8 +154,8 @@
 
     {{-- ── Table ────────────────────────────────────────── --}}
     <div class="data-card">
-        <div style="overflow-x:auto;">
-            <table class="data-table">
+        <div class="table-scroll">
+            <table class="data-table" style="min-width:700px;">
                 <thead>
                     <tr>
                         <th style="width:48px;">No</th>

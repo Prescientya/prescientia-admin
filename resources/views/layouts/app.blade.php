@@ -128,7 +128,7 @@
                     <span class="nav-item-label">Kehadiran Siswa</span>
                 </a>
 
-                <a href="#" title="Kehadiran Guru" class="nav-item {{ request()->routeIs('attendance.teacher*') ? 'active' : '' }}">
+                <a href="{{ route('attendance.teacher.index') }}" title="Kehadiran Guru" class="nav-item {{ request()->routeIs('attendance.teacher*') ? 'active' : '' }}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -143,13 +143,33 @@
             <div class="nav-section">
                 <span class="nav-section-label">Akademik</span>
 
-                <a href="#" title="Jadwal" class="nav-item {{ request()->routeIs('schedule*') ? 'active' : '' }}">
+                <a href="{{ route('jadwal-mengajar.index') }}" title="Jadwal Mengajar" class="nav-item {{ request()->routeIs('jadwal-mengajar*') ? 'active' : '' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                        <line x1="3" y1="10" x2="21" y2="10"/>
+                        <line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/>
+                        <line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/>
+                    </svg>
+                    <span class="nav-item-label">Jadwal Mengajar</span>
+                </a>
+
+                <a href="{{ route('mapel.index') }}" title="Mata Pelajaran" class="nav-item {{ request()->routeIs('mapel*') ? 'active' : '' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                    </svg>
+                    <span class="nav-item-label">Mata Pelajaran</span>
+                </a>
+
+                <a href="{{ route('jam-pelajaran.index') }}" title="Jam Pelajaran" class="nav-item {{ request()->routeIs('jam-pelajaran*') ? 'active' : '' }}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"/>
                         <polyline points="12 6 12 12 16 14"/>
                     </svg>
-                    <span class="nav-item-label">Jadwal</span>
+                    <span class="nav-item-label">Jam Pelajaran</span>
                 </a>
 
                 <a href="#" title="Laporan" class="nav-item {{ request()->routeIs('reports*') ? 'active' : '' }}">
@@ -166,6 +186,29 @@
             {{-- Sistem --}}
             <div class="nav-section">
                 <span class="nav-section-label">Sistem</span>
+
+                <a href="{{ route('school-calendar.index') }}" title="Kalender Sekolah"
+                   class="nav-item {{ request()->routeIs('school-calendar*') ? 'active' : '' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                        <line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                    <span class="nav-item-label">Kalender Sekolah</span>
+                </a>
+
+                <a href="{{ route('wifi-networks.index') }}" title="Jaringan WiFi"
+                   class="nav-item {{ request()->routeIs('wifi-networks*') ? 'active' : '' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
+                        <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
+                        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+                        <line x1="12" y1="20" x2="12.01" y2="20"/>
+                    </svg>
+                    <span class="nav-item-label">Jaringan WiFi</span>
+                </a>
 
                 <a href="{{ route('device-requests.index') }}" title="Permintaan Device"
                    class="nav-item {{ request()->routeIs('device-requests*') ? 'active' : '' }}">
@@ -351,7 +394,9 @@
 
         {{-- ===== CONTENT ===== --}}
         <main class="app-content">
-            @yield('content')
+            <div class="content-card">
+                @yield('content')
+            </div>
         </main>
 
         {{-- ===== FOOTER ===== --}}

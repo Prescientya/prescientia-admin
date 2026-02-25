@@ -37,6 +37,11 @@ class Student extends Model
         return $this->belongsTo(ClassModel::class, 'class_id');
     }
 
+    public function classRole()
+    {
+        return $this->hasOne(StudentClassRole::class, 'student_id');
+    }
+
     /* ── Accessors ──────────────────────────────────── */
 
     public function getInitialAttribute(): string

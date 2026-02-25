@@ -17,7 +17,6 @@ return new class extends Migration
             $table->string('name', 100);
             $table->string('photo_profile', 255)->nullable();
             $table->timestamps();
-            $table->softDeletes();
         });
     }
 

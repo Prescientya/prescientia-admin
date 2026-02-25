@@ -9,8 +9,6 @@ class Subject extends Model
 {
     protected $fillable = [
         'name',
-        'major',
-        'kelas',
         'description',
         'is_active',
     ];
@@ -22,5 +20,22 @@ class Subject extends Model
     public function teachers(): BelongsToMany
     {
         return $this->belongsToMany(Teacher::class, 'teacher_subject');
+    }
+
+    public function subjectClasses()
+    {
+        return $this->hasMany(SubjectClass::class);
+    }
+
+    public function classes(): BelongsToMany
+    {
+        return $this->belongsToMany(ClassModel::class, 'subject_classes', 'subject_id', 'class_id')
+                    ->withTimestamps();
+    }
+
+    /** Jumlah kelas yang diajarkan mapel ini */
+    public function getJumlahKelasAttribute(): int
+    {
+        return $this->classes()->count();
     }
 }

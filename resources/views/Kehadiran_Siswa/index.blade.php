@@ -40,8 +40,7 @@
     {{-- ── Page Header ─────────────────────────────────── --}}
     <div class="ka-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
         <div>
-            <h1 style="font-size:1.4rem;font-weight:700;color:var(--text-primary);margin:0;">Kehadiran Siswa</h1>
-            <p style="font-size:0.84rem;color:var(--text-muted);margin:3px 0 0;">
+            <p style="font-size:0.84rem;color:var(--text-muted);margin:0;">
                 Data absensi siswa
                 &mdash;
                 <span class="date-pill">
@@ -172,7 +171,8 @@
                 Export Excel
             </a>
         </div>
-        <table class="data-table">
+        <div class="table-scroll">
+        <table class="data-table" style="min-width:720px;">
             <thead>
                 <tr>
                     <th style="width:40px;">#</th>
@@ -312,6 +312,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>{{-- end table-scroll --}}
 
         @if($attendances->hasPages())
         <div class="data-pagination">

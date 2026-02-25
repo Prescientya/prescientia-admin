@@ -150,7 +150,10 @@
                         </div>
                         <input type="hidden" name="mapel_text" id="editMapelHidden"
                                value="{{ $existingMapel }}">
-                        <p class="mapel-hint">Tekan Enter atau koma untuk menambah mapel. Klik × untuk menghapus.</p>
+                        <p class="mapel-hint">Tekan Enter atau koma untuk menambah mapel. Klik &times; untuk menghapus.</p>
+                        @error('mapel_text')
+                        <p class="mapel-error">{{ $message }}</p>
+                        @enderror
                     </div>
                 </div>
 
@@ -231,5 +234,6 @@
 @endsection
 
 @push('scripts')
+<script>window.VALID_MAPEL = @json($subjects->pluck('name'));</script>
 <script>{!! file_get_contents(resource_path('views/Data_Guru/main.js')) !!}</script>
 @endpush

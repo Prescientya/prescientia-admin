@@ -73,18 +73,7 @@
 
                 {{-- Template download --}}
                 <div class="excel-template-row">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                         style="color:var(--accent);flex-shrink:0;">
-                        <circle cx="12" cy="12" r="10"/>
-                        <line x1="12" y1="8" x2="12" y2="12"/>
-                        <line x1="12" y1="16" x2="12.01" y2="16"/>
-                    </svg>
-                    <span style="font-size:0.82rem;color:var(--text-secondary);flex:1;">
-                        Belum punya template? Kolom: <strong>nip, nama, email, gender, tanggal_lahir, no_hp, alamat, mapel</strong>.
-                        Kolom <em>mapel</em> bisa diisi beberapa mapel pisah koma.
-                    </span>
-                    <a href="{{ route('guru.template') }}">
+                    <a href="{{ route('guru.template') }}"
                         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
                              fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
                              style="display:inline;vertical-align:-2px;margin-right:4px;">

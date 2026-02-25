@@ -46,9 +46,23 @@ class StudentsImport implements ToModel, WithHeadingRow, SkipsOnError
             $email = $nis . '@siswa.prescientia.id';
         }
 
-        // Skip duplicates silently
-        if (Student::where('nis', $nis)->exists()) return null;
-        if (User::where('email', $email)->exists())  return null;
+        // Reject duplicates — track as failures instead of silently skipping
+        if (Student::where('nis', $nis)->exists()) {
+            $this->failedRows[] = [
+                'nis'    => $nis,
+                'nama'   => $nama,
+                'reason' => "NIS {$nis} sudah terdaftar di sistem.",
+            ];
+            return null;
+        }
+        if (User::where('email', $email)->exists()) {
+            $this->failedRows[] = [
+                'nis'    => $nis,
+                'nama'   => $nama,
+                'reason' => "Email {$email} sudah digunakan akun lain.",
+            ];
+            return null;
+        }
 
         // Validate class — must already exist, NO auto-create
         $classId = null;

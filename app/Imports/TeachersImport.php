@@ -46,9 +46,23 @@ class TeachersImport implements ToModel, WithHeadingRow, SkipsOnError
             $email = $nip . '@guru.prescientia.id';
         }
 
-        // Skip duplicates silently
-        if (Teacher::where('nip', $nip)->exists()) return null;
-        if (User::where('email', $email)->exists())  return null;
+        // Reject duplicates — track as failures instead of silently skipping
+        if (Teacher::where('nip', $nip)->exists()) {
+            $this->failedRows[] = [
+                'nip'    => $nip,
+                'nama'   => $nama,
+                'reason' => "NIP {$nip} sudah terdaftar di sistem.",
+            ];
+            return null;
+        }
+        if (User::where('email', $email)->exists()) {
+            $this->failedRows[] = [
+                'nip'    => $nip,
+                'nama'   => $nama,
+                'reason' => "Email {$email} sudah digunakan akun lain.",
+            ];
+            return null;
+        }
 
         // Parse date of birth
         $dob = now()->format('Y-m-d');
@@ -58,17 +72,28 @@ class TeachersImport implements ToModel, WithHeadingRow, SkipsOnError
             } catch (\Exception) {}
         }
 
-        // Resolve mata pelajaran → Subject IDs (create if not yet exist)
-        $subjectIds = [];
+        // Resolve mata pelajaran → Subject IDs (only from existing subjects; do not auto-create)
+        $subjectIds   = [];
         if (!empty($row['mapel'])) {
-            $mapelNames = array_map('trim', explode(',', (string) $row['mapel']));
+            $mapelNames   = array_map('trim', explode(',', (string) $row['mapel']));
+            $notFoundMapel = [];
             foreach ($mapelNames as $name) {
                 if (empty($name)) continue;
-                $subject = Subject::firstOrCreate(
-                    ['name' => $name, 'major' => null, 'kelas' => null],
-                    ['is_active' => true]
-                );
-                $subjectIds[] = $subject->id;
+                $subject = Subject::whereRaw('LOWER(name) = LOWER(?)', [$name])->first();
+                if ($subject) {
+                    $subjectIds[] = $subject->id;
+                } else {
+                    $notFoundMapel[] = $name;
+                }
+            }
+            if (!empty($notFoundMapel)) {
+                $list = collect($notFoundMapel)->map(fn($n) => '"' . $n . '"')->implode(', ');
+                $this->failedRows[] = [
+                    'nip'    => $nip,
+                    'nama'   => $nama,
+                    'reason' => "Mapel {$list} tidak ditemukan di sistem sekolah ini.",
+                ];
+                return null;
             }
         }
 
