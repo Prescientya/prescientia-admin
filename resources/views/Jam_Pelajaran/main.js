@@ -58,7 +58,7 @@
     /* ── 4. EDIT buttons (delegated) ──────────────────────── */
     function initEditBtns() {
         document.addEventListener('click', e => {
-            const btn = e.target.closest('.jp-btn-edit');
+            const btn = e.target.closest('.jp-dropdown-edit');
             if (!btn) return;
             resetForm();
             $('#modalJamTitle').textContent = 'Edit Jam Pelajaran';
@@ -81,7 +81,7 @@
     let pendingDeleteId = null;
     function initDeleteBtns() {
         document.addEventListener('click', e => {
-            const btn = e.target.closest('.jp-btn-delete');
+            const btn = e.target.closest('.jp-dropdown-del');
             if (!btn) return;
             pendingDeleteId = btn.dataset.id;
             $('#hapusJamDesc').textContent = btn.dataset.desc;
@@ -187,6 +187,9 @@
         // Update lesson count badge in tab
         const badge = $(`#count-${day}`);
         if (badge) badge.textContent = data.lesson_count + ' JP';
+
+        // Re-init 3-dot dropdowns for the newly inserted rows
+        PSC.initActionDropdowns('.jp-action__btn', '.jp-dropdown');
     }
 
     /* ── Helpers ──────────────────────────────────────────── */
@@ -226,6 +229,7 @@
         initResetBtns();
         PSC.initModalClose();
         PSC.initAlerts();
+        PSC.initActionDropdowns('.jp-action__btn', '.jp-dropdown');
     });
 
 })();

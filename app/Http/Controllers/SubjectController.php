@@ -14,7 +14,7 @@ class SubjectController extends Controller
 
     public function index()
     {
-        $subjects = Subject::withCount('classes as jumlah_kelas')
+        $subjects = Subject::with('classes')
             ->orderBy('name')
             ->get();
 

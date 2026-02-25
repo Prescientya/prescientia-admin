@@ -124,31 +124,41 @@
 
             {{-- Aksi --}}
             <td style="text-align:center;">
-                <div class="jp-actions" style="justify-content:center;">
                 @if($sched)
-                    <button class="jp-btn-edit jm-edit-btn" title="Edit"
-                        data-id="{{ $sched->id }}"
-                        data-teacher="{{ $sched->teacher_id }}"
-                        data-subject="{{ $sched->subject_id }}"
-                        data-class="{{ $sched->class_id }}"
-                        data-period="{{ $sched->class_period_id }}"
-                        data-day="{{ $day }}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                <div class="jm-action">
+                    <button class="jm-action__btn" title="Aksi">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
+                        </svg>
                     </button>
-                    <button class="jp-btn-delete jm-del-btn" title="Hapus"
-                        data-id="{{ $sched->id }}"
-                        data-desc="{{ $sched->teacher->name }} · {{ $sched->subject->name }} · {{ $sched->schoolClass->short_name }} · {{ $dayLabels[$day] }} Jam {{ $period->sequence }}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-                    </button>
-                @else
-                    <button class="jp-btn-edit jm-add-slot-btn" title="Isi Jadwal"
-                        data-period="{{ $period->id }}"
-                        data-day="{{ $day }}"
-                        data-seq="{{ $period->sequence }}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    </button>
-                @endif
+                    <div class="jm-dropdown">
+                        <button class="jm-dropdown__item jm-dropdown-edit"
+                                data-id="{{ $sched->id }}"
+                                data-teacher="{{ $sched->teacher_id }}"
+                                data-subject="{{ $sched->subject_id }}"
+                                data-class="{{ $sched->class_id }}"
+                                data-period="{{ $sched->class_period_id }}"
+                                data-day="{{ $day }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            Edit
+                        </button>
+                        <div class="jm-dropdown__separator"></div>
+                        <button class="jm-dropdown__item jm-dropdown__item--danger jm-dropdown-del"
+                                data-id="{{ $sched->id }}"
+                                data-desc="{{ $sched->teacher->name }} · {{ $sched->subject->name }} · {{ $sched->schoolClass->short_name }} · {{ $dayLabels[$day] }} Jam {{ $period->sequence }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                            Hapus
+                        </button>
+                    </div>
                 </div>
+                @else
+                <button class="jm-add-slot-btn" title="Isi Jadwal"
+                    data-period="{{ $period->id }}"
+                    data-day="{{ $day }}"
+                    data-seq="{{ $period->sequence }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
+                @endif
             </td>
             @endif
         </tr>

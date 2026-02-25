@@ -93,7 +93,7 @@
     document.getElementById('mp-add-btn').addEventListener('click', () => openModal());
 
     // ─── Open modal (edit) ────────────────────────────────────────
-    document.querySelectorAll('.mp-btn-edit').forEach(btn => {
+    document.querySelectorAll('.mp-dropdown-edit').forEach(btn => {
         btn.addEventListener('click', () => {
             const id = btn.dataset.id;
             openModal({
@@ -108,7 +108,7 @@
     });
 
     // ─── Delete ───────────────────────────────────────────────────
-    document.querySelectorAll('.mp-btn-del').forEach(btn => {
+    document.querySelectorAll('.mp-dropdown-del').forEach(btn => {
         btn.addEventListener('click', () => {
             const id   = btn.dataset.id;
             const name = btn.dataset.name;
@@ -268,5 +268,8 @@
 
     // ─── Initial preview ─────────────────────────────────────────
     updatePreview();
+
+    // ─── 3-dot action dropdown ───────────────────────────────────
+    PSC.initActionDropdowns('.mp-action__btn', '.mp-dropdown');
 
 })();

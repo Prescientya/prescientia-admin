@@ -10,8 +10,9 @@
     const DAY_LABELS = window.JM_DAYS; // { senin:'Senin', ... }
     const DAY_ORDER  = Object.keys(DAY_LABELS);
 
-    let currentMode = 'teacher'; // 'teacher' | 'class'
-    let currentId   = null;
+    let currentMode      = 'teacher'; // 'teacher' | 'class'
+    let currentId        = null;
+    let _pendingPreselect = { periodId: null, day: null }; // row clicked from grid
 
     /* ── 1. MODE TOGGLE ──────────────────────────────────── */
     function initModeTabs() {
@@ -116,16 +117,16 @@
             });
         });
 
-        // Edit button
-        wrap.querySelectorAll('.jm-edit-btn').forEach(btn => {
+        // Edit button (3-dot dropdown item)
+        wrap.querySelectorAll('.jm-dropdown-edit').forEach(btn => {
             btn.addEventListener('click', e => {
                 e.stopPropagation();
                 openEditModal(btn.dataset);
             });
         });
 
-        // Delete button
-        wrap.querySelectorAll('.jm-del-btn').forEach(btn => {
+        // Delete button (3-dot dropdown item)
+        wrap.querySelectorAll('.jm-dropdown-del').forEach(btn => {
             btn.addEventListener('click', e => {
                 e.stopPropagation();
                 pendingDeleteId = btn.dataset.id;
@@ -133,6 +134,9 @@
                 openModal('modalHapusJadwal');
             });
         });
+
+        // 3-dot dropdown behavior
+        PSC.initActionDropdowns('.jm-action__btn', '.jm-dropdown');
     }
 
     /* ── 4. ADD MODAL ────────────────────────────────────── */
@@ -146,30 +150,76 @@
         $('#jfId').value     = '';
         $('#jfMethod').value = 'POST';
 
+        // Remember which row was clicked
+        _pendingPreselect = { periodId: periodId || null, day: day || null };
+
         // Pre-fill teacher/class from current mode selection
         if (currentId) {
-            if (currentMode === 'teacher') $('#jfTeacher').value = currentId;
-            else                            $('#jfClass').value   = currentId;
+            if (currentMode === 'teacher') {
+                $('#jfTeacher').value = currentId;
+                filterSubjectsByTeacher(currentId);
+            } else {
+                $('#jfClass').value = currentId;
+            }
         }
 
-        clearDayPeriodPickers();
+        // Immediately pre-fill Hari + Jam from the clicked row (no API needed)
+        if (_pendingPreselect.day && _pendingPreselect.periodId) {
+            prefillDayPeriodFromAll(_pendingPreselect.day, _pendingPreselect.periodId);
+        }
+
         openModal('modalJadwal');
 
-        // If teacher + class already selected, load available periods
+        // If one of teacher/class is set, load available slots (conflict check)
         const t = $('#jfTeacher').value;
         const c = $('#jfClass').value;
-        if (t && c) loadAvailablePeriods(t, c, null, periodId, day);
+        if (t || c) {
+            const { periodId: pid, day: d } = _pendingPreselect;
+            _pendingPreselect = { periodId: null, day: null };
+            loadAvailablePeriods(t || null, c || null, null, pid, d);
+        } else {
+            _pendingPreselect = { periodId: null, day: null };
+        }
+    }
+
+    /**
+     * Pre-fill Hari + Jam selects directly from JM_ALL_PERIODS (no API call).
+     * Used when a grid row is clicked so the fields show immediately.
+     */
+    function prefillDayPeriodFromAll(day, periodId) {
+        const allPeriods = window.JM_ALL_PERIODS || {};
+        const dayEl  = $('#jfDay');
+        const jamEl  = $('#jfPeriod');
+
+        // Populate day dropdown with all days that have periods
+        dayEl.innerHTML = '<option value="">— Pilih Hari —</option>';
+        DAY_ORDER.forEach(d => {
+            if (allPeriods[d]?.length) dayEl.add(new Option(DAY_LABELS[d], d));
+        });
+        if (day) dayEl.value = day;
+
+        // Populate jam dropdown for this day
+        jamEl.innerHTML = '<option value="">— Pilih Jam —</option>';
+        (allPeriods[day] || []).forEach(p => jamEl.add(new Option(p.label, p.id)));
+        if (periodId) jamEl.value = String(periodId);
+
+        // Sync internal state so later populatePeriodSelect calls work correctly
+        _availableByDay = {};
+        DAY_ORDER.forEach(d => {
+            if (allPeriods[d]?.length) _availableByDay[d] = allPeriods[d];
+        });
     }
 
     /* ── 5. EDIT MODAL ───────────────────────────────────── */
     function openEditModal(d) {
         resetForm();
+        _pendingPreselect = { periodId: null, day: null };
         $('#modalJadwalTitle').textContent = 'Edit Jadwal Mengajar';
         $('#jfId').value          = d.id;
         $('#jfMethod').value      = 'PATCH';
-        $('#jfTeacher').value     = d.teacher;
-        $('#jfSubject').value     = d.subject;
-        $('#jfClass').value       = d.class;
+        $('#jfTeacher').value = d.teacher;
+        filterSubjectsByTeacher(d.teacher, d.subject);
+        $('#jfClass').value  = d.class;
 
         clearDayPeriodPickers();
 
@@ -181,13 +231,33 @@
 
     /* ── 6. TEACHER + CLASS CHANGE → load periods ─────── */
     function initFormWatchers() {
-        ['#jfTeacher', '#jfClass'].forEach(sel => {
-            $(sel)?.addEventListener('change', () => {
-                const t = $('#jfTeacher').value;
-                const c = $('#jfClass').value;
+        // Teacher change → filter subject dropdown then reload available slots
+        $('#jfTeacher')?.addEventListener('change', function () {
+            filterSubjectsByTeacher(this.value);
+            const c = $('#jfClass').value;
+            // Preserve currently visible day/period (or pending preselect)
+            const pid = _pendingPreselect.periodId || $('#jfPeriod').value || null;
+            const d   = _pendingPreselect.day      || $('#jfDay').value    || null;
+            _pendingPreselect = { periodId: null, day: null };
+            if (this.value || c) {
+                loadAvailablePeriods(this.value || null, c || null, $('#jfId').value || null, pid, d);
+            } else {
                 clearDayPeriodPickers();
-                if (t && c) loadAvailablePeriods(t, c, $('#jfId').value || null, null);
-            });
+            }
+        });
+
+        $('#jfClass')?.addEventListener('change', () => {
+            const t = $('#jfTeacher').value;
+            const c = $('#jfClass').value;
+            // Preserve currently visible day/period (or pending preselect)
+            const pid = _pendingPreselect.periodId || $('#jfPeriod').value || null;
+            const d   = _pendingPreselect.day      || $('#jfDay').value    || null;
+            _pendingPreselect = { periodId: null, day: null };
+            if (t || c) {
+                loadAvailablePeriods(t || null, c || null, $('#jfId').value || null, pid, d);
+            } else {
+                clearDayPeriodPickers();
+            }
         });
 
         $('#jfDay').addEventListener('change', () => {
@@ -195,12 +265,51 @@
         });
     }
 
+    /**
+     * Filter (or restore) the subject dropdown based on the selected teacher.
+     * - No teacher → show all subjects
+     * - Teacher has 0 assigned subjects → show all subjects
+     * - Teacher has 1 subject → auto-select it (no blank option needed)
+     * - Teacher has N>1 subjects → show only those subjects
+     * @param {string|number|null} teacherId
+     * @param {string|number|null} preselectId  – force-select this subject id (used in edit modal)
+     */
+    function filterSubjectsByTeacher(teacherId, preselectId = null) {
+        const el   = $('#jfSubject');
+        const all  = window.JM_ALL_SUBJECTS || [];
+        const subs = teacherId ? (window.JM_TEACHER_SUBJECTS?.[teacherId] || []) : [];
+        const list = subs.length > 0 ? subs : all;
+
+        el.innerHTML = '';
+        // Show blank placeholder when multiple choices exist, or when a preselect is being restored
+        if (list.length > 1 || preselectId != null) {
+            el.add(new Option('— Pilih Mapel —', ''));
+        }
+        list.forEach(s => el.add(new Option(s.name, s.id)));
+        el.disabled = false;
+
+        if (preselectId != null) {
+            el.value = String(preselectId);
+            // If subject not in teacher's list (e.g. imported data), fall back to full list
+            if (!el.value) {
+                el.innerHTML = '<option value="">— Pilih Mapel —</option>';
+                all.forEach(s => el.add(new Option(s.name, s.id)));
+                el.value = String(preselectId);
+            }
+        } else if (subs.length === 1) {
+            el.value = String(subs[0].id);
+        }
+    }
+
     let _availableByDay = {};
 
     async function loadAvailablePeriods(teacherId, classId, ignoreId, preselectPeriodId, preselectDay) {
-        clearDayPeriodPickers();
-        let url = `${R.available}?teacher_id=${teacherId}&class_id=${classId}`;
-        if (ignoreId) url += `&ignore_id=${ignoreId}`;
+        // Don't clear the already pre-filled pickers — just refresh them after the API responds
+        const params = new URLSearchParams();
+        if (teacherId) params.set('teacher_id', teacherId);
+        if (classId)   params.set('class_id',   classId);
+        if (ignoreId)  params.set('ignore_id',  ignoreId);
+        const url = `${R.available}?${params}`;
 
         try {
             const res  = await fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
@@ -317,6 +426,8 @@
     function resetForm() {
         $('#formJadwal').reset();
         $('#jfId').value = '';
+        _pendingPreselect = { periodId: null, day: null };
+        filterSubjectsByTeacher(null); // restore full subject list
         hideFormError();
     }
     function showFormError(msgs) {

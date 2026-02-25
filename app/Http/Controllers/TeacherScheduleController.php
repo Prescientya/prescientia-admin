@@ -19,7 +19,7 @@ class TeacherScheduleController extends Controller
 
     public function index()
     {
-        $teachers = Teacher::orderBy('name')->get(['id', 'name', 'department']);
+        $teachers = Teacher::with('subjects:id,name')->orderBy('name')->get(['id', 'name', 'department']);
         $classes  = ClassModel::orderBy('class')->orderBy('major')->get(['id', 'class', 'major']);
         $subjects = Subject::where('is_active', true)->orderBy('name')->get(['id', 'name']);
         $periods  = ClassPeriod::where('activity_type', 'lesson')
@@ -135,22 +135,26 @@ class TeacherScheduleController extends Controller
     public function availablePeriods(Request $request)
     {
         $request->validate([
-            'teacher_id' => 'required|integer',
-            'class_id'   => 'required|integer',
+            'teacher_id' => 'nullable|integer',
+            'class_id'   => 'nullable|integer',
             'ignore_id'  => 'nullable|integer',
         ]);
 
         $ignoreId = $request->ignore_id;
 
         // Periods already occupied by this teacher (on any class)
-        $teacherBusy = TeacherSchedule::where('teacher_id', $request->teacher_id)
-            ->when($ignoreId, fn($q) => $q->where('id', '!=', $ignoreId))
-            ->pluck('class_period_id');
+        $teacherBusy = $request->filled('teacher_id')
+            ? TeacherSchedule::where('teacher_id', $request->teacher_id)
+                ->when($ignoreId, fn($q) => $q->where('id', '!=', $ignoreId))
+                ->pluck('class_period_id')
+            : collect();
 
         // Periods already occupied by this class (any teacher)
-        $classBusy = TeacherSchedule::where('class_id', $request->class_id)
-            ->when($ignoreId, fn($q) => $q->where('id', '!=', $ignoreId))
-            ->pluck('class_period_id');
+        $classBusy = $request->filled('class_id')
+            ? TeacherSchedule::where('class_id', $request->class_id)
+                ->when($ignoreId, fn($q) => $q->where('id', '!=', $ignoreId))
+                ->pluck('class_period_id')
+            : collect();
 
         $busyIds = $teacherBusy->merge($classBusy)->unique();
 

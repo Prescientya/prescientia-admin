@@ -186,7 +186,7 @@
                         <select id="jfDay" class="form-control" required>
                             <option value="">— Pilih Hari —</option>
                         </select>
-                        <span class="form-hint">Pilih guru &amp; kelas dulu</span>
+        <span class="form-hint" id="jfDayHint" style="display:none;">Pilih guru &amp; kelas dulu</span>
                     </div>
 
                     <div class="form-group">
@@ -345,8 +345,17 @@ window.JM_ROUTES = {
     csrf:      '{{ csrf_token() }}'
 };
 window.JM_DAYS     = {!! json_encode(App\Models\ClassPeriod::DAY_LABELS) !!};
-window.JM_TEACHERS = {!! json_encode($teachers->map(fn($t) => ['id'=>$t->id,'label'=>$t->name])->values()) !!};
-window.JM_CLASSES  = {!! json_encode($classes->map(fn($c) => ['id'=>$c->id,'label'=>$c->class.' '.$c->major])->values()) !!};
+window.JM_TEACHERS         = {!! json_encode($teachers->map(fn($t) => ['id'=>$t->id,'label'=>$t->name])->values()) !!};
+window.JM_CLASSES          = {!! json_encode($classes->map(fn($c) => ['id'=>$c->id,'label'=>$c->class.' '.$c->major])->values()) !!};
+window.JM_ALL_SUBJECTS     = {!! json_encode($subjects->map(fn($s) => ['id'=>$s->id,'name'=>$s->name])->values()) !!};
+window.JM_TEACHER_SUBJECTS = {!! json_encode($teachers->keyBy('id')->map(fn($t) => $t->subjects->map(fn($s) => ['id'=>$s->id,'name'=>$s->name])->values())->all()) !!};
+window.JM_ALL_PERIODS      = {!! json_encode(
+    $periodsByDay->map(fn($g) => $g->map(fn($p) => [
+        'id'       => $p->id,
+        'sequence' => $p->sequence,
+        'label'    => 'Jam '.$p->sequence.' · '.substr($p->start_time,0,5).'–'.substr($p->end_time,0,5),
+    ])->values())->all()
+) !!};
 </script>
 <script>{!! file_get_contents(resource_path('views/Jadwal_Mengajar/main.js')) !!}</script>
 @endpush

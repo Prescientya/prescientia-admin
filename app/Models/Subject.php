@@ -33,9 +33,12 @@ class Subject extends Model
                     ->withTimestamps();
     }
 
-    /** Jumlah kelas yang diajarkan mapel ini */
+    /** Jumlah kelas unik yang menggunakan mapel ini (dari subject_classes + teacher_schedules) */
     public function getJumlahKelasAttribute(): int
     {
-        return $this->classes()->count();
+        $fromPivot     = $this->classes()->pluck('classes.id');
+        $fromSchedules = TeacherSchedule::where('subject_id', $this->id)->pluck('class_id');
+
+        return $fromPivot->merge($fromSchedules)->unique()->count();
     }
 }
