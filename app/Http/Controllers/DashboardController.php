@@ -8,6 +8,7 @@ use App\Models\Teacher;
 use App\Models\StudentAttendance;
 use App\Models\SchoolCalendar;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
@@ -17,19 +18,28 @@ class DashboardController extends Controller
     {
         $today = Carbon::today()->toDateString();
 
-        // ── Stat cards ─────────────────────────────────────
-        $totalSiswa = Student::count();
-        $totalGuru  = Teacher::count();
-        $totalKelas = ClassModel::count();
+        // ── Stat cards (cached 5 min — changes rarely within minutes) ──
+        $totalSiswa = Cache::remember('dashboard.total_siswa', 300, fn() => Student::count());
+        $totalGuru  = Cache::remember('dashboard.total_guru',  300, fn() => Teacher::count());
+        $totalKelas = Cache::remember('dashboard.total_kelas', 300, fn() => ClassModel::count());
 
         // Today's calendar entry
         $calendar = SchoolCalendar::where('date', $today)->first();
 
+        // ── Single query for ALL per-class attendance today ─────────
+        $attendanceByClass = collect();
         $hadirSiswaHariIni = 0;
+
         if ($calendar) {
-            $hadirSiswaHariIni = StudentAttendance::where('calendar_id', $calendar->id)
-                ->whereIn('status', ['hadir', 'terlambat'])
-                ->count();
+            $attendanceByClass = StudentAttendance::where('calendar_id', $calendar->id)
+                ->select('class_id', 'status', DB::raw('count(*) as total'))
+                ->groupBy('class_id', 'status')
+                ->get()
+                ->groupBy('class_id');
+
+            $hadirSiswaHariIni = $attendanceByClass
+                ->flatMap(fn($rows) => $rows->whereIn('status', ['hadir', 'terlambat']))
+                ->sum('total');
         }
 
         // ── Class-level cards (10, 11, 12) ─────────────────
@@ -42,19 +52,17 @@ class DashboardController extends Controller
         foreach ([10, 11, 12] as $level) {
             $levelClasses = $allClasses->where('class', $level)->values();
 
-            // Per-class today attendance
-            $classDetails = $levelClasses->map(function ($kelas) use ($calendar) {
+            $classDetails = $levelClasses->map(function ($kelas) use ($attendanceByClass) {
                 $counts = ['hadir' => 0, 'terlambat' => 0, 'sakit' => 0, 'izin' => 0, 'alpa' => 0];
-                if ($calendar) {
-                    $rows = StudentAttendance::where('class_id', $kelas->id)
-                        ->where('calendar_id', $calendar->id)
-                        ->select('status', DB::raw('count(*) as total'))
-                        ->groupBy('status')
-                        ->pluck('total', 'status');
+
+                // Lookup from the pre-fetched grouped collection — no extra query
+                if ($attendanceByClass->has($kelas->id)) {
+                    $rows = $attendanceByClass->get($kelas->id)->pluck('total', 'status');
                     foreach ($counts as $k => $_) {
                         $counts[$k] = (int) ($rows[$k] ?? 0);
                     }
                 }
+
                 return [
                     'id'          => $kelas->id,
                     'label'       => 'Kelas ' . $kelas->class . ($kelas->major ? ' ' . $kelas->major : ''),

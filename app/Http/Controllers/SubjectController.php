@@ -18,6 +18,9 @@ class SubjectController extends Controller
             ->orderBy('name')
             ->get();
 
+        // Bulk-load jumlah_kelas in 2 queries instead of 2N
+        Subject::loadJumlahKelas($subjects);
+
         // group all classes for the modal selectors
         $allClasses = ClassModel::orderBy('class')
             ->orderBy('major')

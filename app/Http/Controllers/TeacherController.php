@@ -8,6 +8,7 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -99,6 +100,7 @@ class TeacherController extends Controller
             }
 
             DB::commit();
+            Cache::forget('dashboard.total_guru');
             return redirect()->route('guru.index')
                 ->with('success', "Guru {$request->name} berhasil ditambahkan.");
         } catch (\Exception $e) {
@@ -225,6 +227,7 @@ class TeacherController extends Controller
             optional($user)->delete();     // hard delete user account
 
             DB::commit();
+            Cache::forget('dashboard.total_guru');
             return redirect()->route('guru.index')
                 ->with('success', "Data guru {$name} berhasil dihapus.");
         } catch (\Exception $e) {

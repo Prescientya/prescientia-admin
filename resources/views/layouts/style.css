@@ -909,12 +909,42 @@ body {
     .sidebar-open .sidebar { transform: translateX(0) !important; }
     .sidebar-open .sidebar-overlay { display: block; }
     .app-main { margin-left: 0 !important; }
-    /* keep sidebar hidden even if collapsed class still present */
-    .sidebar-collapsed .sidebar { transform: translateX(-100%); }
+    
+    /* Force show all sidebar content on mobile when open (override collapsed) */
+    .sidebar-open .sidebar-brand-text,
+    .sidebar-open .nav-section-label,
+    .sidebar-open .nav-item-label { 
+        opacity: 1 !important; 
+        width: auto !important;
+        display: inline !important;
+    }
+    .sidebar-open .sidebar-brand { justify-content: flex-start !important; }
+    .sidebar-open .nav-item { justify-content: flex-start !important; padding: 10px 16px !important; }
+    
+    /* Prevent horizontal overflow on mobile */
+    .app-main {
+        overflow-x: hidden;
+        max-width: 100vw;
+    }
+    .app-content {
+        overflow-x: hidden;
+    }
+    .content-card {
+        overflow-x: hidden;
+        max-width: 100%;
+    }
 }
 
 @media (max-width: 640px) {
     .profile-name { display: none; }
     .app-content { padding: 16px; }
     .profile-dropdown { width: 280px; right: -10px; }
+    
+    /* Ensure content doesn't overflow viewport */
+    .app-main,
+    .app-content,
+    .content-card {
+        overflow-x: hidden;
+        max-width: 100vw;
+    }
 }

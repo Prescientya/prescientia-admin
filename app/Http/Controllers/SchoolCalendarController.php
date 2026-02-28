@@ -70,9 +70,8 @@ class SchoolCalendarController extends Controller
 
     public function generate(Request $request)
     {
-        // No timeout for this heavy operation
-        set_time_limit(0);
-        ini_set('max_execution_time', 0);
+        // Reasonable time limit for calendar generation (120 seconds)
+        set_time_limit(120);
 
         $request->validate([
             'year' => 'required|integer|min:2020|max:2035',

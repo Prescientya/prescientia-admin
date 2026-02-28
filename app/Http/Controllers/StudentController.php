@@ -9,6 +9,7 @@ use App\Models\Student;
 use App\Models\StudentClassRole;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -87,6 +88,7 @@ class StudentController extends Controller
             ]);
 
             DB::commit();
+            Cache::forget('dashboard.total_siswa');
             return redirect()->route('siswa.index')
                 ->with('success', "Siswa {$request->name} berhasil ditambahkan.");
         } catch (\Exception $e) {
@@ -265,6 +267,7 @@ class StudentController extends Controller
             optional($user)->delete();        // hard delete user account
 
             DB::commit();
+            Cache::forget('dashboard.total_siswa');
             return redirect()->route('siswa.index')
                 ->with('success', "Data siswa {$name} berhasil dihapus.");
         } catch (\Exception $e) {

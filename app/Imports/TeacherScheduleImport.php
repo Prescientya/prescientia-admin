@@ -7,17 +7,70 @@ use App\Models\ClassPeriod;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeacherSchedule;
+use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\SkipsOnError;
 use Maatwebsite\Excel\Concerns\SkipsErrors;
 
-class TeacherScheduleImport implements ToModel, WithHeadingRow, SkipsOnError
+class TeacherScheduleImport implements ToModel, WithHeadingRow, WithChunkReading, SkipsOnError
 {
     use SkipsErrors;
 
+    public function chunkSize(): int
+    {
+        return 200;
+    }
+
     private int   $imported   = 0;
     private array $failedRows = [];
+
+    /* ── Pre-loaded lookup collections (populated once in constructor) ── */
+    private Collection $teachersByNip;
+    private Collection $subjectsByName;
+    private Collection $classesByLabel;
+    private Collection $periodsByDaySeq;
+
+    /* ── In-memory conflict tracking (updated as rows are imported) ───── */
+    private array $existingTSCP      = [];   // "t-s-c-p" → true
+    private array $teacherPeriodMap  = [];   // "teacherId:periodId" → ['class_id','class_label','subject_name']
+    private array $classPeriodMap    = [];   // "classId:periodId"   → ['teacher_id','teacher_name']
+
+    public function __construct()
+    {
+        // 1. Teachers keyed by NIP (1 query)
+        $this->teachersByNip = Teacher::all()->keyBy('nip');
+
+        // 2. Active subjects keyed by lowercase name (1 query)
+        $this->subjectsByName = Subject::where('is_active', true)->get()
+            ->keyBy(fn ($s) => mb_strtolower($s->name));
+
+        // 3. Classes keyed by "TINGKAT MAJOR" label (1 query)
+        $this->classesByLabel = ClassModel::all()
+            ->keyBy(fn ($c) => $c->class . ' ' . strtoupper(trim($c->major ?? '')));
+
+        // 4. Lesson periods keyed by "day-sequence" (1 query)
+        $this->periodsByDaySeq = ClassPeriod::where('activity_type', 'lesson')->get()
+            ->keyBy(fn ($p) => $p->day . '-' . $p->sequence);
+
+        // 5. Existing schedules → conflict maps (1 query)
+        $existing = TeacherSchedule::with(['teacher:id,name', 'subject:id,name', 'schoolClass:id,class,major'])->get();
+        foreach ($existing as $s) {
+            $this->existingTSCP["{$s->teacher_id}-{$s->subject_id}-{$s->class_id}-{$s->class_period_id}"] = true;
+
+            $classLabel  = $s->schoolClass ? ($s->schoolClass->class . ' ' . $s->schoolClass->major) : 'kelas lain';
+            $this->teacherPeriodMap["{$s->teacher_id}:{$s->class_period_id}"] = [
+                'class_id'     => $s->class_id,
+                'class_label'  => $classLabel,
+                'subject_name' => $s->subject->name ?? '?',
+            ];
+            $this->classPeriodMap["{$s->class_id}:{$s->class_period_id}"] = [
+                'teacher_id'   => $s->teacher_id,
+                'teacher_name' => $s->teacher->name ?? 'guru lain',
+            ];
+        }
+    }
 
     /**
      * Kolom yang diharapkan (heading row):
@@ -42,8 +95,8 @@ class TeacherScheduleImport implements ToModel, WithHeadingRow, SkipsOnError
             return null;
         }
 
-        // 1. Lookup teacher by NIP
-        $teacher = Teacher::where('nip', $nip)->first();
+        // 1. Lookup teacher by NIP (in-memory)
+        $teacher = $this->teachersByNip->get($nip);
         if (!$teacher) {
             $this->failedRows[] = [
                 'row'    => "NIP: {$nip}",
@@ -52,10 +105,8 @@ class TeacherScheduleImport implements ToModel, WithHeadingRow, SkipsOnError
             return null;
         }
 
-        // 2. Lookup subject by name (case-insensitive)
-        $subject = Subject::whereRaw('LOWER(name) = LOWER(?)', [$mapel])
-                          ->where('is_active', true)
-                          ->first();
+        // 2. Lookup subject by name (in-memory, case-insensitive)
+        $subject = $this->subjectsByName->get(mb_strtolower($mapel));
         if (!$subject) {
             $this->failedRows[] = [
                 'row'    => "{$teacher->name} — {$mapel}",
@@ -64,7 +115,7 @@ class TeacherScheduleImport implements ToModel, WithHeadingRow, SkipsOnError
             return null;
         }
 
-        // 3. Lookup class by "TINGKAT JURUSAN" (e.g. "10 RPL" → class=10, major="RPL")
+        // 3. Lookup class by "TINGKAT JURUSAN" (in-memory)
         $kelasNorm = preg_replace('/\s+/', ' ', strtoupper($kelas));
         $spacePos  = strpos($kelasNorm, ' ');
         if ($spacePos === false) {
@@ -74,12 +125,11 @@ class TeacherScheduleImport implements ToModel, WithHeadingRow, SkipsOnError
             ];
             return null;
         }
-        $tingkat = (int) substr($kelasNorm, 0, $spacePos);
-        $jurusan = trim(substr($kelasNorm, $spacePos + 1));
+        $tingkat  = (int) substr($kelasNorm, 0, $spacePos);
+        $jurusan  = trim(substr($kelasNorm, $spacePos + 1));
+        $classKey = $tingkat . ' ' . $jurusan;
 
-        $class = ClassModel::where('class', $tingkat)
-                           ->whereRaw('UPPER(major) = ?', [$jurusan])
-                           ->first();
+        $class = $this->classesByLabel->get($classKey);
         if (!$class) {
             $this->failedRows[] = [
                 'row'    => "{$teacher->name} — {$kelas}",
@@ -88,7 +138,7 @@ class TeacherScheduleImport implements ToModel, WithHeadingRow, SkipsOnError
             return null;
         }
 
-        // 4. Lookup class period by day + sequence + activity_type='lesson'
+        // 4. Lookup class period by day + sequence (in-memory)
         if (!in_array($hari, ClassPeriod::DAYS, true)) {
             $valid = implode(', ', ClassPeriod::DAYS);
             $this->failedRows[] = [
@@ -98,10 +148,8 @@ class TeacherScheduleImport implements ToModel, WithHeadingRow, SkipsOnError
             return null;
         }
 
-        $period = ClassPeriod::where('day', $hari)
-                             ->where('sequence', $jamKe)
-                             ->where('activity_type', 'lesson')
-                             ->first();
+        $periodKey = "{$hari}-{$jamKe}";
+        $period    = $this->periodsByDaySeq->get($periodKey);
         if (!$period) {
             $this->failedRows[] = [
                 'row'    => "{$teacher->name} — {$hari} jam ke-{$jamKe}",
@@ -110,13 +158,9 @@ class TeacherScheduleImport implements ToModel, WithHeadingRow, SkipsOnError
             return null;
         }
 
-        // 5. Skip duplicate entry (same 4 fields)
-        $exists = TeacherSchedule::where('teacher_id',    $teacher->id)
-                                 ->where('subject_id',    $subject->id)
-                                 ->where('class_id',      $class->id)
-                                 ->where('class_period_id', $period->id)
-                                 ->exists();
-        if ($exists) {
+        // 5. Duplicate check (in-memory)
+        $dupeKey = "{$teacher->id}-{$subject->id}-{$class->id}-{$period->id}";
+        if (isset($this->existingTSCP[$dupeKey])) {
             $this->failedRows[] = [
                 'row'    => "{$teacher->name} — {$mapel} — {$kelas} — " . ucfirst($hari) . " jam ke-{$jamKe}",
                 'reason' => 'Jadwal ini sudah terdaftar di sistem (duplikat).',
@@ -124,35 +168,39 @@ class TeacherScheduleImport implements ToModel, WithHeadingRow, SkipsOnError
             return null;
         }
 
-        // 6. Conflict: teacher already assigned to ANOTHER class at the same period
-        $teacherConflict = TeacherSchedule::where('teacher_id',      $teacher->id)
-                                          ->where('class_period_id', $period->id)
-                                          ->where('class_id',        '!=', $class->id)
-                                          ->first();
-        if ($teacherConflict) {
-            $conflictClass   = $teacherConflict->schoolClass;
-            $conflictLabel   = $conflictClass ? ($conflictClass->class . ' ' . $conflictClass->major) : 'kelas lain';
+        // 6. Teacher conflict: teacher already has another class at same period (in-memory)
+        $tpKey = "{$teacher->id}:{$period->id}";
+        if (isset($this->teacherPeriodMap[$tpKey]) && $this->teacherPeriodMap[$tpKey]['class_id'] !== $class->id) {
+            $conflict = $this->teacherPeriodMap[$tpKey];
             $this->failedRows[] = [
                 'row'    => "{$teacher->name} — {$kelas} — " . ucfirst($hari) . " jam ke-{$jamKe}",
-                'reason' => "Bentrok! {$teacher->name} sudah mengajar di kelas {$conflictLabel} pada " . ucfirst($hari) . " jam ke-{$jamKe}.",
+                'reason' => "Bentrok! {$teacher->name} sudah mengajar di kelas {$conflict['class_label']} pada " . ucfirst($hari) . " jam ke-{$jamKe}.",
             ];
             return null;
         }
 
-        // 7. Conflict: class already has ANOTHER teacher at the same period
-        $classConflict = TeacherSchedule::where('class_id',         $class->id)
-                                        ->where('class_period_id',  $period->id)
-                                        ->where('teacher_id',       '!=', $teacher->id)
-                                        ->first();
-        if ($classConflict) {
-            $conflictTeacher = $classConflict->teacher;
-            $conflictName    = $conflictTeacher ? $conflictTeacher->name : 'guru lain';
+        // 7. Class conflict: class already has another teacher at same period (in-memory)
+        $cpKey = "{$class->id}:{$period->id}";
+        if (isset($this->classPeriodMap[$cpKey]) && $this->classPeriodMap[$cpKey]['teacher_id'] !== $teacher->id) {
+            $conflict = $this->classPeriodMap[$cpKey];
             $this->failedRows[] = [
                 'row'    => "{$kelas} — " . ucfirst($hari) . " jam ke-{$jamKe}",
-                'reason' => "Bentrok! Kelas {$kelas} sudah memiliki jadwal dengan {$conflictName} pada " . ucfirst($hari) . " jam ke-{$jamKe}.",
+                'reason' => "Bentrok! Kelas {$kelas} sudah memiliki jadwal dengan {$conflict['teacher_name']} pada " . ucfirst($hari) . " jam ke-{$jamKe}.",
             ];
             return null;
         }
+
+        // ── Track new schedule in memory for subsequent row checks ──
+        $this->existingTSCP[$dupeKey] = true;
+        $this->teacherPeriodMap[$tpKey] = [
+            'class_id'     => $class->id,
+            'class_label'  => $class->class . ' ' . $class->major,
+            'subject_name' => $subject->name,
+        ];
+        $this->classPeriodMap[$cpKey] = [
+            'teacher_id'   => $teacher->id,
+            'teacher_name' => $teacher->name,
+        ];
 
         $this->imported++;
 

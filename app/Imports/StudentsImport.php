@@ -10,13 +10,19 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\SkipsOnError;
 use Maatwebsite\Excel\Concerns\SkipsErrors;
 use Throwable;
 
-class StudentsImport implements ToModel, WithHeadingRow, SkipsOnError
+class StudentsImport implements ToModel, WithHeadingRow, WithChunkReading, SkipsOnError
 {
     use SkipsErrors;
+
+    public function chunkSize(): int
+    {
+        return 200;
+    }
 
     private int   $imported   = 0;
     private array $failedRows = [];

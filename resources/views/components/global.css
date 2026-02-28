@@ -219,8 +219,21 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .data-card {
     background: var(--card-bg); border: 1px solid var(--card-border);
     border-radius: 12px; overflow: hidden; box-shadow: var(--card-shadow);
+    max-width: 100%;
 }
-.data-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+/* Wrapper for horizontal scroll on mobile */
+.data-card__body {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+.data-card__body::-webkit-scrollbar        { height: 6px; }
+.data-card__body::-webkit-scrollbar-track  { background: var(--scrollbar-track); }
+.data-card__body::-webkit-scrollbar-thumb  { background: var(--scrollbar-thumb); border-radius: 3px; }
+.data-card__body::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; min-width: 600px; }
 .data-table thead tr { background: var(--table-head-bg); border-bottom: 1px solid var(--card-border); }
 .data-table th {
     padding: 12px 16px; text-align: left; font-weight: 600;
@@ -233,6 +246,22 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 }
 .data-table tbody tr:last-child td { border-bottom: none; }
 .data-table tbody tr:hover { background: var(--accent-light); }
+
+/* ── Alternating Column Colors (Zebra Columns) ────────────── */
+/* Odd columns (1, 3, 5...) get slightly darker/lighter background */
+.data-table th:nth-child(odd),
+.data-table td:nth-child(odd) {
+    background: rgba(0, 0, 0, 0.04);
+}
+/* Dark mode: use lighter overlay instead */
+body[data-mode="dark"] .data-table th:nth-child(odd),
+body[data-mode="dark"] .data-table td:nth-child(odd) {
+    background: rgba(255, 255, 255, 0.04);
+}
+/* Preserve hover effect on odd columns */
+.data-table tbody tr:hover td:nth-child(odd) {
+    background: var(--accent-light);
+}
 
 /* ── Shared empty state ───────────────────────────────────── */
 .data-empty { text-align: center; padding: 48px 16px; color: var(--text-muted); font-size: 0.9rem; }
@@ -497,11 +526,17 @@ textarea.form-control { resize: vertical; min-height: 80px; }
     -webkit-overflow-scrolling: touch;   /* smooth inertia on iOS */
     scrollbar-width: thin;               /* Firefox slim scrollbar */
     scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    max-width: 100%;
 }
 .table-scroll::-webkit-scrollbar        { height: 6px; }
 .table-scroll::-webkit-scrollbar-track  { background: var(--scrollbar-track); border-radius: 0 0 6px 6px; }
 .table-scroll::-webkit-scrollbar-thumb  { background: var(--scrollbar-thumb); border-radius: 3px; }
 .table-scroll::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* Ensure table inside scroll wrapper has minimum width for readability */
+.table-scroll .data-table {
+    min-width: 600px;
+}
 
 /* ── UTILITY ──────────────────────────────────────────────── */
 .hidden { display: none !important; }
@@ -525,6 +560,19 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .psc-toast--warning { background: #d97706; color: #fff; }
 
 /* ── Responsive (shared) ─────────────────────────────────── */
+@media (max-width: 1024px) {
+    /* Ensure data cards don't exceed viewport */
+    .data-card {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+    .table-scroll {
+        overflow-x: auto;
+        max-width: 100%;
+        display: block;
+    }
+}
+
 @media (max-width: 640px) {
     .form-grid-2 { grid-template-columns: 1fr; }
     .modal { max-width: 100%; border-radius: 12px; }
@@ -532,4 +580,17 @@ textarea.form-control { resize: vertical; min-height: 80px; }
     .ds-header, .dk-header, .dg-header { flex-direction: column; }
     .ds-search-form, .dg-search-form { flex-direction: column; align-items: stretch; }
     .ds-filter-select, .dk-filter-select, .dg-filter-select { width: 100%; }
+    
+    /* Mobile table handling */
+    .data-card {
+        margin-left: -16px;
+        margin-right: -16px;
+        border-radius: 0;
+        width: calc(100% + 32px);
+    }
+    .data-table th,
+    .data-table td {
+        padding: 10px 12px;
+        font-size: 0.82rem;
+    }
 }

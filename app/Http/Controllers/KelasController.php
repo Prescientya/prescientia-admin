@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ClassModel;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class KelasController extends Controller
 {
@@ -57,6 +58,7 @@ class KelasController extends Controller
             'major' => strtoupper(trim($request->major)),
         ]);
 
+        Cache::forget('dashboard.total_kelas');
         return back()->with('success', "Kelas {$request->class} - {$request->major} berhasil ditambahkan.");
     }
 
@@ -105,6 +107,7 @@ class KelasController extends Controller
         $name = "{$kelas->class} - {$kelas->major}";
         $kelas->delete();
 
+        Cache::forget('dashboard.total_kelas');
         return back()->with('success', "Kelas {$name} berhasil dihapus.");
     }
 }

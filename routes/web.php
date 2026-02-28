@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\Logincontroller;
+use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\KelasController;
 use App\Http\Controllers\StudentController;
@@ -14,9 +14,9 @@ use App\Http\Controllers\TeacherAttendanceController;
 use App\Http\Controllers\ClassPeriodController;
 
 // Login
-Route::get('/', [Logincontroller::class, 'showLoginForm'])->name('login');
-Route::post('/login', [Logincontroller::class, 'Login'])->name('login.post');
-Route::post('/logout', [Logincontroller::class, 'logout'])->name('logout');
+Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [LoginController::class, 'Login'])->name('login.post')->middleware('throttle:5,1');
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 // Protected routes
 Route::middleware('auth:admin')->group(function () {

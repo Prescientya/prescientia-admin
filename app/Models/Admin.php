@@ -12,7 +12,8 @@ class Admin extends Model
         'photo_profile'
     ];
 
-    public function User(){
-        return $this->beLongsTo (User::class);
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

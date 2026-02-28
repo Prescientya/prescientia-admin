@@ -8,6 +8,7 @@ use App\Models\Teacher;
 use App\Models\TeacherAttendance;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
 class TeacherAttendanceController extends Controller
@@ -27,31 +28,30 @@ class TeacherAttendanceController extends Controller
 
         $query = TeacherAttendance::query()
             ->with(['teacher', 'calendar'])
-            ->whereIn('calendar_id', $calendarIds)
-            ->when($status, fn($q) => $q->where('status', $status))
-            ->when($search, fn($q) => $q->whereHas(
-                'teacher', fn($sq) => $sq->where('name', 'ilike', "%{$search}%")
-            ))
-            ->orderByDesc(
-                \DB::table('school_calendar')
-                    ->select('date')
-                    ->whereColumn('school_calendar.id', 'teacher_attendances.calendar_id')
-                    ->limit(1)
-            )
-            ->orderBy(
-                Teacher::select('name')->whereColumn('teachers.id', 'teacher_attendances.teacher_id')
-            );
+            ->join('school_calendar', 'school_calendar.id', '=', 'teacher_attendances.calendar_id')
+            ->join('teachers', 'teachers.id', '=', 'teacher_attendances.teacher_id')
+            ->whereIn('teacher_attendances.calendar_id', $calendarIds)
+            ->when($status, fn($q) => $q->where('teacher_attendances.status', $status))
+            ->when($search, fn($q) => $q->where('teachers.name', 'ilike', "%{$search}%"))
+            ->orderByDesc('school_calendar.date')
+            ->orderBy('teachers.name')
+            ->select('teacher_attendances.*');
 
         $attendances = $query->paginate(25)->withQueryString();
 
-        // Summary counts
-        $baseQ = TeacherAttendance::whereIn('calendar_id', $calendarIds);
+        // Summary counts — single query with groupBy instead of 6+1 separate queries
+        $rawSummary = TeacherAttendance::whereIn('calendar_id', $calendarIds)
+            ->select('status', DB::raw('count(*) as total'))
+            ->groupBy('status')
+            ->pluck('total', 'status');
 
         $summary = [];
+        $summaryTotal = 0;
         foreach (['hadir', 'sakit', 'izin', 'dinas', 'alpa', 'terlambat'] as $s) {
-            $summary[$s] = (clone $baseQ)->where('status', $s)->count();
+            $summary[$s] = (int) ($rawSummary[$s] ?? 0);
+            $summaryTotal += $summary[$s];
         }
-        $summary['total'] = (clone $baseQ)->count();
+        $summary['total'] = $summaryTotal;
 
         $defaultFrom = today()->startOfMonth()->toDateString();
         $defaultTo   = today()->toDateString();

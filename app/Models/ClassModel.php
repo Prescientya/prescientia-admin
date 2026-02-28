@@ -21,6 +21,11 @@ class ClassModel extends Model
         return $this->hasMany(Student::class, 'class_id');
     }
 
+    public function homeroomTeacher()
+    {
+        return $this->belongsTo(Teacher::class, 'homeroom_teacher_id');
+    }
+
     /* ── Accessors ──────────────────────────────────── */
 
     public function getFullNameAttribute(): string

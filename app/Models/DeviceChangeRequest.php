@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 
 class DeviceChangeRequest extends Model
 {
@@ -24,9 +25,8 @@ class DeviceChangeRequest extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function student(): BelongsTo
+    public function student(): HasOneThrough
     {
-        // via pivot: users → students
         return $this->hasOneThrough(Student::class, User::class, 'id', 'user_id', 'user_id', 'id');
     }
 

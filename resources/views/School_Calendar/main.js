@@ -9,146 +9,32 @@
     const $  = s => document.querySelector(s);
     const $$ = s => document.querySelectorAll(s);
 
-    /* ── Month navigation via form submit ─────────────────── */
-    const yearSel  = $('#sc-year-select');
-    const monthSel = $('#sc-month-select');
-    const navForm  = $('#sc-nav-form');
-
-    function submitNav() {
-        if (navForm) navForm.submit();
-    }
-
-    if (yearSel)  yearSel.addEventListener('change', submitNav);
-    if (monthSel) monthSel.addEventListener('change', submitNav);
-
-    // Prev / Next month buttons
-    const btnPrev = $('#sc-prev-month');
-    const btnNext = $('#sc-next-month');
-
-    if (btnPrev) {
-        btnPrev.addEventListener('click', () => {
-            let m = parseInt(monthSel.value);
-            let y = parseInt(yearSel.value);
-            m--; if (m < 1) { m = 12; y--; }
-            monthSel.value = m;
-            yearSel.value  = y;
-            navForm.submit();
-        });
-    }
-
-    if (btnNext) {
-        btnNext.addEventListener('click', () => {
-            let m = parseInt(monthSel.value);
-            let y = parseInt(yearSel.value);
-            m++; if (m > 12) { m = 1; y++; }
-            monthSel.value = m;
-            yearSel.value  = y;
-            navForm.submit();
-        });
-    }
-
-    /* ── Day click → open Edit Modal ─────────────────────── */
-    const editModal      = $('#modal-edit-day');
-    const editForm       = $('#form-edit-day');
-    const editDateNum    = $('#edit-date-num');
-    const editDateDay    = $('#edit-date-day');
-    const editDateFull   = $('#edit-date-full');
-    const editNotes      = $('#edit-notes');
-    const editNotesGroup = $('#edit-notes-group');
-    const btnActive      = $('#btn-status-active');
-    const btnHoliday     = $('#btn-status-holiday');
-    const hiddenStatus   = $('#input-status');
-
-    let selectedStatus = 'aktif';
-
-    function setStatus(s) {
-        selectedStatus = s;
-        hiddenStatus.value = s;
-        btnActive.classList.toggle('selected-active',  s === 'aktif');
-        btnHoliday.classList.toggle('selected-holiday', s === 'libur');
-        if (editNotesGroup) {
-            editNotesGroup.style.display = (s === 'libur') ? 'flex' : 'none';
-        }
-    }
-
-    if (btnActive)  btnActive.addEventListener('click',  () => setStatus('aktif'));
-    if (btnHoliday) btnHoliday.addEventListener('click', () => setStatus('libur'));
-
-    /* Calendar cell clicks */
-    $$('.sc-day[data-id]').forEach(cell => {
-        cell.addEventListener('click', openEditForElement.bind(null, cell));
-    });
-
-    /* Table row edit-button clicks */
-    $$('.sc-edit-btn[data-id]').forEach(btn => {
-        btn.addEventListener('click', openEditForElement.bind(null, btn));
-    });
-
-    function openEditForElement(el) {
-        const id     = el.dataset.id;
-        const day    = el.dataset.day;
-        const dayname= el.dataset.dayname;
-        const full   = el.dataset.full;
-        const status = el.dataset.status;
-        const notes  = el.dataset.notes || '';
-
-        if (editDateNum)  editDateNum.textContent  = day;
-        if (editDateDay)  editDateDay.textContent  = dayname;
-        if (editDateFull) editDateFull.textContent = full;
-        if (editNotes)    editNotes.value          = notes;
-
-        const base = editForm.dataset.baseUrl;
-        editForm.action = base.replace('__ID__', id);
-
-        setStatus(status || 'aktif');
-        openModal(editModal);
-    }
-
-    /* ── Generate Year Modal ──────────────────────────────── */
-    const btnOpenGen = $('#btn-open-generate');
-    const modalGen   = $('#modal-generate');
-
-    if (btnOpenGen) {
-        btnOpenGen.addEventListener('click', () => openModal(modalGen));
-    }
-
-    /* ── Delete Year Modal ────────────────────────────────── */
-    const btnOpenDel  = $('#btn-open-delete-year');
-    const modalDel    = $('#modal-delete-year');
-    const delYearSpan = $('#del-year-span');
-    const delForm     = $('#form-delete-year');
-
-    if (btnOpenDel) {
-        btnOpenDel.addEventListener('click', () => {
-            const yr = yearSel ? parseInt(yearSel.value) : '';
-            if (delYearSpan) delYearSpan.textContent = yr;
-            // update hidden input inside form
-            const hiddenYr = delForm ? delForm.querySelector('input[name="year"]') : null;
-            if (hiddenYr) hiddenYr.value = yr;
-            openModal(modalDel);
-        });
-    }
-
     /* ── Modal open / close ───────────────────────────────── */
     function openModal(overlay) {
         if (!overlay) return;
-        overlay.style.display = 'flex';
-        requestAnimationFrame(() => overlay.classList.add('open'));
+        overlay.classList.add('open');
     }
 
     function closeModal(overlay) {
         if (!overlay) return;
         overlay.classList.remove('open');
-        overlay.addEventListener('transitionend', () => {
-            overlay.style.display = 'none';
-        }, { once: true });
     }
 
-    // Close buttons (.modal-close and data-close-modal)
+    // Open modal buttons
+    $$('[data-open-modal]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.dataset.openModal;
+            const modal = $('#' + target);
+            if (modal) openModal(modal);
+        });
+    });
+
+    // Close buttons
     $$('[data-close-modal]').forEach(btn => {
         btn.addEventListener('click', () => {
-            const m = btn.closest('.modal-overlay');
-            if (m) closeModal(m);
+            const target = btn.dataset.closeModal;
+            const modal = $('#' + target);
+            if (modal) closeModal(modal);
         });
     });
 
@@ -166,13 +52,84 @@
         }
     });
 
+    /* ── Day click → open Edit Modal ─────────────────────── */
+    const editModal     = $('#modalEditEntry');
+    const editForm      = $('#editEntryForm');
+    const editDateIcon  = $('#editDateIcon');
+    const editDateFull  = $('#editDateFull');
+    const editDateStatus= $('#editDateStatus');
+    const editStatus    = $('#editEntryStatus');
+    const editNotes     = $('#editEntryNotes');
+    const editNotesWrap = $('#editNotesWrap');
+
+    // Update notes field visibility based on status
+    function updateNotesVisibility() {
+        if (editStatus && editNotesWrap) {
+            editNotesWrap.style.display = (editStatus.value === 'libur') ? 'block' : 'none';
+        }
+    }
+
+    if (editStatus) {
+        editStatus.addEventListener('change', updateNotesVisibility);
+    }
+
+    /* Calendar cell clicks */
+    $$('.sc-cal-day--clickable').forEach(cell => {
+        cell.addEventListener('click', () => {
+            const id      = cell.dataset.id;
+            const day     = cell.dataset.day;
+            const status  = cell.dataset.status;
+            const notes   = cell.dataset.notes || '';
+            const dateStr = cell.dataset.dateStr;
+
+            // Update form action
+            if (editForm) {
+                const baseAction = editForm.dataset.baseAction;
+                editForm.action = baseAction.replace('__ID__', id);
+            }
+
+            // Update date display
+            if (editDateIcon) {
+                editDateIcon.textContent = day;
+                editDateIcon.classList.remove('sc-edit-date-icon--school', 'sc-edit-date-icon--holiday');
+                editDateIcon.classList.add(status === 'libur' ? 'sc-edit-date-icon--holiday' : 'sc-edit-date-icon--school');
+            }
+            if (editDateFull) editDateFull.textContent = dateStr;
+            if (editDateStatus) {
+                editDateStatus.textContent = status === 'libur' ? 'Hari Libur' : 'Hari Sekolah';
+                editDateStatus.style.color = status === 'libur' ? '#dc2626' : '#16a34a';
+            }
+
+            // Set form values
+            if (editStatus) editStatus.value = status;
+            if (editNotes) editNotes.value = notes;
+            updateNotesVisibility();
+
+            // Open modal
+            openModal(editModal);
+        });
+    });
+
+    /* ── Generate Year Form - Update description ──────────── */
+    const generateYear = $('#generateYear');
+    const generateYearDesc = $('#generateYearDesc');
+
+    if (generateYear && generateYearDesc) {
+        generateYear.addEventListener('change', function() {
+            generateYearDesc.textContent = `Kalender tahun ${this.value} akan dibuat ulang jika sudah ada.`;
+        });
+    }
+
     /* ── Submit button spinner ────────────────────────────── */
-    $$('form').forEach(form => {
-        form.addEventListener('submit', () => {
-            const btn = form.querySelector('[type="submit"]');
+    $$('form[data-loading]').forEach(form => {
+        form.addEventListener('submit', function () {
+            const btn = this.querySelector('[type="submit"]');
             if (btn) {
-                btn.classList.add('loading');
                 btn.disabled = true;
+                const spinner = btn.querySelector('.spinner');
+                const btnText = btn.querySelector('.btn-text');
+                if (spinner) spinner.style.display = 'inline-block';
+                if (btnText) btnText.style.opacity = '0.6';
             }
         });
     });

@@ -32,33 +32,32 @@ class StudentAttendanceController extends Controller
 
         $query = StudentAttendance::query()
             ->with(['student.schoolClass', 'kelas', 'calendar'])
-            ->whereIn('calendar_id', $calendarIds)
-            ->when($classId, fn($q) => $q->where('class_id', $classId))
-            ->when($status, fn($q) => $q->where('status', $status))
-            ->when($search, fn($q) => $q->whereHas(
-                'student', fn($sq) => $sq->where('name', 'ilike', "%{$search}%")
-            ))
-            ->orderByDesc(
-                DB::table('school_calendar')
-                    ->select('date')
-                    ->whereColumn('school_calendar.id', 'student_attendances.calendar_id')
-                    ->limit(1)
-            )
-            ->orderBy(
-                Student::select('name')->whereColumn('students.id', 'student_attendances.student_id')
-            );
+            ->join('school_calendar', 'school_calendar.id', '=', 'student_attendances.calendar_id')
+            ->join('students', 'students.id', '=', 'student_attendances.student_id')
+            ->whereIn('student_attendances.calendar_id', $calendarIds)
+            ->when($classId, fn($q) => $q->where('student_attendances.class_id', $classId))
+            ->when($status, fn($q) => $q->where('student_attendances.status', $status))
+            ->when($search, fn($q) => $q->where('students.name', 'ilike', "%{$search}%"))
+            ->orderByDesc('school_calendar.date')
+            ->orderBy('students.name')
+            ->select('student_attendances.*');
 
         $attendances = $query->paginate(25)->withQueryString();
 
-        // Summary counts for the date range
-        $baseQ = StudentAttendance::whereIn('calendar_id', $calendarIds)
-            ->when($classId, fn($q) => $q->where('class_id', $classId));
+        // Summary counts — single query with groupBy instead of 5+1 separate queries
+        $rawSummary = StudentAttendance::whereIn('calendar_id', $calendarIds)
+            ->when($classId, fn($q) => $q->where('class_id', $classId))
+            ->select('status', DB::raw('count(*) as total'))
+            ->groupBy('status')
+            ->pluck('total', 'status');
 
         $summary = [];
+        $summaryTotal = 0;
         foreach (['hadir', 'sakit', 'izin', 'alpa', 'terlambat'] as $s) {
-            $summary[$s] = (clone $baseQ)->where('status', $s)->count();
+            $summary[$s] = (int) ($rawSummary[$s] ?? 0);
+            $summaryTotal += $summary[$s];
         }
-        $summary['total'] = (clone $baseQ)->count();
+        $summary['total'] = $summaryTotal;
 
         $classes = ClassModel::orderBy('class')->orderBy('major')->get();
 

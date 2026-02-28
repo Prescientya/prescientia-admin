@@ -16,8 +16,10 @@ class WifiNetwork extends Model
 
     /* ── Relationships ──────────────────────────────── */
 
-    public function presenceLogs()
-    {
-        return $this->hasMany(WifiPresenceLog::class, 'wifi_id');
-    }
+    // Note: WifiPresenceLog model is in the student/teacher app, not admin.
+    // Relation kept commented for reference.
+    // public function presenceLogs()
+    // {
+    //     return $this->hasMany(WifiPresenceLog::class, 'wifi_id');
+    // }
 }

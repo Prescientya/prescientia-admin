@@ -171,8 +171,7 @@
                 Export Excel
             </a>
         </div>
-        <div class="table-scroll">
-        <table class="data-table" style="min-width:720px;">
+        <table class="data-table">
             <thead>
                 <tr>
                     <th style="width:40px;">#</th>
@@ -312,7 +311,6 @@
                 @endforelse
             </tbody>
         </table>
-        </div>{{-- end table-scroll --}}
 
         @if($attendances->hasPages())
         <div class="data-pagination">
