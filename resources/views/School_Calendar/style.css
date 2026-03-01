@@ -749,6 +749,7 @@ textarea.form-control {
     color: #fff;
     border-color: #dc2626;
 }
+body[data-mode="dark"] .btn--danger { color: #f87171; }
 
 /* ─────────────────────────────────────────────────────────────
    RESPONSIVE
@@ -1028,3 +1029,4 @@ body[data-mode="dark"] .delete-icon { color: #f87171; }
 .req {
     color: #dc2626;
 }
+body[data-mode="dark"] .req { color: #f87171; }

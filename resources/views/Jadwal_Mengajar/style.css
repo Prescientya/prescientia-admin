@@ -145,6 +145,7 @@
 .jm-cell-action-btn.del   { background: rgba(220,38,38,0.12); color: #dc2626; }
 .jm-cell-action-btn:hover.edit { background: var(--accent); color: #fff; }
 .jm-cell-action-btn:hover.del  { background: #dc2626; color: #fff; }
+[data-mode="dark"] .jm-cell-action-btn.del { color: #f87171; }
 
 /* ── Add-slot button (table row view) ───────────────────── */
 .jm-add-slot-btn {
@@ -183,6 +184,10 @@
 .jm-empty-icon { font-size: 3rem; }
 .jm-empty-title { font-weight: 600; font-size: 1rem; color: var(--text-secondary); }
 .jm-empty-sub { font-size: 0.85rem; }
+.jm-empty--error .jm-empty-title,
+.jm-empty--error .jm-empty-sub { color: #dc2626; }
+[data-mode="dark"] .jm-empty--error .jm-empty-title,
+[data-mode="dark"] .jm-empty--error .jm-empty-sub { color: #f87171; }
 
 /* ── Summary cards ───────────────────────────────────────── */
 .jm-summary {

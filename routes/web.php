@@ -12,6 +12,7 @@ use App\Http\Controllers\WifiNetworkController;
 use App\Http\Controllers\SchoolCalendarController;
 use App\Http\Controllers\TeacherAttendanceController;
 use App\Http\Controllers\ClassPeriodController;
+use App\Http\Controllers\EventController;
 
 // Login
 Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
@@ -107,5 +108,8 @@ Route::middleware('auth:admin')->group(function () {
         Route::get('export',   [TeacherAttendanceController::class, 'export'])->name('export');
         Route::get('search',   [TeacherAttendanceController::class, 'searchTeachers'])->name('search');
     });
+
+    /* ── Event / Acara ───────────────────────────────── */
+    Route::resource('/events', EventController::class);
 
 });

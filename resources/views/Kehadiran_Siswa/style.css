@@ -70,6 +70,11 @@
 .ka-dropdown__item--sakit     { color: #d97706; }
 .ka-dropdown__item--alpa      { color: #dc2626; }
 .ka-dropdown__item--terlambat { color: #7c3aed; }
+[data-mode="dark"] .ka-dropdown__item--hadir     { color: #4ade80; }
+[data-mode="dark"] .ka-dropdown__item--izin      { color: #93c5fd; }
+[data-mode="dark"] .ka-dropdown__item--sakit     { color: #fcd34d; }
+[data-mode="dark"] .ka-dropdown__item--alpa      { color: #f87171; }
+[data-mode="dark"] .ka-dropdown__item--terlambat { color: #c4b5fd; }
 .ka-dropdown__item--hadir:hover     { background: rgba(22,163,74,.08); }
 .ka-dropdown__item--izin:hover      { background: rgba(59,130,246,.08); }
 .ka-dropdown__item--sakit:hover     { background: rgba(245,158,11,.08); }
@@ -77,6 +82,7 @@
 .ka-dropdown__item--terlambat:hover { background: rgba(139,92,246,.08); }
 .ka-dropdown__item--danger      { color: #dc2626; }
 .ka-dropdown__item--danger:hover { background: rgba(220,38,38,.08); }
+[data-mode="dark"] .ka-dropdown__item--danger { color: #f87171; }
 
 /* ── Detail DL ──────────────────────────────────────── */
 .detail-dl { display: flex; flex-direction: column; gap: 0; }

@@ -52,6 +52,9 @@
 }
 .mapel-tag--invalid .mapel-tag__remove { color: #dc2626; }
 .mapel-error { font-size: 0.78rem; color: #dc2626; margin: 4px 0 0; }
+[data-mode="dark"] .mapel-tag--invalid { background: rgba(220,38,38,.2); color: #f87171; border-color: #f87171; }
+[data-mode="dark"] .mapel-tag--invalid .mapel-tag__remove { color: #f87171; }
+[data-mode="dark"] .mapel-error { color: #f87171; }
 .mapel-text-input {
     border: none; outline: none; background: transparent;
     color: var(--text-primary); font-size: 0.875rem;

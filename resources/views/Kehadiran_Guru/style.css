@@ -64,6 +64,7 @@
 .kg-dropdown__item:hover { background: var(--dropdown-item-hover); }
 .kg-dropdown__item--danger      { color: #dc2626; }
 .kg-dropdown__item--danger:hover { background: rgba(220,38,38,.08); }
+[data-mode="dark"] .kg-dropdown__item--danger { color: #f87171; }
 .kg-dropdown__separator { height: 1px; background: var(--card-border); margin: 3px 8px; }
 
 /* ── Detail DL ────────────────────────────────────────────── */

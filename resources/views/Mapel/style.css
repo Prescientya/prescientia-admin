@@ -110,10 +110,11 @@
     cursor: pointer;
     transition: opacity .15s, background .15s;
 }
-.mp-btn-edit  { background: #dbeafe; color: #1d4ed8; }
-.mp-btn-edit:hover  { background: #bfdbfe; }
-.mp-btn-del   { background: #fee2e2; color: #dc2626; }
-.mp-btn-del:hover   { background: #fecaca; }
+.mp-btn-edit  { background: rgba(59,130,246,.15); color: #3b82f6; }
+.mp-btn-edit:hover  { background: rgba(59,130,246,.25); }
+.mp-btn-del   { background: rgba(220,38,38,.12); color: #dc2626; }
+.mp-btn-del:hover   { background: rgba(220,38,38,.2); }
+[data-mode="dark"] .mp-btn-del { color: #f87171; }
 
 /* ── Empty state ─────────────────────────────────────────── */
 .mp-empty {
@@ -223,15 +224,18 @@
     border: 1px solid var(--card-border);
     border-radius: 8px;
     font-size: .875rem;
-    background: var(--input-bg, #fff);
+    background: var(--card-bg);
     color: var(--text-primary);
     transition: border-color .15s, box-shadow .15s;
     box-sizing: border-box;
 }
+.mp-input::placeholder, .mp-textarea::placeholder {
+    color: var(--text-muted);
+}
 .mp-input:focus, .mp-textarea:focus, .mp-select:focus {
     outline: none;
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(59,130,246,.15);
+    box-shadow: 0 0 0 3px var(--accent-light);
 }
 .mp-textarea { resize: vertical; min-height: 72px; }
 
@@ -324,18 +328,18 @@
 .mp-cb-item input[type=checkbox] { accent-color: var(--accent); cursor: pointer; }
 .mp-cb-item:has(input:checked) {
     border-color: var(--accent);
-    background: #eff6ff;
-    color: #1d4ed8;
+    background: var(--accent-light);
+    color: var(--accent);
 }
 
 /* ── Preview bar ─────────────────────────────────────────── */
 .mp-preview {
-    background: #f0f9ff;
-    border: 1px solid #bae6fd;
+    background: var(--accent-light);
+    border: 1px solid var(--accent);
     border-radius: 8px;
     padding: 10px 14px;
     font-size: .8rem;
-    color: #0369a1;
+    color: var(--accent);
     margin-top: 12px;
     min-height: 38px;
     transition: all .2s;
@@ -396,13 +400,13 @@
 .mp-class-chip {
     display: inline-block;
     padding: 1px 6px;
-    background: #eff6ff;
-    color: #1d4ed8;
+    background: var(--accent-light);
+    color: var(--accent);
     border-radius: 4px;
     font-size: .7rem;
     font-weight: 500;
 }
 .mp-class-chip.more {
-    background: #f3f4f6;
-    color: #6b7280;
+    background: var(--hover-bg);
+    color: var(--text-muted);
 }

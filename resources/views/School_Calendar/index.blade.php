@@ -43,8 +43,7 @@
     <div class="page-header">
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
             @if($daysMap->isNotEmpty())
-            <button type="button" class="btn btn--ghost btn--sm" data-open-modal="modalDeleteYear"
-                    style="color:#ef4444;border-color:rgba(239,68,68,0.3);">
+            <button type="button" class="btn btn--ghost-danger btn--sm" data-open-modal="modalDeleteYear">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
                      fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="3 6 5 6 21 6"/>
@@ -309,7 +308,7 @@
                     </p>
                 </div>
 
-                <div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 12px;font-size:0.82rem;color:#b45309;line-height:1.5;">
+                <div class="notice-warning">
                     <strong>⚠ Perhatian:</strong> Data kalender yang sudah ada untuk tahun tersebut akan <strong>dihapus dan diganti</strong>. Proses ini mungkin membutuhkan beberapa saat.
                 </div>
 

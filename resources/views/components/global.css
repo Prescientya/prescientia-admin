@@ -21,8 +21,13 @@
 .btn--danger:hover     { background: #b91c1c; }
 .btn--ghost            { background: transparent; color: var(--text-secondary); border: 1px solid var(--card-border); }
 .btn--ghost:hover      { background: var(--dropdown-item-hover); color: var(--text-primary); }
+.btn--ghost-danger     { background: transparent; color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+.btn--ghost-danger:hover { background: rgba(239,68,68,0.08); }
+[data-mode="dark"] .btn--ghost-danger { color: #fca5a5; border-color: rgba(239,68,68,0.3); }
 .btn--sm               { padding: 6px 12px; font-size: 0.8rem; }
 .btn svg               { flex-shrink: 0; }
+.req-star              { color: #ef4444; }
+[data-mode="dark"] .req-star { color: #fca5a5; }
 
 /* ── Alerts ───────────────────────────────────────────────── */
 .alert {
@@ -215,6 +220,39 @@ select.form-control   { cursor: pointer; }
 textarea.form-control { resize: vertical; min-height: 80px; }
 .form-hint            { font-size: 0.77rem; color: var(--text-muted); }
 
+/* ── Form Input Icons (Time/Date pickers, Select arrows) ──── */
+/* Chrome/Safari time/date picker icon */
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: var(--icon-filter, none);
+    cursor: pointer;
+    opacity: 0.7;
+}
+input[type="time"]::-webkit-calendar-picker-indicator:hover,
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+}
+/* Dark mode: invert the calendar/clock icons */
+body[data-mode="dark"] input[type="time"]::-webkit-calendar-picker-indicator,
+body[data-mode="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+body[data-mode="dark"] input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(0.8);
+}
+
+/* Select dropdown arrow */
+select.form-control {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+}
+body[data-mode="dark"] select.form-control {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+}
+
 /* ── Shared data table ───────────────────────────────────── */
 .data-card {
     background: var(--card-bg); border: 1px solid var(--card-border);
@@ -298,6 +336,10 @@ body[data-mode="dark"] .data-table td:nth-child(odd) {
     background: rgba(220,38,38,0.1); color: #dc2626;
     display: flex; align-items: center; justify-content: center; margin: 0 auto 14px;
 }
+[data-mode="dark"] .delete-icon { color: #f87171; }
+.modal-title--danger, .modal-title--danger svg { color: #dc2626; }
+[data-mode="dark"] .modal-title--danger, [data-mode="dark"] .modal-title--danger svg { color: #f87171; }
+.modal-title .modal-icon { display: inline; vertical-align: -3px; margin-right: 6px; color: var(--accent); }
 
 /* ── Spinner ──────────────────────────────────────────────── */
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -308,6 +350,7 @@ body[data-mode="dark"] .data-table td:nth-child(odd) {
 }
 .btn.loading .spinner  { display: block; }
 .btn.loading .btn-text { opacity: 0.7; }
+.btn .spinner.active   { display: inline-block; }
 
 /* ── PAGE LAYOUT — unified wrapper for all master-data pages ─ */
 .ds-page, .dk-page, .dg-page {
@@ -375,6 +418,13 @@ body[data-mode="dark"] .data-table td:nth-child(odd) {
 .badge--inactive { background: rgba(239,68,68,.10); color: #dc2626; }
 [data-mode="dark"] .badge--active   { background: rgba(22,163,74,.22);  color: #4ade80; }
 [data-mode="dark"] .badge--inactive { background: rgba(239,68,68,.2); color: #f87171; }
+
+/* ── Notice / Alert Boxes ─────────────────────────────────── */
+.notice-warning {
+    background: rgba(245,158,11,0.07); border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 8px; padding: 10px 12px; font-size: 0.82rem; color: #b45309; line-height: 1.5;
+}
+[data-mode="dark"] .notice-warning { color: #fcd34d; background: rgba(245,158,11,0.12); }
 
 /* ── FORM SECTION TITLE ───────────────────────────────────── */
 .form-section-title {
@@ -508,6 +558,7 @@ body[data-mode="dark"] .data-table td:nth-child(odd) {
     color: var(--text-muted); display: flex; align-items: center; flex-shrink: 0;
 }
 .excel-file-clear:hover { color: #dc2626; }
+[data-mode="dark"] .excel-file-clear:hover { color: #f87171; }
 .excel-template-row {
     display: flex; align-items: center; gap: 10px; margin-top: 14px;
     padding: 11px 14px; background: var(--content-bg);

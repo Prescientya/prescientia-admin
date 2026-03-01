@@ -65,7 +65,6 @@
                         <th>Deskripsi</th>
                         <th>Status</th>
                         <th>Total Kelas</th>
-                        <th>Kelas</th>
                         <th>Aksi</th>
                     </tr>
                 </thead>
@@ -88,12 +87,6 @@
                         </td>
                         <td>
                             <span class="badge badge-blue">{{ $s->jumlah_kelas }} kelas</span>
-                        </td>
-                        <td>
-                            {{-- Will be populated via JS after classOptions call, or show nothing --}}
-                            <div class="mp-classes-preview" id="mp-chips-{{ $s->id }}">
-                                <span style="color:var(--text-muted);font-size:.75rem;">—</span>
-                            </div>
                         </td>
                         <td style="text-align:center;">
                             <div class="mp-action">
@@ -159,7 +152,7 @@
             {{-- Tab 1: Info Dasar --}}
             <div class="mp-tab-panel active" data-panel="info">
                 <div class="mp-form-group">
-                    <label class="mp-label" for="mp-name">Nama Mata Pelajaran <span style="color:#ef4444">*</span></label>
+                    <label class="mp-label" for="mp-name">Nama Mata Pelajaran <span class="req-star">*</span></label>
                     <input class="mp-input" type="text" id="mp-name" name="name"
                            placeholder="e.g. Matematika" maxlength="100" required>
                 </div>

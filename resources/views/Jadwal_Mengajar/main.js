@@ -79,10 +79,10 @@
             wrap.innerHTML = data.html;
             attachGridEvents();
         } catch (err) {
-            wrap.innerHTML = `<div class="jm-empty">
+            wrap.innerHTML = `<div class="jm-empty jm-empty--error">
                 <div class="jm-empty-icon">⚠️</div>
-                <div class="jm-empty-title" style="color:#dc2626;">Gagal memuat jadwal</div>
-                <div class="jm-empty-sub" style="color:#dc2626;">${err.message}</div>
+                <div class="jm-empty-title">Gagal memuat jadwal</div>
+                <div class="jm-empty-sub">${err.message}</div>
             </div>`;
         }
     }

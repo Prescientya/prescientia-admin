@@ -129,6 +129,7 @@
 }
 .jp-btn-edit:hover  { background: rgba(var(--accent-rgb), 0.1); color: var(--accent); }
 .jp-btn-delete:hover{ background: rgba(220, 38, 38, 0.1); color: #dc2626; }
+[data-mode="dark"] .jp-btn-delete:hover { color: #f87171; }
 
 /* ── Legend ──────────────────────────────────────────── */
 .jp-legend {
