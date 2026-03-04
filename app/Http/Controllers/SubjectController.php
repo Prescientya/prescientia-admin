@@ -157,7 +157,7 @@ class SubjectController extends Controller
                 // "AKL" should match "AKL 1", "AKL 2", etc.
                 $query->where(function ($q) use ($majors) {
                     foreach ($majors as $m) {
-                        $q->orWhere('major', 'like', $m . '%');
+                        $q->orWhere('major', 'ilike', $m . '%');
                     }
                 });
                 return $query->pluck('id')->all();
@@ -169,7 +169,7 @@ class SubjectController extends Controller
                 $query->whereIn('class', $grades);
                 $query->where(function ($q) use ($majors) {
                     foreach ($majors as $m) {
-                        $q->orWhere('major', 'like', $m . '%');
+                        $q->orWhere('major', 'ilike', $m . '%');
                     }
                 });
                 return $query->pluck('id')->all();

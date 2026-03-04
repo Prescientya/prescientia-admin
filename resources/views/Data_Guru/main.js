@@ -162,6 +162,20 @@
         set('dg-detailCreated',d.created_at);
         set('dg-detailAddress',d.address);
 
+        // Role & homeroom class
+        const roleEl = $('#dg-detailRole');
+        if (roleEl) {
+            if (d.teacher_role === 'walikelas') {
+                roleEl.innerHTML = '<span class="badge badge--active">Wali Kelas</span>';
+            } else {
+                roleEl.innerHTML = '<span class="badge badge--inactive">Pengajar</span>';
+            }
+        }
+        const homeroomWrap = $('#dg-detailHomeroomWrap');
+        const homeroomEl   = $('#dg-detailHomeroomClass');
+        if (homeroomWrap) homeroomWrap.style.display = (d.teacher_role === 'walikelas') ? '' : 'none';
+        if (homeroomEl)  homeroomEl.textContent = d.homeroom_class || '–';
+
         // Status badge
         const statusEl = $('#dg-detailStatus');
         if (statusEl) {
@@ -212,48 +226,213 @@
 
     /* ── 6. EXCEL DROPZONE ────────────────────────────────── */
     function initExcelDropzone() {
-        const dropzone  = $('#dg-excelDropzone');
-        const fileInput = $('#dg-excelFileInput');
-        const fileChosen = $('#dg-excelFileChosen');
+        const zone      = $('#dg-excelDropzone');
+        const input     = $('#dg-excelFileInput');
+        const chosen    = $('#dg-excelFileChosen');
         const fileName  = $('#dg-excelFileName');
-        const fileClear = $('#dg-excelFileClear');
-        const browseBtn = dropzone?.querySelector('.excel-dropzone__btn');
+        const clearBtn  = $('#dg-excelFileClear');
 
-        if (!dropzone || !fileInput) return;
+        if (!zone || !input) return;
 
-        const showFile = file => {
-            if (fileName) fileName.textContent = file.name;
-            fileChosen?.classList.add('visible');
-            dropzone.style.display = 'none';
-        };
-
-        const clearFile = () => {
-            fileInput.value = '';
-            if (fileName) fileName.textContent = '–';
-            fileChosen?.classList.remove('visible');
-            dropzone.style.display = '';
-        };
-
-        browseBtn?.addEventListener('click', e => { e.preventDefault(); fileInput.click(); });
-        fileInput.addEventListener('change', () => { if (fileInput.files[0]) showFile(fileInput.files[0]); });
-        fileClear?.addEventListener('click', clearFile);
-
-        dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
-        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
-        dropzone.addEventListener('drop', e => {
+        /* ── drag / click ─────────────────────────────── */
+        zone.addEventListener('click', () => input.click());
+        zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+        zone.addEventListener('drop', e => {
             e.preventDefault();
-            dropzone.classList.remove('drag-over');
+            zone.classList.remove('drag-over');
             const file = e.dataTransfer.files[0];
-            if (file) {
-                const dt = new DataTransfer();
-                dt.items.add(file);
-                fileInput.files = dt.files;
-                showFile(file);
+            if (file) setExcelFile(file);
+        });
+        input.addEventListener('change', () => {
+            if (input.files[0]) setExcelFile(input.files[0]);
+        });
+
+        /* ── helpers ──────────────────────────────────── */
+        function showSection(id) { const el = $('#' + id); if (el) el.style.display = ''; }
+        function hideSection(id) { const el = $('#' + id); if (el) el.style.display = 'none'; }
+
+        function setProgress(pct, label) {
+            const fill = $('#dg-importProgressFill');
+            const lbl  = $('#dg-importProgressLabel');
+            if (fill) fill.style.width = pct + '%';
+            if (lbl)  lbl.textContent  = label;
+        }
+
+        function resetPreview() {
+            hideSection('dg-importReadingSection');
+            hideSection('dg-importMissingSection');
+            setProgress(0, 'Membaca file… 0%');
+            const master = $('#dg-autoCreateMaster');
+            if (master) { master.checked = false; master.indeterminate = false; }
+        }
+
+        function setExcelFile(file) {
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+            if (fileName) fileName.textContent = file.name;
+            if (chosen)   chosen.classList.add('show');
+            readExcelFile(file);
+        }
+
+        /* ── Excel reading ───────────────────────────── */
+        function readExcelFile(file) {
+            if (typeof XLSX === 'undefined') {
+                console.warn('SheetJS (XLSX) belum dimuat.');
+                return;
             }
+
+            resetPreview();
+            showSection('dg-importReadingSection');
+            setProgress(0, 'Membaca file… 0%');
+
+            const reader = new FileReader();
+
+            reader.onprogress = e => {
+                if (e.lengthComputable) {
+                    const pct = Math.round((e.loaded / e.total) * 80);
+                    setProgress(pct, `Membaca file… ${pct}%`);
+                }
+            };
+
+            reader.onload = async e => {
+                setProgress(85, 'Memproses data… 85%');
+                try {
+                    const data   = new Uint8Array(e.target.result);
+                    const wb     = XLSX.read(data, { type: 'array' });
+                    const ws     = wb.Sheets[wb.SheetNames[0]];
+                    const rows   = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+                    setProgress(90, 'Memeriksa mapel di database… 90%');
+
+                    // Collect unique subject names from comma-separated 'mapel' column
+                    const subjectSet = new Set();
+                    rows.forEach(row => {
+                        const mapelRaw = String(row['mapel'] || row['Mapel'] || '').trim();
+                        if (mapelRaw) {
+                            mapelRaw.split(',').forEach(n => {
+                                const name = n.trim();
+                                if (name) subjectSet.add(name);
+                            });
+                        }
+                    });
+
+                    const missingSubjects = await checkMissingSubjects(Array.from(subjectSet));
+
+                    setProgress(100, `Selesai dibaca — ${rows.length} baris terdeteksi ✓`);
+
+                    renderMissingSubjects(missingSubjects);
+
+                } catch (err) {
+                    setProgress(0, 'Gagal membaca file: ' + err.message);
+                    console.error('Excel parse error:', err);
+                }
+            };
+
+            reader.onerror = () => setProgress(0, 'Gagal membaca file.');
+            reader.readAsArrayBuffer(file);
+        }
+
+        /* ── AJAX: check missing subjects ────────────── */
+        async function checkMissingSubjects(subjects) {
+            if (!subjects.length) return [];
+            try {
+                const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+                const res   = await fetch('/guru/check-subjects', {
+                    method:  'POST',
+                    headers: {
+                        'Content-Type':     'application/json',
+                        'Accept':           'application/json',
+                        'X-CSRF-TOKEN':     token,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({ subjects }),
+                });
+                if (!res.ok) throw new Error('Server error ' + res.status);
+                const data = await res.json();
+                return data.missing || [];
+            } catch (err) {
+                console.warn('checkMissingSubjects error:', err);
+                return [];
+            }
+        }
+
+        /* ── Render missing subjects ─────────────────── */
+        function renderMissingSubjects(missing) {
+            const section = $('#dg-importMissingSection');
+            const listEl  = $('#dg-importMissingList');
+            const descEl  = $('#dg-autoCreateDesc');
+            if (!section || !listEl) return;
+
+            if (!missing.length) {
+                section.style.display = 'none';
+                if (descEl) descEl.textContent = 'Semua mapel pada file sudah tersedia di database.';
+                return;
+            }
+
+            listEl.innerHTML = missing.map(s => `
+                <label class="import-missing-item">
+                    <input type="checkbox" class="dg-missing-subject-cb"
+                           name="subjects_to_create[]"
+                           value="${escHtml(s.name)}"
+                           checked>
+                    <span class="import-missing-item-label">${escHtml(s.label)}</span>
+                    <span class="import-missing-badge">Belum ada</span>
+                </label>
+            `).join('');
+
+            section.style.display = '';
+
+            if (descEl) {
+                descEl.textContent = missing.length + ' mapel belum ada. Centang mapel yang ingin dibuat, atau gunakan tombol di atas.';
+            }
+
+            bindMasterCheckbox();
+        }
+
+        /* ── Master checkbox sync ────────────────────── */
+        function bindMasterCheckbox() {
+            const master = $('#dg-autoCreateMaster');
+            if (!master) return;
+
+            // Re-attach listener by cloning
+            const newMaster = master.cloneNode(true);
+            master.parentNode.replaceChild(newMaster, master);
+            newMaster.checked = true;
+            newMaster.indeterminate = false;
+
+            newMaster.addEventListener('change', () => {
+                document.querySelectorAll('.dg-missing-subject-cb').forEach(cb => {
+                    cb.checked = newMaster.checked;
+                });
+            });
+
+            function refreshMasterState() {
+                const cbs     = Array.from(document.querySelectorAll('.dg-missing-subject-cb'));
+                if (!cbs.length) return;
+                const checked = cbs.filter(c => c.checked).length;
+                newMaster.indeterminate = (checked > 0 && checked < cbs.length);
+                newMaster.checked      = (checked === cbs.length);
+            }
+
+            document.querySelectorAll('.dg-missing-subject-cb').forEach(cb => {
+                cb.addEventListener('change', refreshMasterState);
+            });
+        }
+
+        /* ── Clear button ─────────────────────────────── */
+        clearBtn?.addEventListener('click', e => {
+            e.stopPropagation();
+            input.value = '';
+            if (chosen) chosen.classList.remove('show');
+            resetPreview();
         });
-        dropzone.addEventListener('click', e => {
-            if (e.target !== browseBtn && !browseBtn?.contains(e.target)) fileInput.click();
-        });
+    }
+
+    /* ── HTML escape helper ───────────────────────── */
+    function escHtml(str) {
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
     /* ── INIT ─────────────────────────────────────────────── */

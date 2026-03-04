@@ -246,6 +246,10 @@ class TeacherScheduleController extends Controller
         try {
             $import = new TeacherScheduleImport;
             Excel::import($import, $request->file('file'));
+
+            // Hapus file sisa import (chunk reading menyimpan temp di imports/)
+            $this->cleanupImportFiles();
+
             $count  = $import->getImportedCount();
             $failed = $import->getFailedRows();
 
@@ -265,7 +269,23 @@ class TeacherScheduleController extends Controller
             return redirect()->route('jadwal-mengajar.index')
                 ->with('success', "Berhasil mengimpor {$count} jadwal mengajar.");
         } catch (\Exception $e) {
+            $this->cleanupImportFiles();
             return back()->with('error', 'Gagal import: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Hapus file sisa import yang tertinggal di storage/app/private/imports.
+     */
+    private function cleanupImportFiles(): void
+    {
+        $dir = storage_path('app/private/imports');
+        if (is_dir($dir)) {
+            foreach (glob($dir . '/*') as $file) {
+                if (is_file($file)) {
+                    @unlink($file);
+                }
+            }
         }
     }
 

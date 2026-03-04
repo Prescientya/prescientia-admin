@@ -32,7 +32,7 @@ class TeacherAttendanceController extends Controller
             ->join('teachers', 'teachers.id', '=', 'teacher_attendances.teacher_id')
             ->whereIn('teacher_attendances.calendar_id', $calendarIds)
             ->when($status, fn($q) => $q->where('teacher_attendances.status', $status))
-            ->when($search, fn($q) => $q->where('teachers.name', 'ilike', "%{$search}%"))
+            ->when($search, fn($q) => $q->where('teachers.name', 'ilike', "%{$search}%")) // PostgreSQL: 'ilike'
             ->orderByDesc('school_calendar.date')
             ->orderBy('teachers.name')
             ->select('teacher_attendances.*');
@@ -192,7 +192,7 @@ class TeacherAttendanceController extends Controller
             return response()->json([]);
         }
 
-        $teachers = Teacher::where('name', 'ilike', "%{$q}%")
+        $teachers = Teacher::where('name', 'ilike', "%{$q}%") // PostgreSQL: 'ilike'
             ->orderBy('name')
             ->limit(10)
             ->get()

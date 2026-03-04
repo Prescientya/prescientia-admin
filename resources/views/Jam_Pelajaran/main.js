@@ -173,7 +173,72 @@
             });
         });
     }
+    /* ── 9. IMPORT button ──────────────────────────────────────── */
+    function initImportBtn() {
+        $('#btnImportJam')?.addEventListener('click', () => {
+            openModal('modalImportJam');
+        });
+    }
 
+    /* ── 10. IMPORT DROPZONE ───────────────────────────────────── */
+    function initImportDropzone() {
+        const zone      = $('#jp-excelDropzone');
+        const input     = $('#jp-excelFileInput');
+        const chosen    = $('#jp-excelFileChosen');
+        const fileName  = $('#jp-excelFileName');
+        const clearBtn  = $('#jp-excelFileClear');
+
+        if (!zone || !input) return;
+
+        const showFile = file => {
+            if (fileName) fileName.textContent = file.name;
+            chosen?.classList.add('show');
+            zone.style.display = 'none';
+        };
+
+        const clearFile = () => {
+            input.value = '';
+            if (fileName) fileName.textContent = '–';
+            chosen?.classList.remove('show');
+            zone.style.display = '';
+        };
+
+        const browseBtn = zone.querySelector('.excel-dropzone__btn');
+        browseBtn?.addEventListener('click', e => { e.stopPropagation(); input.click(); });
+
+        zone.addEventListener('click', e => {
+            if (e.target !== browseBtn && !browseBtn?.contains(e.target)) input.click();
+        });
+        zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+        zone.addEventListener('drop', e => {
+            e.preventDefault();
+            zone.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                const dt = new DataTransfer();
+                dt.items.add(file);
+                input.files = dt.files;
+                showFile(file);
+            }
+        });
+
+        input.addEventListener('change', () => {
+            if (input.files[0]) showFile(input.files[0]);
+        });
+
+        clearBtn?.addEventListener('click', e => {
+            e.stopPropagation();
+            clearFile();
+        });
+
+        // Reset dropzone when modal is closed
+        $('#modalImportJam')?.addEventListener('click', e => {
+            if (e.target.closest('[data-close-modal]') || e.target === $('#modalImportJam')) {
+                clearFile();
+            }
+        });
+    }
     /* ── 8. REFRESH table HTML for a day ─────────────────── */
     async function refreshDay(day) {
         const res = await fetch(`${R.base}/${day}/table`, {
@@ -223,12 +288,15 @@
         initTabs();
         initDurasiHint();
         initTambahBtn();
+        initImportBtn();
+        initImportDropzone();
         initEditBtns();
         initDeleteBtns();
         initSaveBtn();
         initResetBtns();
         PSC.initModalClose();
         PSC.initAlerts();
+        PSC.initFormSpinner();
         PSC.initActionDropdowns('.jp-action__btn', '.jp-dropdown');
     });
 

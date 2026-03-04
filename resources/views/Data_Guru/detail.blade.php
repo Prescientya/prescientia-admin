@@ -50,6 +50,14 @@
                 <div class="detail-item__value" id="dg-detailCreated">–</div>
             </div>
             <div class="detail-item">
+                <div class="detail-item__label">Peran</div>
+                <div class="detail-item__value" id="dg-detailRole">–</div>
+            </div>
+            <div class="detail-item" id="dg-detailHomeroomWrap">
+                <div class="detail-item__label">Wali Kelas</div>
+                <div class="detail-item__value" id="dg-detailHomeroomClass">–</div>
+            </div>
+            <div class="detail-item">
                 <div class="detail-item__label">Mata Pelajaran</div>
                 <div class="detail-item__value subject-chips" id="dg-detailMapel">–</div>
             </div>

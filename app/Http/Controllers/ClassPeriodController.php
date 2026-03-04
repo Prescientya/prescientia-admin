@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\ClassPeriodTemplateExport;
 use App\Models\ClassPeriod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ClassPeriodController extends Controller
 {
@@ -72,6 +75,173 @@ class ClassPeriodController extends Controller
         return back()->with('success', 'Jam pelajaran berhasil dihapus.');
     }
 
+    /* ── DOWNLOAD TEMPLATE ──────────────────────────────── */
+
+    public function downloadTemplate()
+    {
+        return Excel::download(new ClassPeriodTemplateExport, 'template_jam_pelajaran.xlsx');
+    }
+
+    /* ── IMPORT EXCEL ────────────────────────────────────── */
+
+    public function importExcel(Request $request)
+    {
+        set_time_limit(0);
+
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv|max:5120',
+        ], [
+            'file.required' => 'Pilih file Excel terlebih dahulu.',
+            'file.mimes'    => 'Format file harus .xlsx, .xls, atau .csv.',
+            'file.max'      => 'Ukuran file maksimal 5MB.',
+        ]);
+
+        try {
+            // Parse the uploaded file with heading row support
+            $sheets = Excel::toCollection(
+                new class implements WithHeadingRow {},
+                $request->file('file')
+            );
+            $rows = $sheets->first();
+
+            $validDays   = ClassPeriod::DAYS;
+            $validTypes  = array_keys(ClassPeriod::ACTIVITY_TYPES);
+            // Map lowercase Indonesian label → type key
+            $labelToType = array_flip(array_map('strtolower', ClassPeriod::ACTIVITY_TYPES));
+
+            $grouped   = [];  // day => [ DB rows ]
+            $errors    = [];
+            $rowNumber = 2;   // spreadsheet row (row 1 = heading)
+
+            foreach ($rows as $row) {
+                $row = $row->toArray();
+
+                // Skip empty / info comment rows
+                $hari = strtolower(trim((string)($row['hari'] ?? '')));
+                if (empty($hari) || str_starts_with($hari, '[info]')) {
+                    $rowNumber++;
+                    continue;
+                }
+
+                if (!in_array($hari, $validDays)) {
+                    $errors[] = "Baris {$rowNumber}: hari \u2018{$hari}\u2019 tidak valid.";
+                    $rowNumber++;
+                    continue;
+                }
+
+                $jamKeRaw = $row['jam_ke'] ?? '';
+                // Allow empty/null jam_ke → treat as 0 (for ceremony / break / etc.)
+                if ($jamKeRaw === '' || $jamKeRaw === null) {
+                    $jamKe = 0;
+                } elseif (is_numeric($jamKeRaw) && (int)$jamKeRaw >= 0 && (int)$jamKeRaw <= 30) {
+                    $jamKe = (int)$jamKeRaw;
+                } else {
+                    $errors[] = "Baris {$rowNumber}: jam_ke \u2018{$jamKeRaw}\u2019 tidak valid (angka 0\u201330 atau kosong).";
+                    $rowNumber++;
+                    continue;
+                }
+
+                $waktuMulai   = trim((string)($row['waktu_mulai']   ?? ''));
+                $waktuSelesai = trim((string)($row['waktu_selesai'] ?? ''));
+
+                // Excel may store times as floats (fraction of day) — convert if needed
+                if (is_numeric($waktuMulai)) {
+                    $waktuMulai = $this->excelTimeToHHMM((float)$waktuMulai);
+                }
+                if (is_numeric($waktuSelesai)) {
+                    $waktuSelesai = $this->excelTimeToHHMM((float)$waktuSelesai);
+                }
+
+                // Also handle HH:MM:SS format from Maatwebsite
+                if (preg_match('/^\d{2}:\d{2}:\d{2}$/', $waktuMulai)) {
+                    $waktuMulai = substr($waktuMulai, 0, 5);
+                }
+                if (preg_match('/^\d{2}:\d{2}:\d{2}$/', $waktuSelesai)) {
+                    $waktuSelesai = substr($waktuSelesai, 0, 5);
+                }
+
+                if (!preg_match('/^\d{2}:\d{2}$/', $waktuMulai)) {
+                    $errors[] = "Baris {$rowNumber}: waktu_mulai \u2018{$waktuMulai}\u2019 tidak valid (format HH:MM).";
+                    $rowNumber++;
+                    continue;
+                }
+                if (!preg_match('/^\d{2}:\d{2}$/', $waktuSelesai)) {
+                    $errors[] = "Baris {$rowNumber}: waktu_selesai \u2018{$waktuSelesai}\u2019 tidak valid (format HH:MM).";
+                    $rowNumber++;
+                    continue;
+                }
+
+                // Resolve jenis → activity_type
+                $jenisRaw = trim((string)($row['jenis'] ?? 'lesson'));
+                $type     = in_array($jenisRaw, $validTypes)
+                    ? $jenisRaw
+                    : ($labelToType[strtolower($jenisRaw)] ?? null);
+
+                if (!$type) {
+                    $errors[] = "Baris {$rowNumber}: jenis \u2018{$jenisRaw}\u2019 tidak dikenal. Gunakan: " . implode(', ', $validTypes) . ".";
+                    $rowNumber++;
+                    continue;
+                }
+
+                // Calculate duration
+                [$sh, $sm] = explode(':', $waktuMulai);
+                [$eh, $em] = explode(':', $waktuSelesai);
+                $duration  = ((int)$eh * 60 + (int)$em) - ((int)$sh * 60 + (int)$sm);
+
+                if ($duration <= 0) {
+                    $errors[] = "Baris {$rowNumber}: waktu selesai harus setelah waktu mulai.";
+                    $rowNumber++;
+                    continue;
+                }
+
+                $grouped[$hari][] = [
+                    'day'              => $hari,
+                    'sequence'         => (int)$jamKe,
+                    'start_time'       => $waktuMulai   . ':00',
+                    'end_time'         => $waktuSelesai . ':00',
+                    'duration_minutes' => $duration,
+                    'activity_type'    => $type,
+                    'note'             => !empty($row['keterangan']) ? (string)$row['keterangan'] : null,
+                    'created_at'       => now(),
+                    'updated_at'       => now(),
+                ];
+
+                $rowNumber++;
+            }
+
+            if (empty($grouped)) {
+                $errMsg = !empty($errors)
+                    ? 'Import gagal. Temuan: ' . implode(' | ', array_slice($errors, 0, 5))
+                    : 'Tidak ada data valid dalam file. Pastikan format sesuai template.';
+                return back()->with('error', $errMsg);
+            }
+
+            // Replace rows for each affected day
+            $totalInserted = 0;
+            DB::transaction(function () use ($grouped, &$totalInserted) {
+                foreach ($grouped as $day => $dayRows) {
+                    ClassPeriod::where('day', $day)->delete();
+                    ClassPeriod::insert($dayRows);
+                    $totalInserted += count($dayRows);
+                }
+            });
+
+            $dayLabels = collect(array_keys($grouped))
+                ->map(fn($d) => ClassPeriod::DAY_LABELS[$d] ?? $d)
+                ->join(', ');
+
+            $msg = "Berhasil mengimpor {$totalInserted} slot jam untuk hari: {$dayLabels}.";
+            if (!empty($errors)) {
+                $msg .= ' (' . count($errors) . ' baris dilewati karena tidak valid)';
+            }
+
+            return redirect()->route('jam-pelajaran.index')->with('success', $msg);
+
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal membaca file: ' . $e->getMessage());
+        }
+    }
+
     /* ── RESET (re-seed satu hari) ──────────────────────── */
 
     public function reset(Request $request)
@@ -128,6 +298,18 @@ class ClassPeriodController extends Controller
             'sequence.unique'   => 'Urutan jam ini sudah ada di hari tersebut.',
             'end_time.after'    => 'Waktu selesai harus setelah waktu mulai.',
         ]);
+    }
+
+    /**
+     * Convert an Excel fractional day value (0–1) to "HH:MM" string.
+     * e.g. 0.25 -> "06:00"
+     */
+    private function excelTimeToHHMM(float $fraction): string
+    {
+        $totalMinutes = (int) round($fraction * 1440);
+        $h = intdiv($totalMinutes, 60);
+        $m = $totalMinutes % 60;
+        return str_pad($h, 2, '0', STR_PAD_LEFT) . ':' . str_pad($m, 2, '0', STR_PAD_LEFT);
     }
 
     private function calcDuration(string $start, string $end): int

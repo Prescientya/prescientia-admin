@@ -27,9 +27,9 @@ return new class extends Migration {
     {
         Schema::table('subject_classes', function (Blueprint $table) {
             $table->dropUnique('uq_subject_class');
-            $table->unsignedTinyInteger('jam_ke')->default(1)->after('class_id');
-            $table->time('time_start')->after('jam_ke');
-            $table->time('time_end')->after('time_start');
+            $table->unsignedTinyInteger('jam_ke')->default(1);
+            $table->time('time_start');
+            $table->time('time_end');
             $table->unique(['subject_id', 'class_id', 'jam_ke'], 'uq_subject_class_jam');
         });
     }

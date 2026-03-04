@@ -138,3 +138,18 @@
     border-radius: 10px; font-size: 0.8rem;
 }
 .jp-legend-title { font-weight: 600; color: var(--text-muted); margin-right: 4px; }
+
+/* ── Header actions (Import + Tambah Jam buttons) ────── */
+.jp-header-actions {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+
+/* ── Import modal info banner ────────────────────────── */
+.jp-import-info {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 11px 14px; border-radius: 9px;
+    background: rgba(var(--accent-rgb), 0.06);
+    border: 1px solid rgba(var(--accent-rgb), 0.18);
+    font-size: 0.855rem; color: var(--text-secondary); line-height: 1.5;
+}
+

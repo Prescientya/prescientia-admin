@@ -13,6 +13,7 @@ use App\Http\Controllers\SchoolCalendarController;
 use App\Http\Controllers\TeacherAttendanceController;
 use App\Http\Controllers\ClassPeriodController;
 use App\Http\Controllers\EventController;
+use App\Http\Controllers\PeriodAttendanceController;
 
 // Login
 Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
@@ -29,10 +30,12 @@ Route::middleware('auth:admin')->group(function () {
     /* ── Data Guru ───────────────────────────────────────── */
     Route::get('/guru/template', [TeacherController::class, 'downloadTemplate'])->name('guru.template');
     Route::post('/guru/import', [TeacherController::class, 'importExcel'])->name('guru.import');
+    Route::post('/guru/check-subjects', [TeacherController::class, 'checkSubjects'])->name('guru.checksubjects');
     Route::resource('/guru', TeacherController::class)->except(['create']);
     /* ── Data Siswa ──────────────────────────────────── */
     Route::get('/siswa/template', [StudentController::class, 'downloadTemplate'])->name('siswa.template');
     Route::post('/siswa/import', [StudentController::class, 'importExcel'])->name('siswa.import');
+    Route::post('/siswa/check-classes', [StudentController::class, 'checkClasses'])->name('siswa.checkclasses');
     Route::get('/siswa/check-role', [StudentController::class, 'checkRole'])->name('siswa.checkRole');
     Route::resource('/siswa', StudentController::class)->except(['create']);
 
@@ -65,6 +68,9 @@ Route::middleware('auth:admin')->group(function () {
         Route::patch('{id}/time',   [StudentAttendanceController::class, 'updateTime'])->name('updateTime');
         Route::get('export',        [StudentAttendanceController::class, 'export'])->name('export');
         Route::get('search',        [StudentAttendanceController::class, 'searchStudents'])->name('search');
+        Route::get('period',         [PeriodAttendanceController::class, 'studentPeriodIndex'])->name('period');
+        Route::post('period/store',  [PeriodAttendanceController::class, 'storeStudentPeriod'])->name('period.store');
+        Route::post('period/auto-fill', [PeriodAttendanceController::class, 'autoFillStudentPeriods'])->name('period.autofill');
     });
 
     /* ── Jadwal Mengajar ─────────────────────────────── */
@@ -90,10 +96,12 @@ Route::middleware('auth:admin')->group(function () {
 
     /* ── Jam Pelajaran ───────────────────────────────── */
     Route::prefix('jam-pelajaran')->name('jam-pelajaran.')->group(function () {
-        Route::get('/',            [ClassPeriodController::class, 'index'])->name('index');
-        Route::post('/',           [ClassPeriodController::class, 'store'])->name('store');
-        Route::post('/reset',      [ClassPeriodController::class, 'reset'])->name('reset');
-        Route::get('/{day}/table', [ClassPeriodController::class, 'dayTable'])->name('dayTable');
+        Route::get('/',              [ClassPeriodController::class, 'index'])->name('index');
+        Route::post('/',             [ClassPeriodController::class, 'store'])->name('store');
+        Route::post('/reset',        [ClassPeriodController::class, 'reset'])->name('reset');
+        Route::get('/template',      [ClassPeriodController::class, 'downloadTemplate'])->name('template');
+        Route::post('/import',       [ClassPeriodController::class, 'importExcel'])->name('import');
+        Route::get('/{day}/table',   [ClassPeriodController::class, 'dayTable'])->name('dayTable');
         Route::put('/{jamPelajaran}',    [ClassPeriodController::class, 'update'])->name('update');
         Route::delete('/{jamPelajaran}', [ClassPeriodController::class, 'destroy'])->name('destroy');
         Route::patch('/{jamPelajaran}',  [ClassPeriodController::class, 'update'])->name('patch');
@@ -107,6 +115,9 @@ Route::middleware('auth:admin')->group(function () {
         Route::delete('{id}',  [TeacherAttendanceController::class, 'destroy'])->name('destroy');
         Route::get('export',   [TeacherAttendanceController::class, 'export'])->name('export');
         Route::get('search',   [TeacherAttendanceController::class, 'searchTeachers'])->name('search');
+        Route::get('period',         [PeriodAttendanceController::class, 'teacherPeriodIndex'])->name('period');
+        Route::post('period/store',  [PeriodAttendanceController::class, 'storeTeacherPeriod'])->name('period.store');
+        Route::post('period/auto-fill', [PeriodAttendanceController::class, 'autoFillTeacherPeriods'])->name('period.autofill');
     });
 
     /* ── Event / Acara ───────────────────────────────── */

@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('school_calendar', function (Blueprint $table) {
             // Holiday / event description: "Tahun Baru Masehi", "Idul Fitri", etc.
-            $table->string('notes')->nullable()->after('status');
+            $table->string('notes')->nullable();
         });
     }
 

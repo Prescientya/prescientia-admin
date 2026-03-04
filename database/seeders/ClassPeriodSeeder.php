@@ -17,7 +17,7 @@ class ClassPeriodSeeder extends Seeder
      */
     public function run(): void
     {
-        ClassPeriod::truncate();
+        ClassPeriod::query()->delete();
         $rows = [];
         foreach (['senin', 'selasa', 'rabu', 'kamis', 'jumat'] as $day) {
             foreach ($this->rowsForDay($day) as $row) {

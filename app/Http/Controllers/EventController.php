@@ -20,6 +20,7 @@ class EventController extends Controller
         if ($request->filled('search')) {
             $s = $request->search;
             $query->where(function ($q) use ($s) {
+                // PostgreSQL: gunakan 'ilike' untuk case-insensitive
                 $q->where('title', 'ilike', "%{$s}%")
                   ->orWhere('description', 'ilike', "%{$s}%");
             });

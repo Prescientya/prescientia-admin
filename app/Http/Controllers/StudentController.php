@@ -26,6 +26,7 @@ class StudentController extends Controller
         if ($request->filled('search')) {
             $s = $request->search;
             $query->where(function ($q) use ($s) {
+                // PostgreSQL: gunakan 'ilike' untuk case-insensitive
                 $q->where('students.name', 'ilike', "%{$s}%")
                   ->orWhere('students.nis', 'ilike', "%{$s}%")
                   ->orWhereHas('user', fn ($u) => $u->where('email', 'ilike', "%{$s}%"));
@@ -39,7 +40,7 @@ class StudentController extends Controller
         $students = $query->orderBy('students.name')->paginate(10)->withQueryString();
         $classes  = ClassModel::orderBy('class')->orderBy('major')->get();
 
-        return view('Data_Siswa.index', compact('students', 'classes'));
+        return view('Data_Siswa.Index', compact('students', 'classes'));
     }
 
     /* ── STORE (manual add) ─────────────────────────── */
@@ -261,10 +262,24 @@ class StudentController extends Controller
     {
         DB::beginTransaction();
         try {
-            $name = $siswa->name;
-            $user = $siswa->user;
-            $siswa->delete();                 // hard delete student
-            optional($user)->delete();        // hard delete user account
+            $name  = $siswa->name;
+            $photo = $siswa->photo_profile;
+            $user  = $siswa->user; // load relasi sebelum dihapus
+
+            if ($user) {
+                // Hapus user → students otomatis CASCADE terhapus via FK DB
+                // (students.user_id → users ON DELETE CASCADE)
+                // termasuk child tables: student_class_roles, student_attendances, dst.
+                $user->delete();
+            } else {
+                // Edge case: student tidak punya user (data lama/rusak)
+                $siswa->delete();
+            }
+
+            // Hapus foto profil jika ada
+            if ($photo) {
+                Storage::disk('public')->delete($photo);
+            }
 
             DB::commit();
             Cache::forget('dashboard.total_siswa');
@@ -275,7 +290,34 @@ class StudentController extends Controller
             return back()->with('error', 'Gagal menghapus data siswa: ' . $e->getMessage());
         }
     }
+    /* ── CHECK CLASSES (AJAX) ──────────────────────────────────── */
 
+    public function checkClasses(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $rawClasses = $request->input('classes', []);
+        $missing    = [];
+
+        foreach ((array) $rawClasses as $item) {
+            $tingkat = (int) ($item['tingkat'] ?? 0);
+            $jurusan = strtoupper(trim($item['jurusan'] ?? ''));
+            if (!$tingkat) continue;
+
+            $exists = ClassModel::where('class', $tingkat)
+                                ->where('major', $jurusan ?: null)
+                                ->exists();
+
+            if (!$exists) {
+                $missing[] = [
+                    'tingkat' => $tingkat,
+                    'jurusan' => $jurusan,
+                    'key'     => "{$tingkat}|{$jurusan}",
+                    'label'   => "Kelas {$tingkat}" . ($jurusan ? " – {$jurusan}" : ''),
+                ];
+            }
+        }
+
+        return response()->json(['missing' => $missing]);
+    }
     /* ── DOWNLOAD TEMPLATE ──────────────────────────── */
 
     public function downloadTemplate()
@@ -287,6 +329,10 @@ class StudentController extends Controller
 
     public function importExcel(Request $request)
     {
+        // Bulk import can be slow on large files — remove PHP time limit for this request
+        set_time_limit(0);
+        ini_set('max_execution_time', '0');
+
         $request->validate([
             'file' => 'required|file|mimes:xlsx,xls,csv|max:5120',
         ], [
@@ -296,16 +342,44 @@ class StudentController extends Controller
         ]);
 
         try {
-            $import = new StudentsImport;
+            // Pre-create specific classes that user explicitly selected
+            $classesToCreate  = $request->input('classes_to_create', []);
+            $preCreatedLabels = [];
+            if (!empty($classesToCreate)) {
+                foreach ((array) $classesToCreate as $key) {
+                    $parts   = explode('|', $key, 2);
+                    $tingkat = (int) ($parts[0] ?? 0);
+                    $jurusan = strtoupper(trim($parts[1] ?? ''));
+                    if ($tingkat) {
+                        $cls = ClassModel::firstOrCreate(
+                            ['class' => $tingkat, 'major' => $jurusan ?: null]
+                        );
+                        if ($cls->wasRecentlyCreated) {
+                            $label = "{$tingkat}" . ($jurusan ? " - {$jurusan}" : '');
+                            $preCreatedLabels[$label] = $cls->id;
+                        }
+                    }
+                }
+            }
+
+            // autoCreate: true only when old checkbox used & no specific classes sent
+            $autoCreate = $request->boolean('auto_create_classes') && empty($classesToCreate);
+            $import = new StudentsImport($autoCreate);
             Excel::import($import, $request->file('file'));
-            $count  = $import->getImportedCount();
-            $failed = $import->getFailedRows();
+
+            // Hapus file sisa import (chunk reading menyimpan temp di imports/)
+            $this->cleanupImportFiles();
+
+            $count          = $import->getImportedCount();
+            $failed         = $import->getFailedRows();
+            $createdClasses = array_merge($preCreatedLabels, $import->getCreatedClasses());
 
             if (count($failed) > 0) {
                 return redirect()->route('siswa.index')
                     ->with('import_failed', $failed)
                     ->with('import_success_count', $count)
                     ->with('import_type', 'siswa')
+                    ->with('import_created_classes', $createdClasses)
                     ->with('success', $count > 0 ? "Berhasil mengimpor {$count} data siswa." : null);
             }
 
@@ -314,10 +388,32 @@ class StudentController extends Controller
                     ->with('error', 'Tidak ada data siswa baru yang berhasil diimpor. Pastikan format file sesuai template.');
             }
 
+            $msg = "Berhasil mengimpor {$count} data siswa.";
+            if (!empty($createdClasses)) {
+                $msg .= ' Kelas baru dibuat: ' . implode(', ', array_keys($createdClasses)) . '.';
+            }
+
             return redirect()->route('siswa.index')
-                ->with('success', "Berhasil mengimpor {$count} data siswa.");
+                ->with('success', $msg)
+                ->with('import_created_classes', $createdClasses);
         } catch (\Exception $e) {
+            $this->cleanupImportFiles();
             return back()->with('error', 'Gagal import: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Hapus file sisa import yang tertinggal di storage/app/private/imports.
+     */
+    private function cleanupImportFiles(): void
+    {
+        $dir = storage_path('app/private/imports');
+        if (is_dir($dir)) {
+            foreach (glob($dir . '/*') as $file) {
+                if (is_file($file)) {
+                    @unlink($file);
+                }
+            }
         }
     }
 }

@@ -1,0 +1,138 @@
+/* ============================================================
+   KEHADIRAN GURU PER JAM – period_style.css
+   Reuses same patterns as student period_style.css
+   ============================================================ */
+
+/* ── Mode Tabs ────────────────────────────────────────────── */
+.mode-tabs {
+    display: flex; gap: 0;
+    border-bottom: 2px solid var(--card-border); margin-bottom: 20px;
+}
+.mode-tab {
+    padding: 10px 24px; font-size: 0.875rem; font-weight: 600;
+    color: var(--text-muted); text-decoration: none;
+    border-bottom: 2px solid transparent; margin-bottom: -2px;
+    transition: color .15s, border-color .15s;
+    display: flex; align-items: center; gap: 8px;
+}
+.mode-tab:hover { color: var(--text-primary); }
+.mode-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── Period Grid Table ────────────────────────────────────── */
+.period-table-wrap {
+    overflow-x: auto; border-radius: 12px;
+    border: 1px solid var(--card-border); background: var(--card-bg);
+    box-shadow: var(--card-shadow);
+}
+.period-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; white-space: nowrap; }
+.period-table thead {
+    background: var(--th-bg, rgba(0,0,0,.03)); position: sticky; top: 0; z-index: 2;
+}
+[data-mode="dark"] .period-table thead { background: rgba(255,255,255,.04); }
+.period-table th {
+    padding: 10px 12px; font-weight: 700; font-size: 0.78rem;
+    color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em;
+    border-bottom: 1px solid var(--card-border); text-align: center;
+}
+.period-table th:first-child, .period-table th:nth-child(2), .period-table th:nth-child(3) {
+    text-align: left; position: sticky; background: var(--card-bg); z-index: 3;
+}
+.period-table th:first-child { left: 0; min-width: 40px; }
+.period-table th:nth-child(2) { left: 40px; min-width: 180px; }
+.period-table th:nth-child(3) { left: 220px; min-width: 90px; }
+
+.period-table td {
+    padding: 8px 10px; border-bottom: 1px solid var(--card-border);
+    text-align: center; vertical-align: middle;
+}
+.period-table td:first-child, .period-table td:nth-child(2), .period-table td:nth-child(3) {
+    text-align: left; position: sticky; background: var(--card-bg); z-index: 1;
+}
+.period-table td:first-child { left: 0; }
+.period-table td:nth-child(2) { left: 40px; }
+.period-table td:nth-child(3) { left: 220px; }
+.period-table tbody tr:hover td { background: var(--dropdown-item-hover, rgba(0,0,0,.02)); }
+.period-table tbody tr:hover td:first-child,
+.period-table tbody tr:hover td:nth-child(2),
+.period-table tbody tr:hover td:nth-child(3) {
+    background: var(--dropdown-item-hover, rgba(0,0,0,.02));
+}
+
+/* ── Status Cell ──────────────────────────────────────────── */
+.status-cell {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 4px 10px; border-radius: 20px; font-size: 0.73rem; font-weight: 600;
+    cursor: pointer; user-select: none; transition: transform .1s, box-shadow .15s;
+    min-width: 64px; text-align: center;
+}
+.status-cell:hover { transform: scale(1.05); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+.status-cell.saving { opacity: 0.5; pointer-events: none; }
+.status-cell--hadir     { background: rgba(22,163,74,.12);  color: #15803d; }
+.status-cell--sakit     { background: rgba(245,158,11,.12); color: #b45309; }
+.status-cell--izin      { background: rgba(59,130,246,.12); color: #1d4ed8; }
+.status-cell--alpa      { background: rgba(220,38,38,.12);  color: #dc2626; }
+.status-cell--terlambat { background: rgba(139,92,246,.12); color: #7c3aed; }
+.status-cell--dinas     { background: rgba(20,184,166,.12); color: #0d9488; }
+.status-cell--empty     { background: var(--card-border);   color: var(--text-muted); font-weight: 500; }
+
+[data-mode="dark"] .status-cell--hadir     { background: rgba(22,163,74,.22);  color: #4ade80; }
+[data-mode="dark"] .status-cell--sakit     { background: rgba(245,158,11,.22); color: #fcd34d; }
+[data-mode="dark"] .status-cell--izin      { background: rgba(59,130,246,.22); color: #93c5fd; }
+[data-mode="dark"] .status-cell--alpa      { background: rgba(220,38,38,.22);  color: #f87171; }
+[data-mode="dark"] .status-cell--terlambat { background: rgba(139,92,246,.22); color: #c4b5fd; }
+[data-mode="dark"] .status-cell--dinas     { background: rgba(20,184,166,.22); color: #5eead4; }
+[data-mode="dark"] .status-cell--empty     { background: rgba(255,255,255,.08); }
+
+/* ── Period Column Header ─────────────────────────────────── */
+.period-head { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.period-head__jam  { font-weight: 700; font-size: 0.8rem; color: var(--text-primary); }
+.period-head__time { font-size: 0.68rem; font-weight: 500; color: var(--text-muted); font-family: monospace; }
+
+/* ── Daily Status Badge ───────────────────────────────────── */
+.daily-badge {
+    display: inline-flex; padding: 3px 9px; border-radius: 20px;
+    font-size: 0.73rem; font-weight: 600;
+}
+.daily-badge--hadir     { background: rgba(22,163,74,.12);  color: #15803d; }
+.daily-badge--sakit     { background: rgba(245,158,11,.12); color: #b45309; }
+.daily-badge--izin      { background: rgba(59,130,246,.12); color: #1d4ed8; }
+.daily-badge--alpa      { background: rgba(220,38,38,.12);  color: #dc2626; }
+.daily-badge--terlambat { background: rgba(139,92,246,.12); color: #7c3aed; }
+.daily-badge--dinas     { background: rgba(20,184,166,.12); color: #0d9488; }
+.daily-badge--none      { color: var(--text-muted); font-weight: 400; }
+[data-mode="dark"] .daily-badge--hadir     { background: rgba(22,163,74,.22);  color: #4ade80; }
+[data-mode="dark"] .daily-badge--sakit     { background: rgba(245,158,11,.22); color: #fcd34d; }
+[data-mode="dark"] .daily-badge--izin      { background: rgba(59,130,246,.22); color: #93c5fd; }
+[data-mode="dark"] .daily-badge--alpa      { background: rgba(220,38,38,.22);  color: #f87171; }
+[data-mode="dark"] .daily-badge--terlambat { background: rgba(139,92,246,.22); color: #c4b5fd; }
+[data-mode="dark"] .daily-badge--dinas     { background: rgba(20,184,166,.22); color: #5eead4; }
+
+/* ── Info card ────────────────────────────────────────────── */
+.period-info {
+    padding: 14px 18px; border-radius: 12px;
+    background: rgba(59,130,246,.06); border: 1px solid rgba(59,130,246,.15);
+    color: var(--text-secondary); font-size: 0.84rem; line-height: 1.6;
+    display: flex; align-items: flex-start; gap: 10px;
+}
+[data-mode="dark"] .period-info { background: rgba(59,130,246,.1); border-color: rgba(59,130,246,.2); }
+
+/* ── Status picker popover ────────────────────────────────── */
+.status-picker {
+    position: fixed; background: var(--dropdown-bg);
+    border: 1px solid var(--dropdown-border); border-radius: 10px;
+    box-shadow: var(--dropdown-shadow); z-index: 9999; padding: 4px;
+    display: none; min-width: 140px;
+}
+.status-picker.open { display: flex; flex-direction: column; }
+.status-picker__item {
+    padding: 8px 12px; border-radius: 7px; font-size: 0.84rem; font-weight: 600;
+    cursor: pointer; border: none; background: transparent; text-align: left;
+    transition: background .12s; display: flex; align-items: center; gap: 8px;
+}
+.status-picker__item:hover { background: var(--dropdown-item-hover); }
+.status-picker__dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+@media (max-width: 768px) {
+    .mode-tab { padding: 8px 14px; font-size: 0.82rem; }
+    .status-cell { min-width: 52px; font-size: 0.7rem; padding: 3px 7px; }
+}

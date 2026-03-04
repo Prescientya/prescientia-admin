@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exports\TeacherTemplateExport;
 use App\Imports\TeachersImport;
+use App\Models\ClassModel;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\User;
@@ -25,6 +26,7 @@ class TeacherController extends Controller
         if ($request->filled('search')) {
             $s = $request->search;
             $query->where(function ($q) use ($s) {
+                // PostgreSQL: gunakan 'ilike' untuk case-insensitive
                 $q->where('teachers.name', 'ilike', "%{$s}%")
                   ->orWhere('teachers.nip', 'ilike', "%{$s}%")
                   ->orWhereHas('user', fn ($u) => $u->where('email', 'ilike', "%{$s}%"));
@@ -115,23 +117,26 @@ class TeacherController extends Controller
     public function show(Teacher $guru)
     {
         $guru->load(['user', 'subjects']);
+        $homeroomClass = ClassModel::where('homeroom_teacher_id', $guru->id)->first();
 
         return response()->json([
-            'id'            => $guru->id,
-            'name'          => $guru->name,
-            'nip'           => $guru->nip,
-            'email'         => optional($guru->user)->email,
-            'gender'        => $guru->gender,
-            'gender_label'  => $guru->gender === 'L' ? 'Laki-laki' : 'Perempuan',
-            'date_of_birth' => $guru->date_of_birth?->format('d-m-Y'),
-            'phone_number'  => $guru->phone_number,
-            'address'       => $guru->address,
-            'subjects'      => $guru->subjects->pluck('name')->values(),
-            'photo_url'     => $guru->photo_profile
-                                    ? Storage::url($guru->photo_profile)
-                                    : null,
-            'is_active'     => (bool) optional($guru->user)->is_active,
-            'created_at'    => $guru->created_at?->format('d-m-Y'),
+            'id'              => $guru->id,
+            'name'            => $guru->name,
+            'nip'             => $guru->nip,
+            'email'           => optional($guru->user)->email,
+            'gender'          => $guru->gender,
+            'gender_label'    => $guru->gender === 'L' ? 'Laki-laki' : 'Perempuan',
+            'date_of_birth'   => $guru->date_of_birth?->format('d-m-Y'),
+            'phone_number'    => $guru->phone_number,
+            'address'         => $guru->address,
+            'subjects'        => $guru->subjects->pluck('name')->values(),
+            'photo_url'       => $guru->photo_profile
+                                      ? Storage::url($guru->photo_profile)
+                                      : null,
+            'is_active'       => (bool) optional($guru->user)->is_active,
+            'created_at'      => $guru->created_at?->format('d-m-Y'),
+            'teacher_role'    => $homeroomClass ? 'walikelas' : 'pengajar',
+            'homeroom_class'  => $homeroomClass ? $homeroomClass->full_name : null,
         ]);
     }
 
@@ -140,9 +145,11 @@ class TeacherController extends Controller
     public function edit(Teacher $guru)
     {
         $guru->load(['user', 'subjects']);
-        $subjects    = Subject::orderBy('name')->get();
-        $assignedIds = $guru->subjects->pluck('id')->toArray();
-        return view('Data_Guru.edit', compact('guru', 'subjects', 'assignedIds'));
+        $subjects      = Subject::orderBy('name')->get();
+        $assignedIds   = $guru->subjects->pluck('id')->toArray();
+        $classes       = ClassModel::orderByRaw("class, major")->get();
+        $homeroomClass = ClassModel::where('homeroom_teacher_id', $guru->id)->first();
+        return view('Data_Guru.edit', compact('guru', 'subjects', 'assignedIds', 'classes', 'homeroomClass'));
     }
 
     /* ── UPDATE ─────────────────────────────────────── */
@@ -150,21 +157,28 @@ class TeacherController extends Controller
     public function update(Request $request, Teacher $guru)
     {
         $request->validate([
-            'name'          => 'required|string|max:100',
-            'nip'           => 'required|string|max:20|unique:teachers,nip,' . $guru->id,
-            'email'         => 'required|email|max:100|unique:users,email,' . $guru->user_id,
-            'gender'        => 'required|in:L,P',
-            'date_of_birth' => 'required|date',
-            'phone_number'  => 'nullable|string|max:20',
-            'address'       => 'nullable|string',
-            'password'      => 'nullable|string|min:8',
-            'is_active'     => 'nullable|boolean',
-            'photo_profile' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
-            'mapel_text'    => 'nullable|string|max:500',
+            'name'             => 'required|string|max:100',
+            'nip'              => 'required|string|max:20|unique:teachers,nip,' . $guru->id,
+            'email'            => 'required|email|max:100|unique:users,email,' . $guru->user_id,
+            'gender'           => 'required|in:L,P',
+            'date_of_birth'    => 'required|date',
+            'phone_number'     => 'nullable|string|max:20',
+            'address'          => 'nullable|string',
+            'password'         => 'nullable|string|min:8',
+            'is_active'        => 'nullable|boolean',
+            'photo_profile'    => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'mapel_text'       => 'nullable|string|max:500',
+            'teacher_role'     => 'required|in:pengajar,walikelas',
+            'homeroom_class_id'=> 'nullable|integer|exists:classes,id',
         ], [
-            'nip.unique'   => 'NIP sudah digunakan guru lain.',
-            'email.unique' => 'Email sudah digunakan akun lain.',
+            'nip.unique'              => 'NIP sudah digunakan guru lain.',
+            'email.unique'            => 'Email sudah digunakan akun lain.',
+            'homeroom_class_id.exists'=> 'Kelas yang dipilih tidak ditemukan.',
         ]);
+
+        if ($request->teacher_role === 'walikelas' && !$request->filled('homeroom_class_id')) {
+            return back()->withInput()->withErrors(['homeroom_class_id' => 'Pilih kelas yang di-walii.']);
+        }
 
         // Validate mapel names against subjects table BEFORE touching the DB
         $resolved = $this->resolveSubjectIds($request->mapel_text ?? '');
@@ -205,6 +219,36 @@ class TeacherController extends Controller
             // Sync subjects (empty = detach all)
             $guru->subjects()->sync($resolved['ids']);
 
+            // ── Homeroom class assignment ─────────────────────
+            // First, remove this teacher from any class they currently wali
+            ClassModel::where('homeroom_teacher_id', $guru->id)
+                      ->update(['homeroom_teacher_id' => null]);
+
+            // Sync teacher_class_roles: remove old wali_kelas role(s) for this teacher
+            DB::table('teacher_class_roles')
+                ->where('teacher_id', $guru->id)
+                ->where('role', 'wali_kelas')
+                ->delete();
+
+            if ($request->teacher_role === 'walikelas' && $request->filled('homeroom_class_id')) {
+                // If the target class already has a different homeroom teacher, clear it first
+                ClassModel::where('id', $request->homeroom_class_id)
+                          ->update(['homeroom_teacher_id' => $guru->id]);
+
+                // Also insert into teacher_class_roles so the BE login API picks up the role
+                DB::table('teacher_class_roles')->updateOrInsert(
+                    [
+                        'teacher_id' => $guru->id,
+                        'class_id'   => $request->homeroom_class_id,
+                    ],
+                    [
+                        'role'       => 'wali_kelas',
+                        'updated_at' => now(),
+                        'created_at' => now(),
+                    ]
+                );
+            }
+
             DB::commit();
             return redirect()->route('guru.index')
                 ->with('success', "Data guru {$guru->name} berhasil diperbarui.");
@@ -221,10 +265,24 @@ class TeacherController extends Controller
     {
         DB::beginTransaction();
         try {
-            $name = $guru->name;
-            $user = $guru->user;
-            $guru->delete();               // hard delete (teacher_subject cascades)
-            optional($user)->delete();     // hard delete user account
+            $name  = $guru->name;
+            $photo = $guru->photo_profile;
+            $user  = $guru->user; // load relasi sebelum dihapus
+
+            if ($user) {
+                // Hapus user → teachers otomatis CASCADE terhapus via FK DB
+                // (teachers.user_id → users ON DELETE CASCADE)
+                // termasuk child tables: teacher_schedules, teacher_attendances, dst.
+                $user->delete();
+            } else {
+                // Edge case: guru tidak punya user (data lama/rusak)
+                $guru->delete();
+            }
+
+            // Hapus foto profil jika ada
+            if ($photo) {
+                Storage::disk('public')->delete($photo);
+            }
 
             DB::commit();
             Cache::forget('dashboard.total_guru');
@@ -234,6 +292,25 @@ class TeacherController extends Controller
             DB::rollback();
             return back()->with('error', 'Gagal menghapus data guru: ' . $e->getMessage());
         }
+    }
+
+    /* ── CHECK SUBJECTS (AJAX for Excel import) ─────── */
+
+    public function checkSubjects(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $names   = $request->input('subjects', []);
+        $missing = [];
+
+        foreach ($names as $name) {
+            $name = trim((string) $name);
+            if (empty($name)) continue;
+            $exists = Subject::whereRaw('LOWER(name) = LOWER(?)', [$name])->exists();
+            if (!$exists) {
+                $missing[] = ['name' => $name, 'label' => $name];
+            }
+        }
+
+        return response()->json(['missing' => $missing]);
     }
 
     /* ── DOWNLOAD TEMPLATE ──────────────────────────── */
@@ -247,6 +324,8 @@ class TeacherController extends Controller
 
     public function importExcel(Request $request)
     {
+        set_time_limit(0);
+
         $request->validate([
             'file' => 'required|file|mimes:xlsx,xls,csv|max:5120',
         ], [
@@ -256,28 +335,64 @@ class TeacherController extends Controller
         ]);
 
         try {
+            // Pre-create subjects selected by user before running importer
+            $subjectsToCreate = array_filter(array_map('trim', (array) $request->input('subjects_to_create', [])));
+            $preCreatedNames  = [];
+            foreach ($subjectsToCreate as $name) {
+                if (empty($name)) continue;
+                $subject = Subject::firstOrCreate(['name' => $name]);
+                if ($subject->wasRecentlyCreated) {
+                    $preCreatedNames[] = $name;
+                }
+            }
+
             $import = new TeachersImport;
             Excel::import($import, $request->file('file'));
+
+            // Hapus file sisa import (chunk reading menyimpan temp di imports/)
+            $this->cleanupImportFiles();
+
             $count  = $import->getImportedCount();
             $failed = $import->getFailedRows();
+
+            $successMsg = $count > 0 ? "Berhasil mengimpor {$count} data guru." : null;
+            if (!empty($preCreatedNames)) {
+                $successMsg = ($successMsg ?? '') . ' Mapel baru dibuat: ' . implode(', ', $preCreatedNames) . '.';
+            }
 
             if (count($failed) > 0) {
                 return redirect()->route('guru.index')
                     ->with('import_failed', $failed)
                     ->with('import_success_count', $count)
                     ->with('import_type', 'guru')
-                    ->with('success', $count > 0 ? "Berhasil mengimpor {$count} data guru." : null);
+                    ->with('success', $successMsg);
             }
 
-            if ($count === 0) {
+            if ($count === 0 && empty($preCreatedNames)) {
                 return redirect()->route('guru.index')
                     ->with('error', 'Tidak ada data guru baru yang berhasil diimpor. Pastikan format file sesuai template.');
             }
 
             return redirect()->route('guru.index')
-                ->with('success', "Berhasil mengimpor {$count} data guru.");
+                ->with('success', $successMsg ?? 'Import selesai.');
         } catch (\Exception $e) {
+            $this->cleanupImportFiles();
             return back()->with('error', 'Gagal import: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Hapus file sisa import yang tertinggal di storage/app/private/imports.
+     */
+    private function cleanupImportFiles(): void
+    {
+        $dir = storage_path('app/private/imports');
+        if (is_dir($dir)) {
+            foreach (glob($dir . '/*') as $file) {
+                if (is_file($file)) {
+                    @unlink($file);
+                }
+            }
         }
     }
 

@@ -12,6 +12,13 @@
 
 @push('styles')
 <style>{!! file_get_contents(resource_path('views/Kehadiran_Siswa/style.css')) !!}</style>
+<style>
+/* ── Mode Tabs ── */
+.mode-tabs{display:flex;gap:0;border-bottom:2px solid var(--card-border);margin-bottom:20px}
+.mode-tab{padding:10px 24px;font-size:.875rem;font-weight:600;color:var(--text-muted);text-decoration:none;border-bottom:2px solid transparent;margin-bottom:-2px;transition:color .15s,border-color .15s;display:flex;align-items:center;gap:8px}
+.mode-tab:hover{color:var(--text-primary)}
+.mode-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+</style>
 @endpush
 
 @section('content')
@@ -36,6 +43,26 @@
         {{ session('error') }}
     </div>
     @endif
+
+    {{-- ── Mode Tabs ───────────────────────────────────── --}}
+    <div class="mode-tabs">
+        <a href="{{ route('attendance.student.index') }}" class="mode-tab active">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            Per Hari
+        </a>
+        <a href="{{ route('attendance.student.period') }}" class="mode-tab">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            Per Jam Pelajaran
+        </a>
+    </div>
 
     {{-- ── Page Header ─────────────────────────────────── --}}
     <div class="ka-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">

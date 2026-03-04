@@ -37,7 +37,7 @@ class StudentAttendanceController extends Controller
             ->whereIn('student_attendances.calendar_id', $calendarIds)
             ->when($classId, fn($q) => $q->where('student_attendances.class_id', $classId))
             ->when($status, fn($q) => $q->where('student_attendances.status', $status))
-            ->when($search, fn($q) => $q->where('students.name', 'ilike', "%{$search}%"))
+            ->when($search, fn($q) => $q->where('students.name', 'ilike', "%{$search}%")) // PostgreSQL: 'ilike'
             ->orderByDesc('school_calendar.date')
             ->orderBy('students.name')
             ->select('student_attendances.*');
@@ -236,7 +236,7 @@ class StudentAttendanceController extends Controller
         }
 
         $students = Student::with('schoolClass')
-            ->where('name', 'ilike', "%{$q}%")
+            ->where('name', 'ilike', "%{$q}%") // PostgreSQL: 'ilike'
             ->orderBy('name')
             ->limit(10)
             ->get()

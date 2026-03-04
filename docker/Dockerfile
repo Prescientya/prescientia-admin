@@ -9,7 +9,8 @@ RUN apt-get update && apt-get install -y libmemcached-dev zlib1g-dev \
 RUN install-php-extensions \
     gd \
     pcntl intl \
-    pdo_mysql pdo_pgsql pgsql mbstring exif pcntl bcmath opcache \
+    pdo_mysql mbstring exif pcntl bcmath opcache \
+    # pdo_pgsql pgsql \  # uncomment for PostgreSQL
     zip gmp
 
 # Install Node.js and Supervisor

@@ -6,92 +6,111 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Maatwebsite\Excel\Concerns\ToModel;
+use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\WithChunkReading;
-use Maatwebsite\Excel\Concerns\SkipsOnError;
-use Maatwebsite\Excel\Concerns\SkipsErrors;
-use Throwable;
 
-class TeachersImport implements ToModel, WithHeadingRow, WithChunkReading, SkipsOnError
+/**
+ * Bulk teacher importer  ToCollection strategy.
+ *
+ * Loads all existing NIPs, emails, and subjects in 3 queries upfront,
+ * then validates every row in PHP, bulk-inserts users + teachers,
+ * and inserts the teacher_subject pivot rows  all inside one transaction.
+ *
+ * Column mapping (heading row):
+ *   nip | nama | email | gender | tanggal_lahir | no_hp | alamat | mapel
+ *
+ * - gender       : L / P
+ * - tanggal_lahir: Y-m-d or any format recognised by Carbon
+ * - mapel        : comma-separated subject names (e.g. "Matematika,Fisika Dasar")
+ * - password     : auto-set to NIP (bcrypt rounds=10)
+ */
+class TeachersImport implements ToCollection, WithHeadingRow
 {
-    use SkipsErrors;
-
-    public function chunkSize(): int
-    {
-        return 200;
-    }
-
     private int   $imported   = 0;
     private array $failedRows = [];
 
-    /**
-     * Column mapping (heading row):
-     * nip | nama | email | gender | tanggal_lahir | no_hp | alamat | mapel
-     *
-     * - gender       : L / P
-     * - tanggal_lahir: Y-m-d atau format yang dikenali Carbon
-     * - mapel        : nama mata pelajaran, pisah koma (cth: "Matematika,Fisika Dasar")
-     * - password     : otomatis = NIP
-     */
-    public function model(array $row): ?Teacher
+    /*  MAIN  */
+
+    public function collection(Collection $rows): void
     {
-        // Skip empty rows
-        if (empty($row['nip']) || empty($row['nama'])) {
-            return null;
-        }
+        //  1. Preload lookup sets 
+        $existingNips   = DB::table('teachers')->pluck('nip')->flip()->toArray();
+        $existingEmails = DB::table('users')->pluck('email')->flip()->toArray();
 
-        $nip   = trim((string) $row['nip']);
-        $nama  = trim($row['nama']);
-        $email = trim($row['email'] ?? '');
+        // Build subject map:  lowercase(name) => id
+        $subjectMap = Subject::pluck('id', 'name')
+            ->mapWithKeys(fn($id, $name) => [strtolower(trim($name)) => $id])
+            ->toArray();
 
-        // Default email from NIP if not provided
-        if (empty($email)) {
-            $email = $nip . '@guru.prescientia.id';
-        }
+        //  2. Validate & bucket rows 
+        $toInsertUsers    = [];   // sequential, same order as teacherDataByNip
+        $teacherDataByNip = [];   // nip => [fields]
+        $subjectsByNip    = [];   // nip => [subject_id, ...]
+        $seenNips         = [];   // within this file
+        $now              = now()->toDateTimeString();
 
-        // Reject duplicates — track as failures instead of silently skipping
-        if (Teacher::where('nip', $nip)->exists()) {
-            $this->failedRows[] = [
-                'nip'    => $nip,
-                'nama'   => $nama,
-                'reason' => "NIP {$nip} sudah terdaftar di sistem.",
-            ];
-            return null;
-        }
-        if (User::where('email', $email)->exists()) {
-            $this->failedRows[] = [
-                'nip'    => $nip,
-                'nama'   => $nama,
-                'reason' => "Email {$email} sudah digunakan akun lain.",
-            ];
-            return null;
-        }
+        foreach ($rows as $row) {
+            $row = $row->toArray();
 
-        // Parse date of birth
-        $dob = now()->format('Y-m-d');
-        if (!empty($row['tanggal_lahir'])) {
-            try {
-                $dob = Carbon::parse($row['tanggal_lahir'])->format('Y-m-d');
-            } catch (\Exception) {}
-        }
+            if (empty($row['nip']) || empty($row['nama'])) {
+                continue;
+            }
 
-        // Resolve mata pelajaran → Subject IDs (only from existing subjects; do not auto-create)
-        $subjectIds   = [];
-        if (!empty($row['mapel'])) {
-            $mapelNames   = array_map('trim', explode(',', (string) $row['mapel']));
-            $notFoundMapel = [];
-            foreach ($mapelNames as $name) {
-                if (empty($name)) continue;
-                $subject = Subject::whereRaw('LOWER(name) = LOWER(?)', [$name])->first();
-                if ($subject) {
-                    $subjectIds[] = $subject->id;
-                } else {
-                    $notFoundMapel[] = $name;
+            $nip   = trim((string) $row['nip']);
+            $nama  = trim($row['nama']);
+            $email = trim($row['email'] ?? '');
+
+            if (empty($email)) {
+                $email = $nip . '@guru.prescientia.id';
+            }
+
+            // Duplicate NIP (DB or within this file)
+            if (isset($existingNips[$nip]) || isset($seenNips[$nip])) {
+                $this->failedRows[] = [
+                    'nip'    => $nip,
+                    'nama'   => $nama,
+                    'reason' => "NIP {$nip} sudah terdaftar di sistem.",
+                ];
+                continue;
+            }
+
+            // Duplicate email
+            if (isset($existingEmails[$email])) {
+                $this->failedRows[] = [
+                    'nip'    => $nip,
+                    'nama'   => $nama,
+                    'reason' => "Email {$email} sudah digunakan akun lain.",
+                ];
+                continue;
+            }
+
+            // Parse date of birth
+            $dob = now()->format('Y-m-d');
+            if (!empty($row['tanggal_lahir'])) {
+                try {
+                    $dob = Carbon::parse($row['tanggal_lahir'])->format('Y-m-d');
+                } catch (\Exception) {
                 }
             }
+
+            // Resolve mapel  subject IDs
+            $subjectIds    = [];
+            $notFoundMapel = [];
+            if (!empty($row['mapel'])) {
+                $mapelNames = array_filter(array_map('trim', explode(',', (string) $row['mapel'])));
+                foreach ($mapelNames as $mName) {
+                    $key = strtolower($mName);
+                    if (isset($subjectMap[$key])) {
+                        $subjectIds[] = $subjectMap[$key];
+                    } else {
+                        $notFoundMapel[] = $mName;
+                    }
+                }
+            }
+
             if (!empty($notFoundMapel)) {
                 $list = collect($notFoundMapel)->map(fn($n) => '"' . $n . '"')->implode(', ');
                 $this->failedRows[] = [
@@ -99,46 +118,114 @@ class TeachersImport implements ToModel, WithHeadingRow, WithChunkReading, Skips
                     'nama'   => $nama,
                     'reason' => "Mapel {$list} tidak ditemukan di sistem sekolah ini.",
                 ];
-                return null;
+                continue;
             }
-        }
 
-        DB::beginTransaction();
-        try {
-            $user = User::create([
-                'email'     => $email,
-                'password'  => Hash::make($nip), // default password = NIP
-                'role'      => 'teacher',
-                'is_active' => true,
-            ]);
+            // Mark as seen
+            $seenNips[$nip]         = true;
+            $existingEmails[$email] = true;
 
-            $teacher = Teacher::create([
-                'user_id'       => $user->id,
+            $toInsertUsers[] = [
+                'email'      => $email,
+                'password'   => Hash::make($nip, ['rounds' => 10]),
+                'role'       => 'teacher',
+                'is_active'  => true,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+
+            $teacherDataByNip[$nip] = [
                 'nip'           => $nip,
                 'name'          => $nama,
                 'gender'        => strtoupper(trim($row['gender'] ?? 'L')) === 'P' ? 'P' : 'L',
                 'date_of_birth' => $dob,
                 'phone_number'  => $row['no_hp'] ?? null,
                 'address'       => $row['alamat'] ?? null,
-            ]);
+                'email'         => $email,
+                'created_at'    => $now,
+                'updated_at'    => $now,
+            ];
 
-            if (!empty($subjectIds)) {
-                $teacher->subjects()->sync($subjectIds);
+            $subjectsByNip[$nip] = array_unique($subjectIds);
+        }
+
+        if (empty($toInsertUsers)) {
+            return;
+        }
+
+        //  3. Bulk insert inside a transaction 
+        DB::transaction(function () use ($toInsertUsers, $teacherDataByNip, $subjectsByNip, $now) {
+
+            // Insert users in chunks of 200
+            foreach (array_chunk($toInsertUsers, 200) as $chunk) {
+                DB::table('users')->insert($chunk);
             }
 
-            DB::commit();
-            $this->imported++;
-            return null;
-        } catch (\Exception $e) {
-            DB::rollback();
-            $this->failedRows[] = [
-                'nip'    => $nip,
-                'nama'   => $nama,
-                'reason' => 'Gagal disimpan: ' . $e->getMessage(),
-            ];
-            return null;
-        }
+            // Retrieve inserted user IDs by email
+            $emails        = array_column($toInsertUsers, 'email');
+            $userIdByEmail = DB::table('users')
+                ->whereIn('email', $emails)
+                ->pluck('id', 'email')
+                ->toArray();
+
+            // Build teachers rows
+            $toInsertTeachers = [];
+            foreach ($teacherDataByNip as $nip => $data) {
+                $userId = $userIdByEmail[$data['email']] ?? null;
+                if (!$userId) {
+                    continue;
+                }
+                $toInsertTeachers[] = [
+                    'user_id'       => $userId,
+                    'nip'           => $nip,
+                    'name'          => $data['name'],
+                    'gender'        => $data['gender'],
+                    'date_of_birth' => $data['date_of_birth'],
+                    'phone_number'  => $data['phone_number'],
+                    'address'       => $data['address'],
+                    'created_at'    => $data['created_at'],
+                    'updated_at'    => $data['updated_at'],
+                ];
+            }
+
+            // Insert teachers in chunks of 200
+            foreach (array_chunk($toInsertTeachers, 200) as $chunk) {
+                DB::table('teachers')->insert($chunk);
+            }
+
+            // Retrieve teacher IDs by NIP
+            $insertedNips     = array_column($toInsertTeachers, 'nip');
+            $teacherIdByNip   = DB::table('teachers')
+                ->whereIn('nip', $insertedNips)
+                ->pluck('id', 'nip')
+                ->toArray();
+
+            // Build pivot rows (teacher_subject)
+            $pivotRows = [];
+            foreach ($subjectsByNip as $nip => $subjectIds) {
+                $teacherId = $teacherIdByNip[$nip] ?? null;
+                if (!$teacherId || empty($subjectIds)) {
+                    continue;
+                }
+                foreach ($subjectIds as $subjectId) {
+                    $pivotRows[] = [
+                        'teacher_id' => $teacherId,
+                        'subject_id' => $subjectId,
+                    ];
+                }
+            }
+
+            if (!empty($pivotRows)) {
+                foreach (array_chunk($pivotRows, 500) as $chunk) {
+                    DB::table('teacher_subject')->insert($chunk);
+                }
+            }
+
+            $this->imported = count($toInsertTeachers);
+        });
     }
+
+    /*  ACCESSORS  */
 
     public function getImportedCount(): int
     {
@@ -148,10 +235,5 @@ class TeachersImport implements ToModel, WithHeadingRow, WithChunkReading, Skips
     public function getFailedRows(): array
     {
         return $this->failedRows;
-    }
-
-    public function onError(Throwable $e): void
-    {
-        // handled above
     }
 }

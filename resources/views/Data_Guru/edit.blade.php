@@ -157,6 +157,49 @@
                     </div>
                 </div>
 
+                {{-- ── Peran Guru ───────────────────────── --}}
+                <div>
+                    <div class="form-section-title">Peran Guru</div>
+                    @php
+                        $currentRole      = old('teacher_role', $homeroomClass ? 'walikelas' : 'pengajar');
+                        $currentClassId   = old('homeroom_class_id', optional($homeroomClass)->id);
+                    @endphp
+                    <div class="form-grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Role <span class="req">*</span></label>
+                            <select name="teacher_role" id="teacherRoleSelect" class="form-control" required>
+                                <option value="pengajar"  {{ $currentRole === 'pengajar'  ? 'selected' : '' }}>Pengajar</option>
+                                <option value="walikelas" {{ $currentRole === 'walikelas' ? 'selected' : '' }}>Wali Kelas</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="homeroomClassWrap"
+                             style="{{ $currentRole === 'walikelas' ? '' : 'display:none;' }}">
+                            <label class="form-label">Kelas yang Diwali <span class="req">*</span></label>
+                            <select name="homeroom_class_id" id="homeroomClassSelect" class="form-control">
+                                <option value="">-- Pilih Kelas --</option>
+                                @foreach($classes as $kelas)
+                                <option value="{{ $kelas->id }}"
+                                    {{ (string)$currentClassId === (string)$kelas->id ? 'selected' : '' }}>
+                                    {{ $kelas->full_name }}
+                                    @if($kelas->homeroom_teacher_id && $kelas->homeroom_teacher_id !== $guru->id)
+                                        (Wali: {{ $kelas->homeroomTeacher?->name ?? '–' }})
+                                    @endif
+                                </option>
+                                @endforeach
+                            </select>
+                            @error('homeroom_class_id')
+                            <p class="mapel-error">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+                    @if($homeroomClass)
+                    <p style="font-size:0.78rem;color:var(--text-muted);margin-top:6px;">
+                        Saat ini menjadi wali kelas <strong>{{ $homeroomClass->full_name }}</strong>.
+                        Mengubah ke Pengajar akan melepaskan jabatan wali kelas tersebut.
+                    </p>
+                    @endif
+                </div>
+
                 {{-- ── Akun Login ────────────────────────── --}}
                 <div>
                     <div class="form-section-title">Akun Login</div>
@@ -236,4 +279,21 @@
 @push('scripts')
 <script>window.VALID_MAPEL = @json($subjects->pluck('name'));</script>
 <script>{!! file_get_contents(resource_path('views/Data_Guru/main.js')) !!}</script>
+<script>
+(function () {
+    const roleSelect  = document.getElementById('teacherRoleSelect');
+    const classWrap   = document.getElementById('homeroomClassWrap');
+    const classSelect = document.getElementById('homeroomClassSelect');
+    if (!roleSelect || !classWrap) return;
+
+    function toggleClassWrap() {
+        const isWali = roleSelect.value === 'walikelas';
+        classWrap.style.display = isWali ? '' : 'none';
+        if (classSelect) classSelect.required = isWali;
+    }
+
+    roleSelect.addEventListener('change', toggleClassWrap);
+    toggleClassWrap(); // run on load in case of old() values
+})();
+</script>
 @endpush

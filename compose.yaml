@@ -36,6 +36,31 @@ services:
             - pgsql
             - redis
             - mailpit
+    # --- MySQL (disabled — commented out) ---
+    # mysql:
+    #     image: 'mysql:8.0'
+    #     ports:
+    #         - '${FORWARD_DB_PORT:-3306}:3306'
+    #     environment:
+    #         MYSQL_ROOT_PASSWORD: '${DB_PASSWORD:-secret}'
+    #         MYSQL_ROOT_HOST: '%'
+    #         MYSQL_DATABASE: '${DB_DATABASE}'
+    #         MYSQL_USER: '${DB_USERNAME}'
+    #         MYSQL_PASSWORD: '${DB_PASSWORD:-secret}'
+    #         MYSQL_ALLOW_EMPTY_PASSWORD: 1
+    #     volumes:
+    #         - 'sail-mysql:/var/lib/mysql'
+    #     networks:
+    #         - sail
+    #     healthcheck:
+    #         test:
+    #             - CMD
+    #             - mysqladmin
+    #             - ping
+    #             - '-p${DB_PASSWORD:-secret}'
+    #         retries: 3
+    #         timeout: 5s
+    # --- PostgreSQL (active) ---
     pgsql:
         image: 'postgres:18-alpine'
         ports:
@@ -87,6 +112,8 @@ networks:
     sail:
         driver: bridge
 volumes:
+    # sail-mysql:
+    #     driver: local
     sail-pgsql:
         driver: local
     sail-redis:

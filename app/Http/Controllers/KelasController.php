@@ -17,6 +17,7 @@ class KelasController extends Controller
         if ($request->filled('search')) {
             $s = $request->search;
             $query->where(function ($q) use ($s) {
+                // PostgreSQL: gunakan 'ilike' dan CAST(class AS TEXT) ILIKE
                 $q->where('major', 'ilike', "%{$s}%")
                   ->orWhereRaw("CAST(class AS TEXT) ILIKE ?", ["%{$s}%"]);
             });

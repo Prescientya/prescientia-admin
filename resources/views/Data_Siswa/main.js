@@ -140,18 +140,18 @@
         });
     }
 
-    /* ── 6. EXCEL DROPZONE ────────────────────────────────── */
+    /* ── 6. EXCEL DROPZONE + PREVIEW ─────────────────────── */
     function initExcelDropzone() {
-        const zone     = $('#excelDropzone');
-        const input    = $('#excelFileInput');
-        const chosen   = $('#excelFileChosen');
-        const fileName = $('#excelFileName');
-        const clearBtn = $('#excelFileClear');
+        const zone      = $('#excelDropzone');
+        const input     = $('#excelFileInput');
+        const chosen    = $('#excelFileChosen');
+        const fileName  = $('#excelFileName');
+        const clearBtn  = $('#excelFileClear');
 
         if (!zone || !input) return;
 
+        /* ── drag / click ──────────────────────────────── */
         zone.addEventListener('click', () => input.click());
-
         zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
         zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
         zone.addEventListener('drop', e => {
@@ -160,26 +160,212 @@
             const file = e.dataTransfer.files[0];
             if (file) setExcelFile(file);
         });
-
         input.addEventListener('change', () => {
             if (input.files[0]) setExcelFile(input.files[0]);
         });
 
+        /* ── helpers ───────────────────────────────────── */
+        function showSection(id)  { const el = $('#' + id); if (el) el.style.display = ''; }
+        function hideSection(id)  { const el = $('#' + id); if (el) el.style.display = 'none'; }
+
+        function setProgress(pct, label) {
+            const fill  = $('#importProgressFill');
+            const lbl   = $('#importProgressLabel');
+            if (fill) fill.style.width = pct + '%';
+            if (lbl)  lbl.textContent  = label;
+        }
+
+        function resetPreview() {
+            hideSection('importReadingSection');
+            hideSection('importMissingSection');
+            setProgress(0, 'Membaca file… 0%');
+            const master = $('#autoCreateMaster');
+            if (master) {
+                master.checked = false;
+                master.indeterminate = false;
+            }
+        }
+
         function setExcelFile(file) {
-            // Copy to real input for form submission
             const dt = new DataTransfer();
             dt.items.add(file);
             input.files = dt.files;
 
             if (fileName) fileName.textContent = file.name;
             if (chosen)   chosen.classList.add('show');
+
+            readExcelFile(file);
         }
 
+        /* ── Excel reading ──────────────────────────────── */
+        function readExcelFile(file) {
+            if (typeof XLSX === 'undefined') {
+                console.warn('SheetJS (XLSX) belum dimuat.');
+                return;
+            }
+
+            resetPreview();
+            showSection('importReadingSection');
+            setProgress(0, 'Membaca file… 0%');
+
+            const reader = new FileReader();
+
+            reader.onprogress = e => {
+                if (e.lengthComputable) {
+                    // File reading = 0-80%, parsing+checking = 80-100%
+                    const pct = Math.round((e.loaded / e.total) * 80);
+                    setProgress(pct, `Membaca file… ${pct}%`);
+                }
+            };
+
+            reader.onload = async e => {
+                setProgress(85, 'Memproses data… 85%');
+                try {
+                    const data     = new Uint8Array(e.target.result);
+                    const wb       = XLSX.read(data, { type: 'array' });
+                    const wsName   = wb.SheetNames[0];
+                    const ws       = wb.Sheets[wsName];
+                    const rows     = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+                    setProgress(90, 'Memeriksa kelas di database… 90%');
+
+                    // Extract unique (tingkat, jurusan) combinations
+                    const classMap = new Map();
+                    rows.forEach(row => {
+                        const tingkat = String(row['tingkat'] || row['Tingkat'] || '').trim();
+                        const jurusan = String(row['jurusan'] || row['Jurusan'] || '').trim().toUpperCase();
+                        if (tingkat) {
+                            const key = tingkat + '|' + jurusan;
+                            if (!classMap.has(key)) {
+                                classMap.set(key, { tingkat: parseInt(tingkat, 10), jurusan });
+                            }
+                        }
+                    });
+
+                    const missingClasses = await checkMissingClasses(Array.from(classMap.values()));
+
+                    setProgress(100, `Selesai dibaca — ${rows.length} baris terdeteksi ✓`);
+
+                    renderMissingClasses(missingClasses);
+
+                } catch (err) {
+                    setProgress(0, 'Gagal membaca file: ' + err.message);
+                    console.error('Excel parse error:', err);
+                }
+            };
+
+            reader.onerror = () => setProgress(0, 'Gagal membaca file.');
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        /* ── AJAX: check missing classes ───────────────── */
+        async function checkMissingClasses(classes) {
+            if (!classes.length) return [];
+            try {
+                const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+                const res = await fetch('/siswa/check-classes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept':        'application/json',
+                        'X-CSRF-TOKEN':  token,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({ classes }),
+                });
+                if (!res.ok) throw new Error('Server error ' + res.status);
+                const data = await res.json();
+                return data.missing || [];
+            } catch (err) {
+                console.warn('checkMissingClasses error:', err);
+                return [];
+            }
+        }
+
+        /* ── Render missing classes ─────────────────────── */
+        function renderMissingClasses(missing) {
+            const section = $('#importMissingSection');
+            const listEl  = $('#importMissingList');
+            const master  = $('#autoCreateMaster');
+            const descEl  = $('#autoCreateDesc');
+            if (!section || !listEl) return;
+
+            if (!missing.length) {
+                section.style.display = 'none';
+                if (descEl) {
+                    descEl.textContent = 'Semua kelas pada file sudah tersedia di database.';
+                }
+                return;
+            }
+
+            // Build checkboxes for each missing class
+            listEl.innerHTML = missing.map(cls => `
+                <label class="import-missing-item">
+                    <input type="checkbox" class="missing-class-cb"
+                           name="classes_to_create[]"
+                           value="${escHtml(cls.key)}"
+                           data-tingkat="${cls.tingkat}"
+                           data-jurusan="${escHtml(cls.jurusan)}"
+                           checked>
+                    <span class="import-missing-item-label">${escHtml(cls.label)}</span>
+                    <span class="import-missing-badge">Belum ada</span>
+                </label>
+            `).join('');
+
+            section.style.display = '';
+
+            if (descEl) {
+                descEl.textContent = missing.length + ' kelas belum ada. Centang kelas yang ingin dibuat, atau gunakan tombol di atas.';
+            }
+
+            // Sync master ↔ individual checkboxes
+            bindMasterCheckbox(section);
+        }
+
+        /* ── Master checkbox sync ───────────────────────── */
+        function bindMasterCheckbox(scope) {
+            const master = $('#autoCreateMaster');
+            if (!master) return;
+
+            // Remove old listener by cloning
+            const newMaster = master.cloneNode(true);
+            master.parentNode.replaceChild(newMaster, master);
+
+            // Set initial state: all individual cbs are checked by default
+            newMaster.checked = true;
+            newMaster.indeterminate = false;
+
+            newMaster.addEventListener('change', () => {
+                $$('.missing-class-cb').forEach(cb => { cb.checked = newMaster.checked; });
+            });
+
+            // Add listeners to individual checkboxes directly (no document-level listener)
+            function refreshMasterState() {
+                const cbs = Array.from($$('.missing-class-cb'));
+                if (!cbs.length) return;
+                const checked = cbs.filter(c => c.checked).length;
+                newMaster.indeterminate = (checked > 0 && checked < cbs.length);
+                newMaster.checked      = (checked === cbs.length);
+            }
+
+            $$('.missing-class-cb').forEach(cb => {
+                cb.addEventListener('change', refreshMasterState);
+            });
+        }
+
+        /* ── Clear button ───────────────────────────────── */
         clearBtn?.addEventListener('click', e => {
             e.stopPropagation();
             input.value = '';
             if (chosen) chosen.classList.remove('show');
+            resetPreview();
         });
+    }
+
+    /* ── HTML escape helper ───────────────────────────── */
+    function escHtml(str) {
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
     /* ── ROLE CHECK (edit page) ───────────────────────────── */

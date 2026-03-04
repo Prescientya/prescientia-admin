@@ -30,11 +30,24 @@
     }
 
     function initModalClose() {
-        // Close buttons with data-close-modal attribute
+        // Close buttons with data-close-modal attribute (explicit target)
         $$('[data-close-modal]').forEach(btn => {
+            if (btn.dataset._pscCloseBound) return;
+            btn.dataset._pscCloseBound = '1';
             btn.addEventListener('click', () => {
                 const target = btn.dataset.closeModal;
                 closeModal(target);
+            });
+        });
+
+        // Close buttons with modal-close class but no data-close-modal
+        // → find nearest parent .modal-overlay and close it
+        $$('.modal-close:not([data-close-modal])').forEach(btn => {
+            if (btn.dataset._pscCloseBound) return;
+            btn.dataset._pscCloseBound = '1';
+            btn.addEventListener('click', () => {
+                const overlay = btn.closest('.modal-overlay');
+                if (overlay) closeModal(overlay);
             });
         });
 
