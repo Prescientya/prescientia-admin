@@ -14,6 +14,7 @@ use App\Http\Controllers\TeacherAttendanceController;
 use App\Http\Controllers\ClassPeriodController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\PeriodAttendanceController;
+use App\Http\Controllers\AbsenceLetterController;
 
 // Login
 Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
@@ -122,5 +123,12 @@ Route::middleware('auth:admin')->group(function () {
 
     /* ── Event / Acara ───────────────────────────────── */
     Route::resource('/events', EventController::class);
+
+    /* ── Surat Izin / Sakit ───────────────────────────── */
+    Route::prefix('absence-letters')->name('absence-letters.')->group(function () {
+        Route::get('/',              [AbsenceLetterController::class, 'index'])->name('index');
+        Route::patch('{id}/approve', [AbsenceLetterController::class, 'approve'])->name('approve');
+        Route::patch('{id}/reject',  [AbsenceLetterController::class, 'reject'])->name('reject');
+    });
 
 });
