@@ -17,7 +17,7 @@ return new class extends Migration
             $table->enum('status', ['sakit', 'izin', 'alpa', 'terlambat'])->comment('Status ketidakhadiran siswa');
             $table->string('approval_status', 50)->default('pending')->comment('Status persetujuan: pending, approved, rejected');
             $table->unsignedBigInteger('approved_by')->nullable()->comment('ID guru yang menyetujui');
-            $table->timestamp('approved_at')->nullable(); // PostgreSQL: $table->timestampTz('approved_at')
+            $table->timestamp('approved_at')->nullable();
             $table->text('description')->nullable();
             $table->string('evidence_url', 255)->nullable();
             $table->timestamps();

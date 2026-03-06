@@ -16,8 +16,8 @@ return new class extends Migration
             $table->foreignId('teacher_id')->constrained('teachers')->onDelete('cascade');
             $table->foreignId('calendar_id')->constrained('school_calendar')->onDelete('cascade');
             $table->foreignId('period_id')->nullable()->constrained('class_periods')->cascadeOnDelete();
-            $table->timestamp('check_in_time')->nullable();  // PostgreSQL: $table->timestampTz('check_in_time')
-            $table->timestamp('check_out_time')->nullable(); // PostgreSQL: $table->timestampTz('check_out_time')
+            $table->timestamp('check_in_time')->nullable();
+            $table->timestamp('check_out_time')->nullable();
             $table->enum('status', ['hadir', 'sakit', 'izin', 'dinas', 'alpa', 'terlambat']);
             $table->enum('source', ['digital_wifi', 'manual', 'self_report'])->nullable();
             $table->timestamps();

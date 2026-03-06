@@ -26,10 +26,9 @@ class StudentController extends Controller
         if ($request->filled('search')) {
             $s = $request->search;
             $query->where(function ($q) use ($s) {
-                // PostgreSQL: gunakan 'ilike' untuk case-insensitive
-                $q->where('students.name', 'ilike', "%{$s}%")
-                  ->orWhere('students.nis', 'ilike', "%{$s}%")
-                  ->orWhereHas('user', fn ($u) => $u->where('email', 'ilike', "%{$s}%"));
+                $q->where('students.name', 'like', "%{$s}%")
+                  ->orWhere('students.nis', 'like', "%{$s}%")
+                  ->orWhereHas('user', fn ($u) => $u->where('email', 'like', "%{$s}%"));
             });
         }
 

@@ -52,13 +52,12 @@ class DeviceChangeRequestController extends Controller
         // Search
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
-                // PostgreSQL: gunakan 'ilike' untuk case-insensitive
-                $q->where('students.name',       'ilike', "%{$search}%")
-                  ->orWhere('teachers.name',     'ilike', "%{$search}%")
-                  ->orWhere('students.nis',      'ilike', "%{$search}%")
-                  ->orWhere('teachers.nip',      'ilike', "%{$search}%")
-                  ->orWhere('dcr.device_id_old', 'ilike', "%{$search}%")
-                  ->orWhere('dcr.device_id_new', 'ilike', "%{$search}%");
+                $q->where('students.name',       'like', "%{$search}%")
+                  ->orWhere('teachers.name',     'like', "%{$search}%")
+                  ->orWhere('students.nis',      'like', "%{$search}%")
+                  ->orWhere('teachers.nip',      'like', "%{$search}%")
+                  ->orWhere('dcr.device_id_old', 'like', "%{$search}%")
+                  ->orWhere('dcr.device_id_new', 'like', "%{$search}%");
             });
         }
 

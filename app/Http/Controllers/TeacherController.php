@@ -26,10 +26,9 @@ class TeacherController extends Controller
         if ($request->filled('search')) {
             $s = $request->search;
             $query->where(function ($q) use ($s) {
-                // PostgreSQL: gunakan 'ilike' untuk case-insensitive
-                $q->where('teachers.name', 'ilike', "%{$s}%")
-                  ->orWhere('teachers.nip', 'ilike', "%{$s}%")
-                  ->orWhereHas('user', fn ($u) => $u->where('email', 'ilike', "%{$s}%"));
+                $q->where('teachers.name', 'like', "%{$s}%")
+                  ->orWhere('teachers.nip', 'like', "%{$s}%")
+                  ->orWhereHas('user', fn ($u) => $u->where('email', 'like', "%{$s}%"));
             });
         }
 

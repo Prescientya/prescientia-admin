@@ -47,11 +47,11 @@ class AbsenceLetterController extends Controller
         // Search
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
-                $q->where('s.name', 'ilike', "%{$search}%")
-                  ->orWhere('t.name', 'ilike', "%{$search}%")
-                  ->orWhere('s.nis', 'ilike', "%{$search}%")
-                  ->orWhere('t.nip', 'ilike', "%{$search}%")
-                  ->orWhere('al.description', 'ilike', "%{$search}%");
+                $q->where('s.name', 'like', "%{$search}%")
+                  ->orWhere('t.name', 'like', "%{$search}%")
+                  ->orWhere('s.nis', 'like', "%{$search}%")
+                  ->orWhere('t.nip', 'like', "%{$search}%")
+                  ->orWhere('al.description', 'like', "%{$search}%");
             });
         }
 

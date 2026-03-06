@@ -16,10 +16,9 @@ class WifiNetworkController extends Controller
         if ($request->filled('search')) {
             $s = $request->search;
             $query->where(function ($q) use ($s) {
-                // PostgreSQL: gunakan 'ilike' untuk case-insensitive
-                $q->where('ssid',       'ilike', "%{$s}%")
-                  ->orWhere('bssid',      'ilike', "%{$s}%")
-                  ->orWhere('ip_address', 'ilike', "%{$s}%");
+                $q->where('ssid',       'like', "%{$s}%")
+                  ->orWhere('bssid',      'like', "%{$s}%")
+                  ->orWhere('ip_address', 'like', "%{$s}%");
             });
         }
 
