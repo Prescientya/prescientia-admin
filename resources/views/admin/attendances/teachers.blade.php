@@ -366,9 +366,73 @@
     color: #666;
     line-height: 1.4;
 }
+.danger-area-card {
+    border: 2px solid #dc3545;
+    border-radius: 8px;
+    margin-top: 2rem;
+}
+.danger-area-header {
+    background: #dc3545;
+    color: #fff;
+    padding: 12px 16px;
+    font-weight: 700;
+    font-size: 1rem;
+    border-radius: 6px 6px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.danger-area-body {
+    padding: 20px;
+    background: #fff8f8;
+}
 </style>
 
 @endsection
+
+<!-- Danger Area: Hapus Absensi Guru Berdasarkan Rentang Tanggal -->
+<div class="danger-area-card">
+    <div class="danger-area-header">
+        ⚠️ Danger Area!
+    </div>
+    <div class="danger-area-body">
+        <p class="mb-3 text-danger fw-semibold">Hapus Rekap Absensi Guru Berdasarkan Rentang Tanggal</p>
+        <p class="text-muted mb-3" style="font-size:0.9rem;">
+            Tindakan ini akan menghapus <strong>semua data absensi guru</strong> pada rentang tanggal yang dipilih secara permanen dan tidak dapat dibatalkan.
+        </p>
+        <form id="deleteTeacherAttendanceRangeForm" method="POST" action="{{ route('admin.attendances.teachers.delete-range') }}"
+              onsubmit="return confirmDeleteTeacherRange(event)">
+            @csrf
+            @method('DELETE')
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Dari Tanggal</label>
+                    <input type="date" name="date_from" class="form-control border-danger" required id="teacherRangeFrom">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Sampai Tanggal</label>
+                    <input type="date" name="date_to" class="form-control border-danger" required id="teacherRangeTo">
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-danger w-100">
+                        🗑️ Hapus Absensi Guru
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function confirmDeleteTeacherRange(e) {
+    const from = document.getElementById('teacherRangeFrom').value;
+    const to   = document.getElementById('teacherRangeTo').value;
+    if (!from || !to) return false;
+    return confirm(
+        'PERHATIAN!\n\nAnda akan menghapus SEMUA data absensi guru dari ' + from + ' sampai ' + to + '.\n\nTindakan ini TIDAK DAPAT DIBATALKAN.\n\nApakah Anda yakin ingin melanjutkan?'
+    );
+}
+</script>
 
 @section('scripts')
 <script>

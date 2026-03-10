@@ -427,5 +427,53 @@ class AttendanceController extends Controller
             'data' => $attendance
         ]);
     }
+
+    /**
+     * Delete all student attendance records within a date range.
+     */
+    public function deleteStudentAttendanceRange(Request $request)
+    {
+        $validated = $request->validate([
+            'date_from' => 'required|date',
+            'date_to'   => 'required|date|after_or_equal:date_from',
+        ]);
+
+        $calendarIds = SchoolCalendar::whereBetween('date', [$validated['date_from'], $validated['date_to']])
+            ->pluck('id');
+
+        $deleted = StudentAttendance::whereIn('calendar_id', $calendarIds)->delete();
+
+        \Illuminate\Support\Facades\Log::warning(
+            "[Attendance Delete] Admin deleted {$deleted} student attendance records" .
+            " from {$validated['date_from']} to {$validated['date_to']}"
+        );
+
+        return redirect()->route('admin.attendances.students')
+            ->with('success', "{$deleted} data absensi siswa berhasil dihapus untuk rentang {$validated['date_from']} s/d {$validated['date_to']}.");
+    }
+
+    /**
+     * Delete all teacher attendance records within a date range.
+     */
+    public function deleteTeacherAttendanceRange(Request $request)
+    {
+        $validated = $request->validate([
+            'date_from' => 'required|date',
+            'date_to'   => 'required|date|after_or_equal:date_from',
+        ]);
+
+        $calendarIds = SchoolCalendar::whereBetween('date', [$validated['date_from'], $validated['date_to']])
+            ->pluck('id');
+
+        $deleted = TeacherAttendance::whereIn('calendar_id', $calendarIds)->delete();
+
+        \Illuminate\Support\Facades\Log::warning(
+            "[Attendance Delete] Admin deleted {$deleted} teacher attendance records" .
+            " from {$validated['date_from']} to {$validated['date_to']}"
+        );
+
+        return redirect()->route('admin.attendances.teachers')
+            ->with('success', "{$deleted} data absensi guru berhasil dihapus untuk rentang {$validated['date_from']} s/d {$validated['date_to']}.");
+    }
 }
 

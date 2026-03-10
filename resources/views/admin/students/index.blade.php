@@ -76,8 +76,19 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">Daftar Data Siswa</h5>
-        <div class="d-flex align-items-center">
-            <button type="button" class="btn btn-secondary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#importModal">
+        <div class="d-flex align-items-center gap-2">
+            @php
+                $todayJkt = now()->timezone('Asia/Jakarta');
+                $isAfterPromotion = ($todayJkt->month > 7) || ($todayJkt->month === 7 && $todayJkt->day >= 19);
+                $graduationFlagExists = file_exists(storage_path('app/graduates_deleted_' . $todayJkt->year . '.flag'));
+                $showDeleteGraduatesBtn = $isAfterPromotion && !$graduationFlagExists;
+            @endphp
+            @if($showDeleteGraduatesBtn)
+            <button type="button" class="btn btn-danger btn-sm" onclick="openDeleteGraduatesModal()">
+                🎓 Hapus Siswa Lulus
+            </button>
+            @endif
+            <button type="button" class="btn btn-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#importModal">
                 Import Excel
             </button>
             <a href="{{ route('admin.students.create') }}" class="btn btn-primary btn-sm">
@@ -406,6 +417,58 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // close on ESC
         document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeModal(); });
+});
+</script>
+
+@php
+    $promotionYear = now()->timezone('Asia/Jakarta')->month >= 7
+        ? now()->timezone('Asia/Jakarta')->year - 1 . '/' . now()->timezone('Asia/Jakarta')->year
+        : (now()->timezone('Asia/Jakarta')->year - 2) . '/' . (now()->timezone('Asia/Jakarta')->year - 1);
+@endphp
+
+<!-- Modal Konfirmasi Hapus Siswa Lulus -->
+<div id="deleteGraduatesModal" class="simple-modal" aria-hidden="true">
+    <div class="simple-modal-backdrop"></div>
+    <div class="simple-modal-dialog">
+        <div class="simple-modal-header" style="background:#fff3cd; border-bottom:2px solid #f0ad4e;">
+            <h5 style="color:#856404;">⚠️ Konfirmasi Hapus Siswa Lulus</h5>
+            <button type="button" class="simple-modal-close" onclick="closeDeleteGraduatesModal()">&times;</button>
+        </div>
+        <div class="simple-modal-body">
+            <div class="alert alert-danger mb-3">
+                <strong>Perhatian!</strong> Tindakan ini tidak dapat dibatalkan. Semua data siswa yang sudah lulus akan dihapus permanen dari sistem.
+            </div>
+            <p>Apakah Anda yakin ingin menghapus siswa yang sudah lulus di angkatan <strong>{{ $promotionYear }}</strong>?</p>
+            <p class="text-muted mb-0" style="font-size:0.9rem;">Siswa yang dihapus adalah siswa yang sudah tidak memiliki kelas (telah dinaikkan dari kelas 12 oleh sistem).</p>
+        </div>
+        <div class="simple-modal-footer" style="border-top:1px solid #eee;">
+            <button type="button" class="btn btn-secondary" onclick="closeDeleteGraduatesModal()">Batal</button>
+            <form method="POST" action="{{ route('admin.students.delete-graduates') }}" style="display:inline;">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="btn btn-danger">Ya, Hapus Siswa Lulus</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openDeleteGraduatesModal() {
+    const modal = document.getElementById('deleteGraduatesModal');
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+}
+function closeDeleteGraduatesModal() {
+    const modal = document.getElementById('deleteGraduatesModal');
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+}
+document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeDeleteGraduatesModal();
+    });
 });
 </script>
 @endsection

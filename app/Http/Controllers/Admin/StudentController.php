@@ -192,7 +192,7 @@ class StudentController extends Controller
                 $service->assignDefaultRole($student);
             } catch (\Throwable $e) {
                 // Log warning but don't fail the transaction
-                \Log::warning('Failed to assign default role to new student', ['student_id' => $student->id, 'error' => $e->getMessage()]);
+                Log::warning('Failed to assign default role to new student', ['student_id' => $student->id, 'error' => $e->getMessage()]);
             }
         });
 
@@ -344,6 +344,52 @@ class StudentController extends Controller
     }
 
     /**
+     * Delete all graduated students (class_id = null).
+     * Only allowed on July 19 each year, matching the PROMOTION_DAY constant.
+     */
+    public function destroyGraduates()
+    {
+        $today = now()->timezone('Asia/Jakarta');
+
+        // Only allowed from July 19 onwards
+        $isAfterPromotionDate = ($today->month > 7) || ($today->month === 7 && $today->day >= 19);
+        if (!$isAfterPromotionDate) {
+            return redirect()->route('admin.students.index')
+                ->with('error', 'Penghapusan siswa lulus hanya dapat dilakukan mulai tanggal 19 Juli.');
+        }
+
+        $graduates = Student::whereNull('class_id')->get();
+
+        if ($graduates->isEmpty()) {
+            return redirect()->route('admin.students.index')
+                ->with('info', 'Tidak ada siswa lulus yang perlu dihapus.');
+        }
+
+        $count = $graduates->count();
+
+        DB::transaction(function () use ($graduates) {
+            foreach ($graduates as $student) {
+                $user = $student->user;
+                $student->forceDelete();
+                if ($user) {
+                    $user->forceDelete();
+                }
+            }
+        });
+
+        // Write flag so the button disappears until next year
+        file_put_contents(
+            storage_path('app/graduates_deleted_' . $today->year . '.flag'),
+            $today->toDateTimeString()
+        );
+
+        Log::info("[Student Graduation] {$count} graduated students deleted by admin on " . $today->toDateString());
+
+        return redirect()->route('admin.students.index')
+            ->with('success', "{$count} data siswa lulus berhasil dihapus dari sistem.");
+    }
+
+    /**
      * Show form for bulk import via Excel.
      */
     public function importForm()
@@ -388,7 +434,7 @@ class StudentController extends Controller
                 }
                 
                 $stored = $file->store('imports');
-                \Log::info('File stored for import', ['path' => $stored]);
+                Log::info('File stored for import', ['path' => $stored]);
                 
                 // Check if errors are only missing classes (no validation errors)
                 if (empty($scanResult['validationErrors']) && !empty($scanResult['missingClasses'])) {
@@ -429,7 +475,7 @@ class StudentController extends Controller
             return redirect()->route('admin.students.index')
                 ->with('success', "✅ Import berhasil: {$success} siswa ditambahkan");
         } catch (\Throwable $e) {
-            \Log::error('Import students failed', ['exception' => $e]);
+            Log::error('Import students failed', ['exception' => $e]);
             return redirect()->back()->with('error', 'Gagal memproses file Excel: ' . $e->getMessage());
         }
     }
@@ -462,7 +508,7 @@ class StudentController extends Controller
             $localDiskRoot = storage_path('app/private');
             $fullFilePath = $localDiskRoot . DIRECTORY_SEPARATOR . $filePath;
             
-            \Log::info('Attempting to load import file', [
+            Log::info('Attempting to load import file', [
                 'filePath' => $filePath,
                 'fullPath' => $fullFilePath,
                 'exists' => file_exists($fullFilePath),
@@ -474,7 +520,7 @@ class StudentController extends Controller
                 // Fallback: try alternate path without the local disk root prefix
                 $alternatePath = storage_path('app') . DIRECTORY_SEPARATOR . $filePath;
                 if (!file_exists($alternatePath)) {
-                    \Log::error('File not found in either location', [
+                    Log::error('File not found in either location', [
                         'attempted_path' => $fullFilePath,
                         'alternate_path' => $alternatePath,
                         'imports_folder_contents' => array_map(
@@ -499,7 +545,7 @@ class StudentController extends Controller
                 throw new \Exception('Gagal menyimpan file ke temp directory');
             }
             
-            \Log::info('File loaded and temp file created', ['tempPath' => $tempPath]);
+            Log::info('File loaded and temp file created', ['tempPath' => $tempPath]);
             
             try {
                 $spreadsheet = IOFactory::load($tempPath);
@@ -514,7 +560,7 @@ class StudentController extends Controller
                 $studentsCreated = $importer->getSuccessCount();
                 $studentsFailed = count($importer->getFailures());
                 
-                \Log::info('Import completed successfully', [
+                Log::info('Import completed successfully', [
                     'classesCreated' => $classesCreated,
                     'studentsCreated' => $studentsCreated,
                     'studentsFailed' => $studentsFailed,
@@ -523,7 +569,7 @@ class StudentController extends Controller
                 // Clean up temp file
                 if ($tempPath && file_exists($tempPath)) {
                     unlink($tempPath);
-                    \Log::debug('Temp file cleaned up', ['tempPath' => $tempPath]);
+                    Log::debug('Temp file cleaned up', ['tempPath' => $tempPath]);
                 }
             }
             
@@ -531,10 +577,10 @@ class StudentController extends Controller
             try {
                 if (file_exists($fullFilePath)) {
                     unlink($fullFilePath);
-                    \Log::debug('Original import file deleted', ['path' => $fullFilePath]);
+                    Log::debug('Original import file deleted', ['path' => $fullFilePath]);
                 }
             } catch (\Throwable $e) {
-                \Log::warning('Failed to delete original import file', ['path' => $fullFilePath, 'error' => $e->getMessage()]);
+                Log::warning('Failed to delete original import file', ['path' => $fullFilePath, 'error' => $e->getMessage()]);
             }
 
             // Build message
@@ -546,7 +592,7 @@ class StudentController extends Controller
             return redirect()->route('admin.students.index')
                 ->with('success', $message);
         } catch (\Throwable $e) {
-            \Log::error('Create missing classes and import failed', ['exception' => $e]);
+            Log::error('Create missing classes and import failed', ['exception' => $e]);
             return redirect()->route('admin.students.index')
                 ->with('error', 'Gagal membuat kelas dan mengimport: ' . $e->getMessage());
         }
@@ -706,12 +752,12 @@ class StudentController extends Controller
                         $service = new StudentRoleService();
                         $service->assignDefaultRole($student);
                     } catch (\Throwable $e) {
-                        \Log::warning('Failed to assign default role to imported student', ['student_id' => $student->id, 'nis' => $data['nis'], 'error' => $e->getMessage()]);
+                        Log::warning('Failed to assign default role to imported student', ['student_id' => $student->id, 'nis' => $data['nis'], 'error' => $e->getMessage()]);
                     }
                 });
                 $success++;
             } catch (\Throwable $e) {
-                \Log::error('Import student row failed', ['row' => $rowNumber, 'data' => $data, 'exception' => $e]);
+                Log::error('Import student row failed', ['row' => $rowNumber, 'data' => $data, 'exception' => $e]);
                 $failures[] = ['row' => $rowNumber, 'data' => $data, 'errors' => ['Terjadi kesalahan saat menyimpan data pada baris ini.']];
             }
         }
@@ -750,12 +796,12 @@ class StudentController extends Controller
             $worksheet = $spreadsheet->getActiveSheet();
             [$success, $failures] = $this->processImportSpreadsheet($worksheet);
         } catch (\Throwable $e) {
-            \Log::error('Import process failed', ['exception' => $e]);
+            Log::error('Import process failed', ['exception' => $e]);
             return redirect()->back()->with('error', 'Gagal memproses file setelah membuat kelas.');
         }
 
         // cleanup
-        try { \Storage::delete($path); } catch (\Throwable $e) { /* ignore */ }
+        try { Storage::delete($path); } catch (\Throwable $e) { /* ignore */ }
 
         return view('admin.students.import_result', ['successCount' => $success, 'failures' => $failures]);
     }

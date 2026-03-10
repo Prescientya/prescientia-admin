@@ -42,6 +42,7 @@ Route::prefix('admin')->middleware('admin')->name('admin.')->group(function () {
     Route::post('students/import/create-missing-and-import', [StudentController::class, 'createMissingAndImport'])->name('students.import.create-missing-and-import');
     Route::post('students/import/confirm-dependencies', [StudentController::class, 'confirmAndCreateDependencies'])->name('students.import.confirm-dependencies');
     Route::post('students/import/process', [StudentController::class, 'importProcess'])->name('students.import.process');
+    Route::delete('students/delete-graduates', [StudentController::class, 'destroyGraduates'])->name('students.delete-graduates');
     Route::resource('students', StudentController::class);
     
     // Teachers
@@ -84,10 +85,12 @@ Route::prefix('admin')->middleware('admin')->name('admin.')->group(function () {
     Route::get('attendances/students/export', [AttendanceController::class, 'exportStudents'])->name('attendances.students.export');
     Route::get('attendances/students/search-unattended', [AttendanceController::class, 'searchUnattendedStudents'])->name('attendances.students.search-unattended');
     Route::post('attendances/students/store', [AttendanceController::class, 'storeStudentAttendance'])->name('attendances.students.store');
+    Route::delete('attendances/students/delete-range', [AttendanceController::class, 'deleteStudentAttendanceRange'])->name('attendances.students.delete-range');
     Route::get('attendances/teachers', [AttendanceController::class, 'teachers'])->name('attendances.teachers');
     Route::get('attendances/teachers/export', [AttendanceController::class, 'exportTeachers'])->name('attendances.teachers.export');
     Route::get('attendances/teachers/search-unattended', [AttendanceController::class, 'searchUnattendedTeachers'])->name('attendances.teachers.search-unattended');
     Route::post('attendances/teachers/store', [AttendanceController::class, 'storeTeacherAttendance'])->name('attendances.teachers.store');
+    Route::delete('attendances/teachers/delete-range', [AttendanceController::class, 'deleteTeacherAttendanceRange'])->name('attendances.teachers.delete-range');
     Route::post('attendances/record', [AttendanceController::class, 'record'])->name('attendances.record');
     Route::get('attendances/{role}/{id}', [AttendanceController::class, 'show'])->name('attendances.show');
     Route::put('attendances/{role}/{id}', [AttendanceController::class, 'update'])->name('attendances.update');

@@ -18,10 +18,18 @@ class Kernel extends ConsoleKernel
             ->dailyAt('00:00')
             ->timezone('Asia/Jakarta');
         
-        // Mark students and teachers as alpa if they have no attendance record for yesterday
-        // Run at 00:05 AM WIB (after midnight) so calendar entry is created first
+        // Mark students and teachers as alpa if they have no attendance record for yesterday.
+        // Runs every hour so missed executions (e.g. server downtime) are caught automatically.
+        // A flag file in storage/app/ prevents duplicate processing for the same date.
         $schedule->command('attendance:mark-absent')
-            ->dailyAt('00:05')
+            ->hourly()
+            ->timezone('Asia/Jakarta');
+
+        // Promote all students to the next class level every July 19 (configurable in the command).
+        // Class 10 → 11, Class 11 → 12, Class 12 → graduated (class_id set to null).
+        // A flag file in storage/app/ prevents duplicate processing for the same year.
+        $schedule->command('students:promote-class')
+            ->dailyAt('00:10')
             ->timezone('Asia/Jakarta');
     }
 

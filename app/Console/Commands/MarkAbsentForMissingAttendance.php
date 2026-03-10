@@ -18,14 +18,45 @@ class MarkAbsentForMissingAttendance extends Command
      *
      * @var string
      */
-    protected $signature = 'attendance:mark-absent {--date= : (optional) simulate today date in YYYY-MM-DD format}';
+    protected $signature = 'attendance:mark-absent
+                            {--date= : (optional) simulate today date in YYYY-MM-DD format}
+                            {--force : Bypass the flag check and force re-processing}';
 
     /**
      * The description of the console command.
      *
      * @var string
      */
-    protected $description = 'Automatically mark students and teachers as alpa (absent) if they have no attendance record for yesterday. Use --date=YYYY-MM-DD to simulate today.';
+    protected $description = 'Automatically mark students and teachers as alpa (absent) if they have no attendance record for yesterday. Runs hourly and uses a flag file to prevent duplicate processing.';
+
+    /**
+     * Get the path for a date\'s flag file.
+     */
+    private function getFlagPath(string $date): string
+    {
+        return storage_path("app/attendance_auto_alpa_{$date}.flag");
+    }
+
+    /**
+     * Write a flag file indicating the given date has been processed.
+     */
+    private function writeFlag(string $date): void
+    {
+        file_put_contents($this->getFlagPath($date), now()->toDateTimeString());
+    }
+
+    /**
+     * Delete flag files older than 7 days.
+     */
+    private function cleanupOldFlags(): void
+    {
+        $pattern = storage_path('app/attendance_auto_alpa_*.flag');
+        foreach (glob($pattern) as $file) {
+            if (filemtime($file) < strtotime('-7 days')) {
+                @unlink($file);
+            }
+        }
+    }
 
     /**
      * Execute the console command.
@@ -42,7 +73,17 @@ class MarkAbsentForMissingAttendance extends Command
         } else {
             $yesterday = now()->subDay()->toDateString();
         }
-        
+
+        // Check flag file — skip if already processed for this date (unless --force)
+        $flagPath = $this->getFlagPath($yesterday);
+        if (!$this->option('force') && file_exists($flagPath)) {
+            $processedAt = trim(file_get_contents($flagPath));
+            $message = "Attendance auto-alpa for {$yesterday} already processed at {$processedAt}. Skipping.";
+            $this->info($message);
+            Log::info('[Attendance Automation] ' . $message);
+            return 0;
+        }
+
         // Check if yesterday was a school day (aktif)
         $calendar = SchoolCalendar::where('date', $yesterday)->first();
         
@@ -50,6 +91,8 @@ class MarkAbsentForMissingAttendance extends Command
             $message = "Yesterday ({$yesterday}) was not a school day. No action taken.";
             $this->info($message);
             Log::info('[Attendance Automation] ' . $message);
+            // Still write the flag so we don't check again today for a holiday
+            $this->writeFlag($yesterday);
             return 0;
         }
 
@@ -58,6 +101,12 @@ class MarkAbsentForMissingAttendance extends Command
         
         // Mark teachers as alpa
         $teacherCount = $this->markTeachersAbsent($yesterday, $calendar->id);
+
+        // Write flag so this date won't be processed again
+        $this->writeFlag($yesterday);
+
+        // Cleanup flag files older than 7 days
+        $this->cleanupOldFlags();
 
         $summary = "Attendance records updated for {$yesterday}: {$studentCount} students, {$teacherCount} teachers marked as alpa";
         $this->info($summary);
