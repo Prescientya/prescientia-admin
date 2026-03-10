@@ -4,11 +4,8 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-<<<<<<< HEAD
-    "content-hash": "87ab0c09067aeda5993da74eedcaf4c9",
-=======
+
     "content-hash": "253741f22f370746c2f394129ba63441",
->>>>>>> mysql_database
     "packages": [
         {
             "name": "brick/math",

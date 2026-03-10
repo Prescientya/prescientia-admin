@@ -21,115 +21,7 @@ Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'Login'])->name('login.post')->middleware('throttle:5,1');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
-<<<<<<< HEAD
-// Admin Routes
-Route::prefix('admin')->middleware('admin')->name('admin.')->group(function () {
-    // Dashboard
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/dashboard/classes/{grade}', [DashboardController::class, 'getClassesByGrade'])->name('dashboard.classes');
-    Route::get('/dashboard/teachers', [DashboardController::class, 'getTeacherStats'])->name('dashboard.teachers');
-    Route::get('/dashboard/class/{classId}/students', [DashboardController::class, 'getClassStudents'])->name('dashboard.class.students');
-    
-    // Students
-    // Bulk import template and upload - register before resource to avoid route parameter collision
-    Route::get('students/import', [StudentController::class, 'importForm'])->name('students.import.form');
-    Route::get('students/download-template', [StudentController::class, 'downloadTemplate'])->name('students.download-template');
-    Route::post('students/import', [StudentController::class, 'import'])->name('students.import');
-    Route::post('students/import/create-missing-and-import', [StudentController::class, 'createMissingAndImport'])->name('students.import.create-missing-and-import');
-    Route::post('students/import/confirm-dependencies', [StudentController::class, 'confirmAndCreateDependencies'])->name('students.import.confirm-dependencies');
-    Route::post('students/import/process', [StudentController::class, 'importProcess'])->name('students.import.process');
-    Route::delete('students/delete-graduates', [StudentController::class, 'destroyGraduates'])->name('students.delete-graduates');
-    Route::resource('students', StudentController::class);
-    
-    // Teachers
-    // Bulk import template and upload - register before resource to avoid route parameter collision
-    Route::get('teachers/import', [\App\Http\Controllers\Admin\TeacherController::class, 'importForm'])->name('teachers.import.form');
-    Route::get('teachers/download-template', [\App\Http\Controllers\Admin\TeacherController::class, 'downloadTemplate'])->name('teachers.download-template');
-    Route::post('teachers/import', [\App\Http\Controllers\Admin\TeacherController::class, 'import'])->name('teachers.import');
-    Route::post('teachers/import/confirm-dependencies', [\App\Http\Controllers\Admin\TeacherController::class, 'confirmAndCreateDependencies'])->name('teachers.import.confirm-dependencies');
-    Route::resource('teachers', TeacherController::class);
-    
-    // Classes
-    Route::resource('classes', ClassController::class);
-    
-    // Subjects (Mata Pelajaran)
-    Route::resource('subjects', \App\Http\Controllers\Admin\SubjectsController::class);
-    
-    // Teached Classes (Guru Mengajar)
-    Route::get('teached-classes', [TeachedClassController::class, 'index'])->name('teached-classes.index');
-    Route::get('teached-classes/download-assignment-template', [TeachedClassController::class, 'downloadAssignmentTemplate'])->name('teached-classes.download-assignment-template');
-    Route::post('teached-classes/import-assignments', [TeachedClassController::class, 'importAssignments'])->name('teached-classes.import-assignments');
-    Route::get('teached-classes/suggestions', [TeachedClassController::class, 'suggestions'])->name('teached-classes.suggestions');
-    Route::get('teached-classes/{class}/subjects', [TeachedClassController::class, 'getTeacherSubjects'])->name('teached-classes.get-subjects');
-    Route::get('teached-classes/{class}/edit', [TeachedClassController::class, 'edit'])->name('teached-classes.edit');
-    
-    // NEW: Subject-first assignment routes
-    Route::post('teached-classes/{class}/subjects/{subject}/assign', [TeachedClassController::class, 'assignTeacherToSubject'])->name('teached-classes.assign-subject');
-    Route::put('teached-classes/{teachedClass}/update-teacher', [TeachedClassController::class, 'updateTeacherForSubject'])->name('teached-classes.update-teacher');
-    Route::delete('teached-classes/{teachedClass}/remove', [TeachedClassController::class, 'removeTeacherFromSubject'])->name('teached-classes.remove-subject');
-    
-    // DEPRECATED: Old multi-subject assignment routes (kept for backwards compatibility)
-    Route::post('teached-classes/{class}', [TeachedClassController::class, 'store'])->name('teached-classes.store');
-    Route::put('teached-classes/{teachedClass}', [TeachedClassController::class, 'update'])->name('teached-classes.update');
-    Route::delete('teached-classes/{teachedClass}', [TeachedClassController::class, 'destroy'])->name('teached-classes.destroy');
-    
-    // WiFi Networks
-    Route::resource('wifi', WifiController::class)->except(['show']);
-    
-    // Attendances (separate pages for students and teachers)
-    Route::get('attendances/students', [AttendanceController::class, 'students'])->name('attendances.students');
-    Route::get('attendances/students/export', [AttendanceController::class, 'exportStudents'])->name('attendances.students.export');
-    Route::get('attendances/students/search-unattended', [AttendanceController::class, 'searchUnattendedStudents'])->name('attendances.students.search-unattended');
-    Route::post('attendances/students/store', [AttendanceController::class, 'storeStudentAttendance'])->name('attendances.students.store');
-    Route::delete('attendances/students/delete-range', [AttendanceController::class, 'deleteStudentAttendanceRange'])->name('attendances.students.delete-range');
-    Route::get('attendances/teachers', [AttendanceController::class, 'teachers'])->name('attendances.teachers');
-    Route::get('attendances/teachers/export', [AttendanceController::class, 'exportTeachers'])->name('attendances.teachers.export');
-    Route::get('attendances/teachers/search-unattended', [AttendanceController::class, 'searchUnattendedTeachers'])->name('attendances.teachers.search-unattended');
-    Route::post('attendances/teachers/store', [AttendanceController::class, 'storeTeacherAttendance'])->name('attendances.teachers.store');
-    Route::delete('attendances/teachers/delete-range', [AttendanceController::class, 'deleteTeacherAttendanceRange'])->name('attendances.teachers.delete-range');
-    Route::post('attendances/record', [AttendanceController::class, 'record'])->name('attendances.record');
-    Route::get('attendances/{role}/{id}', [AttendanceController::class, 'show'])->name('attendances.show');
-    Route::put('attendances/{role}/{id}', [AttendanceController::class, 'update'])->name('attendances.update');
-    
-    // Class Periods (Jam Pelajaran) - CRUD Management
-    Route::resource('class-periods', \App\Http\Controllers\Admin\AdminClassPeriodController::class);
-    
-    // Class Periods - Import & Export Routes
-    Route::get('class-periods-download-template', [ClassPeriodController::class, 'downloadTemplate'])->name('class-periods.download-template');
-    Route::post('class-periods-import', [ClassPeriodController::class, 'import'])->name('class-periods.import');
-    Route::post('class-periods-seed-data', [ClassPeriodController::class, 'seedData'])->name('class-periods.seed-data');
-    Route::patch('class-periods-update-note', [ClassPeriodController::class, 'updateNote'])->name('class-periods.update-note');
-    Route::delete('class-periods-delete-all', [ClassPeriodController::class, 'deleteAll'])->name('class-periods.delete-all');
-    Route::get('class-periods-check-status', [ClassPeriodController::class, 'checkStatus'])->name('class-periods.check-status');
-    
-    // Teacher Schedules (Bulk Assignment & Import)
-    Route::get('teacher-schedules', [\App\Http\Controllers\Admin\AdminTeacherScheduleController::class, 'index'])->name('teacher-schedules.index');
-    Route::get('teacher-schedules/periods', [\App\Http\Controllers\Admin\AdminTeacherScheduleController::class, 'getPeriodsByDay'])->name('teacher-schedules.periods');
-    Route::post('teacher-schedules/bulk', [\App\Http\Controllers\Admin\AdminTeacherScheduleController::class, 'storeBulk'])->name('teacher-schedules.bulk');
-    Route::post('teacher-schedules/import', [\App\Http\Controllers\Admin\AdminTeacherScheduleController::class, 'importExcel'])->name('teacher-schedules.import');
-    Route::get('teacher-schedules/download-template', [\App\Http\Controllers\Admin\AdminTeacherScheduleController::class, 'downloadTemplate'])->name('teacher-schedules.download-template');
-    Route::delete('teacher-schedules/{schedule}', [\App\Http\Controllers\Admin\AdminTeacherScheduleController::class, 'destroy'])->name('teacher-schedules.destroy');
-    
-    // Attendance Recap Per Day
-    Route::get('attendance/recap', [\App\Http\Controllers\Admin\AdminTeacherAttendanceRecapController::class, 'index'])->name('attendance.recap');
-    
-    // Calendar
-    Route::get('calendar', [CalendarController::class, 'index'])->name('calendar.index');
-    Route::post('calendar', [CalendarController::class, 'store'])->name('calendar.store');
-    Route::get('calendar/check-exists', [CalendarController::class, 'checkCalendarExists'])->name('calendar.check-exists');
-    Route::post('calendar/seed', [CalendarController::class, 'seed'])->name('calendar.seed');
-    Route::get('calendar/get-date-status', [CalendarController::class, 'getDateStatus'])->name('calendar.get-date-status');
-    Route::post('calendar/{id}/toggle-status', [CalendarController::class, 'toggleDateStatus'])->name('calendar.toggle-status');
-    Route::put('calendar/{id}', [CalendarController::class, 'update'])->name('calendar.update');
-    
-    // Login History
-    Route::get('login-history', [LoginHistoryController::class, 'index'])->name('login-history.index');
-    
-    // Profile
-    Route::get('profile', [ProfileController::class, 'index'])->name('profile.index');
-    Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::put('profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
-=======
+
 // Protected routes
 Route::middleware('auth:admin')->group(function () {
 
@@ -239,6 +131,5 @@ Route::middleware('auth:admin')->group(function () {
         Route::patch('{id}/approve', [AbsenceLetterController::class, 'approve'])->name('approve');
         Route::patch('{id}/reject',  [AbsenceLetterController::class, 'reject'])->name('reject');
     });
->>>>>>> mysql_database
 
 });
