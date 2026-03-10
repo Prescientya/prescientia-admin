@@ -2,97 +2,75 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Facades\DB;
 
-/**
- * Model untuk tabel mata pelajaran (subjects).
- * Mengelola data mata pelajaran yang tersedia di sekolah.
- */
 class Subject extends Model
 {
-    use HasFactory;
-
-    /**
-     * Kolom-kolom yang bisa diisi secara mass assignment.
-     */
     protected $fillable = [
-        'name',        // Nama mata pelajaran
-        'major',       // Jurusan yang memiliki mata pelajaran ini
-        'kelas',       // Kelas untuk mata pelajaran ini (10, 11, 12, dll) - nullable
-        'description', // Deskripsi mata pelajaran
-        'is_active',   // Status aktif/tidak
+        'name',
+        'description',
+        'is_active',
     ];
 
-    /**
-     * Casting tipe data untuk kolom-kolom tertentu.
-     */
     protected $casts = [
-        'is_active' => 'boolean', // Cast ke boolean
+        'is_active' => 'boolean',
     ];
 
     /**
-     * Relasi many-to-many dengan guru (teachers).
-     * 1 mata pelajaran bisa diajar oleh banyak guru.
-     * 
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     * External attribute — set by SubjectController::index() via a single
+     * aggregate query instead of N+1 per-model accessor.
      */
-    public function teachers()
+    public $jumlah_kelas = 0;
+
+    public function teachers(): BelongsToMany
     {
-        return $this->belongsToMany(Teacher::class, 'teacher_subject')
-            ->withTimestamps()
-            ->orderBy('name');
+        return $this->belongsToMany(Teacher::class, 'teacher_subject');
     }
 
-    /**
-     * Relasi many-to-many dengan teached_classes.
-     * 1 mata pelajaran bisa diajar di banyak kelas.
-     * 
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
-     */
-    public function teachedClasses()
+    public function subjectClasses()
     {
-        return $this->belongsToMany(TeachedClass::class, 'subject_teached_class')
-            ->withTimestamps();
+        return $this->hasMany(SubjectClass::class);
     }
 
-    /**
-     * Scope untuk filter mata pelajaran berdasarkan jurusan.
-     * Contoh: Subject::forMajor('IPA')->get()
-     * 
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string $major Jurusan (IPA, IPS, RPL, dll)
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function scopeForMajor($query, $major)
+    public function classes(): BelongsToMany
     {
-        return $query->where(function($q) use ($major) {
-            $q->where('major', $major)
-              ->orWhereNull('major') // Termasuk mata pelajaran umum
-              ->orWhere('major', 'Umum');
-        });
+        return $this->belongsToMany(ClassModel::class, 'subject_classes', 'subject_id', 'class_id')
+                    ->withTimestamps();
     }
 
-    /**
-     * Scope untuk filter hanya mata pelajaran yang aktif.
-     * Contoh: Subject::active()->get()
-     * 
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function scopeActive($query)
-    {
-        return $query->where('is_active', true);
-    }
+    /* ── Bulk class-count loader (call once in controller) ─────────── */
 
     /**
-     * Accessor untuk mendapatkan nama lengkap dengan kode.
-     * Contoh: "Matematika (MAT)"
-     * 
-     * @return string
+     * Efficiently compute jumlah_kelas for a collection of subjects
+     * using only 2 aggregate queries instead of 2N.
      */
-    public function getFullNameAttribute()
+    public static function loadJumlahKelas($subjects): void
     {
-        return "{$this->name} ({$this->code})";
+        if ($subjects->isEmpty()) return;
+
+        $ids = $subjects->pluck('id');
+
+        // 1) From subject_classes pivot
+        $fromPivot = DB::table('subject_classes')
+            ->whereIn('subject_id', $ids)
+            ->select('subject_id', 'class_id')
+            ->get();
+
+        // 2) From teacher_schedules
+        $fromSchedules = DB::table('teacher_schedules')
+            ->whereIn('subject_id', $ids)
+            ->select('subject_id', 'class_id')
+            ->get();
+
+        // Merge & count unique class_id per subject
+        $merged = $fromPivot->concat($fromSchedules)
+            ->groupBy('subject_id')
+            ->map(fn($rows) => $rows->pluck('class_id')->unique()->count());
+
+        foreach ($subjects as $subject) {
+            $subject->jumlah_kelas = $merged->get($subject->id, 0);
+        }
     }
 }

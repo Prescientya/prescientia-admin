@@ -1,0 +1,205 @@
+/* ============================================================
+   JADWAL MENGAJAR — style.css
+   ============================================================ */
+
+.jm-page { display: flex; flex-direction: column; gap: 20px; }
+
+/* ── Header ──────────────────────────────────────────────── */
+.jm-header {
+    display: flex; align-items: center;
+    justify-content: space-between; flex-wrap: wrap; gap: 12px;
+}
+.jm-subtitle { font-size: 0.875rem; color: var(--text-secondary); }
+
+/* ── Mode Toggle ─────────────────────────────────────────── */
+.jm-mode-bar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.jm-mode-tabs {
+    display: flex; border: 1px solid var(--card-border);
+    border-radius: 10px; overflow: hidden;
+}
+.jm-mode-btn {
+    padding: 8px 18px; font-size: 0.84rem; font-weight: 600;
+    cursor: pointer; border: none; background: transparent;
+    color: var(--text-muted); transition: background 0.15s, color 0.15s;
+}
+.jm-mode-btn.active {
+    background: var(--accent); color: #fff;
+}
+.jm-select-wrap { display: flex; align-items: center; gap: 8px; }
+.jm-select-wrap label { font-size: 0.84rem; color: var(--text-muted); white-space: nowrap; }
+.jm-picker { min-width: 240px; }
+
+/* ── Schedule Grid ───────────────────────────────────────── */
+
+/* Each day block — always visible, separated by gap */
+.jm-day-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-bottom: 20px;
+}
+.jm-day-panel:last-child { margin-bottom: 0; }
+
+/* Day name banner above each grid */
+.jm-day-label {
+    text-align: center;
+    padding: 10px 16px;
+    background: var(--table-head-bg);
+    border: 1px solid var(--card-border);
+    border-bottom: none;
+    border-radius: 10px 10px 0 0;
+    font-size: 0.78rem; font-weight: 800;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent);
+}
+
+/* No gap between day-label and grid-wrap — they form one card */
+.jm-day-panel .jm-grid-wrap { border-top: none; }
+
+.jm-grid-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    border-radius: 0 0 10px 10px;
+    border: 1px solid var(--card-border);
+}
+.jm-grid-wrap::-webkit-scrollbar        { height: 6px; }
+.jm-grid-wrap::-webkit-scrollbar-track  { background: var(--scrollbar-track); border-radius: 0 0 6px 6px; }
+.jm-grid-wrap::-webkit-scrollbar-thumb  { background: var(--scrollbar-thumb); border-radius: 3px; }
+.jm-grid-wrap::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+.jm-grid {
+    width: 100%; border-collapse: collapse; font-size: 0.84rem;
+    min-width: 700px;
+}
+.jm-grid th {
+    padding: 10px 12px; text-align: center; font-size: 0.75rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-muted); background: var(--table-head-bg);
+    border-bottom: 1px solid var(--card-border);
+    border-right: 1px solid var(--card-border);
+}
+.jm-grid th:last-child { border-right: none; }
+/* Center Aksi column header */
+.jm-grid th:last-child { text-align: center; }
+.jm-grid td {
+    padding: 0; border-bottom: 1px solid var(--card-border);
+    border-right: 1px solid var(--card-border); vertical-align: middle;
+}
+.jm-grid td:last-child { border-right: none; }
+.jm-grid tbody tr:last-child td { border-bottom: none; }
+
+/* Break/ceremony rows */
+.jm-row-break td { background: rgba(34,197,94,0.08); }
+.jm-row-ceremony td { background: rgba(234,179,8,0.10); }
+.jm-row-prayer td { background: rgba(59,130,246,0.08); }
+.jm-row-cleaning td { background: rgba(168,85,247,0.08); }
+
+/* Time info column */
+.jm-td-time {
+    padding: 8px 12px; white-space: nowrap;
+    font-feature-settings: "tnum"; color: var(--text-secondary); font-size: 0.8rem;
+    background: var(--table-stripe); text-align: center; min-width: 120px;
+}
+.jm-jam-no {
+    font-weight: 700; font-size: 1rem; color: var(--accent);
+    display: block; margin-bottom: 2px;
+}
+.jm-time-range { font-size: 0.75rem; }
+
+/* Activity span cells */
+.jm-td-activity {
+    padding: 8px 12px; text-align: center;
+}
+.jm-td-activity .jp-badge { font-size: 0.78rem; }
+
+/* Schedule cell (lesson) */
+.jm-cell {
+    padding: 6px; height: 60px; position: relative; cursor: pointer;
+}
+.jm-cell:hover { background: rgba(var(--accent-rgb), 0.04); }
+.jm-cell-filled {
+    background: rgba(var(--accent-rgb), 0.08);
+    border-radius: 6px; padding: 6px 8px; height: 100%;
+    display: flex; flex-direction: column; justify-content: center; gap: 2px;
+    position: relative;
+}
+.jm-cell-subject { font-weight: 700; font-size: 0.8rem; color: var(--text-primary); line-height: 1.2; }
+.jm-cell-class, .jm-cell-teacher {
+    font-size: 0.72rem; color: var(--text-muted); line-height: 1.2;
+}
+.jm-cell-actions {
+    position: absolute; top: 4px; right: 4px;
+    display: none; gap: 2px;
+}
+.jm-cell-filled:hover .jm-cell-actions { display: flex; }
+.jm-cell-action-btn {
+    width: 22px; height: 22px; border: none; border-radius: 4px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; transition: background 0.15s;
+}
+.jm-cell-action-btn.edit  { background: rgba(var(--accent-rgb),0.15); color: var(--accent); }
+.jm-cell-action-btn.del   { background: rgba(220,38,38,0.12); color: #dc2626; }
+.jm-cell-action-btn:hover.edit { background: var(--accent); color: #fff; }
+.jm-cell-action-btn:hover.del  { background: #dc2626; color: #fff; }
+[data-mode="dark"] .jm-cell-action-btn.del { color: #f87171; }
+
+/* ── Add-slot button (table row view) ───────────────────── */
+.jm-add-slot-btn {
+    background: rgba(var(--accent-rgb), 0.08) !important;
+    color: var(--accent) !important;
+    border: 1.5px dashed rgba(var(--accent-rgb), 0.35) !important;
+    border-radius: 7px;
+}
+.jm-add-slot-btn:hover {
+    background: var(--accent-light) !important;
+    border-color: var(--accent) !important;
+    color: var(--accent) !important;
+}
+
+/* Empty cell plus icon */
+.jm-cell-empty {
+    width: 100%; height: 100%; display: flex;
+    align-items: center; justify-content: center;
+}
+.jm-cell-add-icon {
+    width: 26px; height: 26px; border-radius: 50%;
+    border: 2px dashed var(--card-border);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); font-size: 1.1rem;
+    transition: border-color 0.15s, color 0.15s;
+}
+.jm-cell:hover .jm-cell-add-icon {
+    border-color: var(--accent); color: var(--accent);
+}
+
+/* ── Empty State ─────────────────────────────────────────── */
+.jm-empty {
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    padding: 60px 20px; color: var(--text-muted); text-align: center;
+}
+.jm-empty-icon { font-size: 3rem; }
+.jm-empty-title { font-weight: 600; font-size: 1rem; color: var(--text-secondary); }
+.jm-empty-sub { font-size: 0.85rem; }
+.jm-empty--error .jm-empty-title,
+.jm-empty--error .jm-empty-sub { color: #dc2626; }
+[data-mode="dark"] .jm-empty--error .jm-empty-title,
+[data-mode="dark"] .jm-empty--error .jm-empty-sub { color: #f87171; }
+
+/* ── Summary cards ───────────────────────────────────────── */
+.jm-summary {
+    display: flex; gap: 12px; flex-wrap: wrap;
+}
+.jm-summary-card {
+    flex: 1; min-width: 140px; padding: 14px 18px;
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 10px; display: flex; flex-direction: column; gap: 4px;
+}
+.jm-summary-val {
+    font-size: 1.6rem; font-weight: 800; color: var(--accent);
+    line-height: 1;
+}
+.jm-summary-label { font-size: 0.78rem; color: var(--text-muted); }

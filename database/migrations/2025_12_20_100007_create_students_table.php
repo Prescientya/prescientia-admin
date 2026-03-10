@@ -23,8 +23,7 @@ return new class extends Migration
             $table->foreignId('class_id')->nullable()->constrained('classes')->onDelete('set null');
             $table->string('photo_profile', 255)->nullable();
             $table->timestamps();
-            $table->softDeletes();
-            
+
             // Indexes
             $table->index('name');
             $table->index('class_id');

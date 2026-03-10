@@ -2,148 +2,202 @@
 
 namespace App\Exports;
 
+use App\Models\Teacher;
 use App\Models\TeacherAttendance;
 use Carbon\Carbon;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Concerns\FromArray;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
+use Maatwebsite\Excel\Concerns\WithTitle;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
-class TeacherAttendanceExport
+class TeacherAttendanceExport implements FromArray, WithStyles, WithColumnWidths, WithTitle
 {
-    protected $filters;
+    protected string  $dateFrom;
+    protected string  $dateTo;
+    protected ?string $status;
 
-    public function __construct($filters)
-    {
-        $this->filters = $filters;
+    private array $rows         = [];
+    private array $summaryRows  = [];
+    private int   $headerEndRow = 5;
+    private array $altRows      = [];
+
+    public function __construct(
+        string  $dateFrom,
+        string  $dateTo,
+        ?string $status = null
+    ) {
+        $this->dateFrom = $dateFrom;
+        $this->dateTo   = $dateTo;
+        $this->status   = $status;
     }
 
-    public function export()
+    public function title(): string { return 'Rekap Kehadiran Guru'; }
+
+    public function array(): array
     {
-        // Build query with filters
-        $query = TeacherAttendance::with(['teacher', 'calendar']);
+        $from = Carbon::parse($this->dateFrom);
+        $to   = Carbon::parse($this->dateTo);
 
-        if ($this->filters['status']) {
-            $query->where('status', $this->filters['status']);
-        }
+        $totalDays = DB::table('school_calendar')
+            ->where('status', 'aktif')
+            ->whereBetween('date', [$this->dateFrom, $this->dateTo])
+            ->count();
 
-        if ($this->filters['date_from'] || $this->filters['date_to']) {
-            $query->whereHas('calendar', function ($q) {
-                if ($this->filters['date_from']) {
-                    $q->whereDate('date', '>=', $this->filters['date_from']);
+        /* ── Title block ──────────────────────────────── */
+        $this->rows[] = ['REKAP KEHADIRAN GURU', '', '', '', '', '', '', '', ''];
+        $this->rows[] = ['Periode', ':', $from->locale('id')->isoFormat('D MMMM YYYY') . '  —  ' . $to->locale('id')->isoFormat('D MMMM YYYY')];
+        $this->rows[] = ['Diekspor', ':', Carbon::now()->locale('id')->isoFormat('D MMMM YYYY, HH:mm')];
+        $this->rows[] = ['Hari Efektif (dalam range)', ':', $totalDays . ' hari'];
+
+        /* ── Column header ────────────────────────────── */
+        $this->rows[] = [
+            'No', 'NIP', 'Nama Guru',
+            'Hadir', 'Sakit', 'Izin', 'Dinas', 'Alpa', 'Terlambat',
+        ];
+        $this->headerEndRow = count($this->rows);
+
+        /* ── Query ────────────────────────────────────── */
+        $calendarIds = DB::table('school_calendar')
+            ->whereBetween('date', [$this->dateFrom, $this->dateTo])
+            ->pluck('id');
+
+        $teachers = Teacher::orderBy('name')->get();
+
+        $grandTotals = array_fill_keys(['hadir', 'sakit', 'izin', 'dinas', 'alpa', 'terlambat', 'teachers'], 0);
+        $no = 0;
+
+        $isAlt = false;
+        foreach ($teachers as $teacher) {
+            $atts = TeacherAttendance::query()
+                ->where('teacher_id', $teacher->id)
+                ->whereIn('calendar_id', $calendarIds)
+                ->when($this->status, fn($q) => $q->where('status', $this->status))
+                ->get();
+
+            if ($atts->isEmpty() && $this->status) continue;
+
+            $counts = array_fill_keys(['hadir', 'sakit', 'izin', 'dinas', 'alpa', 'terlambat'], 0);
+            foreach ($atts as $a) {
+                if (isset($counts[$a->status])) {
+                    $counts[$a->status]++;
                 }
-                if ($this->filters['date_to']) {
-                    $q->whereDate('date', '<=', $this->filters['date_to']);
-                }
-            });
-        }
-
-        if ($this->filters['subject_id']) {
-            $query->whereHas('teacher', function ($q) {
-                $q->whereHas('subjects', function ($s) {
-                    $s->where('subjects.id', $this->filters['subject_id']);
-                });
-            });
-        }
-
-        if ($this->filters['keyword']) {
-            $query->whereHas('teacher', function ($q) {
-                $q->where('name', 'like', "%{$this->filters['keyword']}%")
-                  ->orWhere('nip', 'like', "%{$this->filters['keyword']}%");
-            });
-        }
-
-        $attendances = $query->latest()->get();
-
-        // Get subject info for header
-        $subjectInfo = '-';
-        if ($this->filters['subject_id']) {
-            $subject = \App\Models\Subject::find($this->filters['subject_id']);
-            $subjectInfo = $subject ? $subject->name : '-';
-        }
-
-        // Create spreadsheet
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Recap Absensi');
-
-        // Set column widths
-        $sheet->getColumnDimension('A')->setWidth(5);
-        $sheet->getColumnDimension('B')->setWidth(12);
-        $sheet->getColumnDimension('C')->setWidth(20);
-        $sheet->getColumnDimension('D')->setWidth(12);
-        $sheet->getColumnDimension('E')->setWidth(12);
-        $sheet->getColumnDimension('F')->setWidth(15);
-
-        // Header
-        $sheet->setCellValue('A1', 'Recap Absensi Guru');
-        $sheet->mergeCells('A1:F1');
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
-        $sheet->getStyle('A1')->getAlignment()->setHorizontal('center');
-
-        // Mata Pelajaran info
-        $sheet->setCellValue('A2', 'Mata Pelajaran: ' . $subjectInfo);
-        $sheet->mergeCells('A2:F2');
-        $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(11);
-
-        // Date range
-        $dateFrom = $this->filters['date_from'] ? Carbon::parse($this->filters['date_from'])->format('d M Y') : '-';
-        $dateTo = $this->filters['date_to'] ? Carbon::parse($this->filters['date_to'])->format('d M Y') : '-';
-        $sheet->setCellValue('A3', "Periode: $dateFrom - $dateTo");
-        $sheet->mergeCells('A3:F3');
-        $sheet->getStyle('A3')->getFont()->setSize(10);
-
-        // Empty row
-        $sheet->setCellValue('A4', '');
-
-        // Column headers
-        $headers = ['No', 'Tanggal', 'Nama Guru', 'NIP', 'Status', 'Sumber'];
-        $col = 'A';
-        foreach ($headers as $header) {
-            $sheet->setCellValue($col . '5', $header);
-            $sheet->getStyle($col . '5')->getFont()->setBold(true);
-            $sheet->getStyle($col . '5')->getFill()->setFillType('solid')->getStartColor()->setARGB('FFE0E0E0');
-            $sheet->getStyle($col . '5')->getAlignment()->setHorizontal('center');
-            $col++;
-        }
-
-        // Data rows
-        $row = 6;
-        foreach ($attendances as $index => $attendance) {
-            $sheet->setCellValue('A' . $row, $index + 1);
-            $sheet->setCellValue('B' . $row, $attendance->calendar ? Carbon::parse($attendance->calendar->date)->format('d M Y') : '-');
-            $sheet->setCellValue('C' . $row, $attendance->teacher->name ?? '-');
-            $sheet->setCellValue('D' . $row, $attendance->teacher->nip ?? '-');
-            $sheet->setCellValue('E' . $row, ucfirst($attendance->status ?? '-'));
-            $sheet->setCellValue('F' . $row, $attendance->source ? str_replace('_', ' ', ucfirst($attendance->source)) : '-');
-
-            // Center align for certain columns
-            $sheet->getStyle('A' . $row)->getAlignment()->setHorizontal('center');
-            $sheet->getStyle('B' . $row)->getAlignment()->setHorizontal('center');
-            $sheet->getStyle('E' . $row)->getAlignment()->setHorizontal('center');
-
-            // Color code status
-            if ($attendance->status === 'hadir') {
-                $sheet->getStyle('E' . $row)->getFill()->setFillType('solid')->getStartColor()->setARGB('FFC6EFCE');
-            } elseif ($attendance->status === 'sakit') {
-                $sheet->getStyle('E' . $row)->getFill()->setFillType('solid')->getStartColor()->setARGB('FFFFEB9C');
-            } elseif ($attendance->status === 'izin') {
-                $sheet->getStyle('E' . $row)->getFill()->setFillType('solid')->getStartColor()->setARGB('FFC5D9F1');
-            } elseif ($attendance->status === 'dinas') {
-                $sheet->getStyle('E' . $row)->getFill()->setFillType('solid')->getStartColor()->setARGB('FFE2EFDA');
-            } elseif ($attendance->status === 'alpa') {
-                $sheet->getStyle('E' . $row)->getFill()->setFillType('solid')->getStartColor()->setARGB('FFF4CCCC');
             }
 
-            $row++;
+            $no++;
+            $rowIdx = count($this->rows) + 1;
+            if ($isAlt) $this->altRows[] = $rowIdx;
+            $isAlt = !$isAlt;
+
+            $this->rows[] = [
+                $no,
+                $teacher->nip ?? '–',
+                $teacher->name,
+                $counts['hadir'],
+                $counts['sakit'],
+                $counts['izin'],
+                $counts['dinas'],
+                $counts['alpa'],
+                $counts['terlambat'],
+            ];
+
+            foreach (['hadir', 'sakit', 'izin', 'dinas', 'alpa', 'terlambat'] as $s) {
+                $grandTotals[$s] += $counts[$s];
+            }
+            $grandTotals['teachers']++;
         }
 
-        // Generate filename
-        $fileName = 'Recap_Absensi_Guru_' . str_replace(' ', '_', $subjectInfo) . '_' . date('Y-m-d') . '.xlsx';
+        /* ── Grand total row ──────────────────────────── */
+        $totalRowIdx = count($this->rows) + 1;
+        $this->summaryRows[] = $totalRowIdx;
+        $this->rows[] = [
+            '', '', 'TOTAL (' . $grandTotals['teachers'] . ' Guru)',
+            $grandTotals['hadir'],
+            $grandTotals['sakit'],
+            $grandTotals['izin'],
+            $grandTotals['dinas'],
+            $grandTotals['alpa'],
+            $grandTotals['terlambat'],
+        ];
 
-        // Return file
-        $writer = new Xlsx($spreadsheet);
-        $temp = tempnam(sys_get_temp_dir(), $fileName);
-        $writer->save($temp);
+        return $this->rows;
+    }
 
-        return response()->download($temp, $fileName)->deleteFileAfterSend(true);
+    public function columnWidths(): array
+    {
+        return [
+            'A' => 5,
+            'B' => 18,
+            'C' => 32,
+            'D' => 10,
+            'E' => 10,
+            'F' => 10,
+            'G' => 10,
+            'H' => 10,
+            'I' => 12,
+        ];
+    }
+
+    public function styles(Worksheet $sheet): array
+    {
+        $lastRow   = count($this->rows);
+        $headerRow = $this->headerEndRow;
+
+        /* ── Title row ──────────────────────────── */
+        $sheet->mergeCells("A1:I1");
+        $sheet->getStyle('A1')->applyFromArray([
+            'font'      => ['bold' => true, 'size' => 14],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+        ]);
+
+        /* ── Column header ──────────────────────── */
+        $sheet->getStyle("A{$headerRow}:I{$headerRow}")->applyFromArray([
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1e40af']],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical'   => Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+        /* ── Data rows border ───────────────────── */
+        $dataStart = $headerRow + 1;
+        if ($dataStart <= $lastRow) {
+            $sheet->getStyle("A{$dataStart}:I{$lastRow}")->applyFromArray([
+                'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                        'color'       => ['rgb' => 'E5E7EB'],
+                    ],
+                ],
+            ]);
+        }
+
+        /* ── Alternate row shading ──────────────── */
+        foreach ($this->altRows as $r) {
+            $sheet->getStyle("A{$r}:I{$r}")->applyFromArray([
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F8FAFC']],
+            ]);
+        }
+
+        /* ── Summary (grand total) rows ─────────── */
+        foreach ($this->summaryRows as $r) {
+            $sheet->getStyle("A{$r}:I{$r}")->applyFromArray([
+                'font' => ['bold' => true],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'EFF6FF']],
+            ]);
+        }
+
+        /* ── Center number columns ──────────────── */
+        for ($r = $dataStart; $r <= $lastRow; $r++) {
+            $sheet->getStyle("D{$r}:I{$r}")->getAlignment()
+                  ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        }
+
+        return [];
     }
 }

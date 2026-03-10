@@ -3,7 +3,6 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -21,7 +20,7 @@ return new class extends Migration
             $table->string('day'); // senin, selasa, rabu, kamis, jumat
             $table->string('photo_url'); // URL from Flutter app
             $table->boolean('is_present')->default(true);
-            $table->timestampTz('submitted_at')->default(DB::raw('CURRENT_TIMESTAMP'));
+            $table->timestamp('submitted_at')->useCurrent();
             $table->timestamps();
 
             // Unique constraint: one submission per teacher/class/subject/period/day

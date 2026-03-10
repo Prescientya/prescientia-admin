@@ -6,227 +6,219 @@ use App\Models\ClassModel;
 use App\Models\ClassPeriod;
 use App\Models\Subject;
 use App\Models\Teacher;
-use App\Models\TeacherClassSchedule;
-use Illuminate\Support\Facades\Log;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use App\Models\TeacherSchedule;
+use Illuminate\Support\Collection;
+use Maatwebsite\Excel\Concerns\ToModel;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
+use Maatwebsite\Excel\Concerns\SkipsOnError;
+use Maatwebsite\Excel\Concerns\SkipsErrors;
 
-/**
- * Import Teacher Schedules from Excel
- * 
- * Excel Format:
- * - Column A: email (teacher email)
- * - Column B: teacher_name (for reference)
- * - Column C: class (e.g., "X RPL 1", "XI IPA 1")
- * - Column D: subject (subject name)
- * - Column E: semester (1 or 2)
- * - Column F: day (senin, selasa, rabu, kamis, jumat)
- * - Column G: period_sequence (1, 2, 3, etc.)
- */
-class TeacherScheduleImport
+class TeacherScheduleImport implements ToModel, WithHeadingRow, WithChunkReading, SkipsOnError
 {
-    protected $worksheet;
-    protected $inserted = 0;
-    protected $skipped = 0;
-    protected $failed = 0;
-    protected $failures = [];
+    use SkipsErrors;
 
-    public function __construct(Worksheet $worksheet)
+    public function chunkSize(): int
     {
-        $this->worksheet = $worksheet;
+        return 200;
     }
 
-    /**
-     * Process the import and return results
-     */
-    public function process(): array
+    private int   $imported   = 0;
+    private array $failedRows = [];
+
+    /* ── Pre-loaded lookup collections (populated once in constructor) ── */
+    private Collection $teachersByNip;
+    private Collection $subjectsByName;
+    private Collection $classesByLabel;
+    private Collection $periodsByDaySeq;
+
+    /* ── In-memory conflict tracking (updated as rows are imported) ───── */
+    private array $existingTSCP      = [];   // "t-s-c-p" → true
+    private array $teacherPeriodMap  = [];   // "teacherId:periodId" → ['class_id','class_label','subject_name']
+    private array $classPeriodMap    = [];   // "classId:periodId"   → ['teacher_id','teacher_name']
+
+    public function __construct()
     {
-        $rows = $this->worksheet->toArray(null, true, true, true);
-        $headerRow = true;
+        // 1. Teachers keyed by NIP (1 query)
+        $this->teachersByNip = Teacher::all()->keyBy('nip');
 
-        foreach ($rows as $index => $row) {
-            // Skip header row
-            if ($headerRow) {
-                $headerRow = false;
-                continue;
-            }
+        // 2. Active subjects keyed by lowercase name (1 query)
+        $this->subjectsByName = Subject::where('is_active', true)->get()
+            ->keyBy(fn ($s) => mb_strtolower($s->name));
 
-            $rowNumber = $index;
+        // 3. Classes keyed by "TINGKAT MAJOR" label (1 query)
+        $this->classesByLabel = ClassModel::all()
+            ->keyBy(fn ($c) => $c->class . ' ' . strtoupper(trim($c->major ?? '')));
 
-            // Extract data from columns
-            $data = [
-                'email' => isset($row['A']) ? trim($row['A']) : null,
-                'teacher_name' => isset($row['B']) ? trim($row['B']) : null,
-                'class' => isset($row['C']) ? trim($row['C']) : null,
-                'subject' => isset($row['D']) ? trim($row['D']) : null,
-                'semester' => isset($row['E']) ? trim($row['E']) : null,
-                'day' => isset($row['F']) ? strtolower(trim($row['F'])) : null,
-                'period_sequence' => isset($row['G']) ? trim($row['G']) : null,
+        // 4. Lesson periods keyed by "day-sequence" (1 query)
+        $this->periodsByDaySeq = ClassPeriod::where('activity_type', 'lesson')->get()
+            ->keyBy(fn ($p) => $p->day . '-' . $p->sequence);
+
+        // 5. Existing schedules → conflict maps (1 query)
+        $existing = TeacherSchedule::with(['teacher:id,name', 'subject:id,name', 'schoolClass:id,class,major'])->get();
+        foreach ($existing as $s) {
+            $this->existingTSCP["{$s->teacher_id}-{$s->subject_id}-{$s->class_id}-{$s->class_period_id}"] = true;
+
+            $classLabel  = $s->schoolClass ? ($s->schoolClass->class . ' ' . $s->schoolClass->major) : 'kelas lain';
+            $this->teacherPeriodMap["{$s->teacher_id}:{$s->class_period_id}"] = [
+                'class_id'     => $s->class_id,
+                'class_label'  => $classLabel,
+                'subject_name' => $s->subject->name ?? '?',
             ];
-
-            // Skip empty rows
-            if ($this->isEmptyRow($data)) {
-                continue;
-            }
-
-            $this->processRow($data, $rowNumber);
-        }
-
-        return [
-            'inserted' => $this->inserted,
-            'skipped' => $this->skipped,
-            'failed' => $this->failed,
-            'failures' => $this->failures,
-        ];
-    }
-
-    /**
-     * Process a single row
-     */
-    protected function processRow(array $data, int $rowNumber)
-    {
-        try {
-            // Find teacher by email
-            $teacher = Teacher::where('email', $data['email'])->first();
-            if (!$teacher) {
-                $this->failed++;
-                $this->failures[] = [
-                    'row' => $rowNumber,
-                    'data' => $data,
-                    'errors' => ['Guru dengan email ' . $data['email'] . ' tidak ditemukan'],
-                ];
-                return;
-            }
-
-            // Find class by name (e.g., "X RPL 1" -> class=10, major="RPL 1")
-            $classModel = $this->findClass($data['class']);
-            if (!$classModel) {
-                $this->failed++;
-                $this->failures[] = [
-                    'row' => $rowNumber,
-                    'data' => $data,
-                    'errors' => ['Kelas ' . $data['class'] . ' tidak ditemukan'],
-                ];
-                return;
-            }
-
-            // Find subject by name
-            $subject = Subject::where('name', $data['subject'])->first();
-            if (!$subject) {
-                $this->failed++;
-                $this->failures[] = [
-                    'row' => $rowNumber,
-                    'data' => $data,
-                    'errors' => ['Mata pelajaran ' . $data['subject'] . ' tidak ditemukan'],
-                ];
-                return;
-            }
-
-            // Find class_period by day and sequence
-            $period = ClassPeriod::where('day', $data['day'])
-                ->where('sequence', $data['period_sequence'])
-                ->first();
-            if (!$period) {
-                $this->failed++;
-                $this->failures[] = [
-                    'row' => $rowNumber,
-                    'data' => $data,
-                    'errors' => ['Jam pelajaran ' . $data['period_sequence'] . ' pada hari ' . $data['day'] . ' tidak ditemukan'],
-                ];
-                return;
-            }
-
-            // Try to create
-            try {
-                TeacherClassSchedule::create([
-                    'teacher_id' => $teacher->id,
-                    'class_id' => $classModel->id,
-                    'subject_id' => $subject->id,
-                    'period_id' => $period->id,
-                    'day' => $data['day'],
-                    'semester' => $data['semester'],
-                ]);
-                
-                $this->inserted++;
-                
-            } catch (\Exception $e) {
-                // Likely duplicate (unique constraint)
-                if (strpos($e->getMessage(), 'unique') !== false || strpos($e->getMessage(), 'Duplicate') !== false) {
-                    $this->skipped++;
-                } else {
-                    $this->failed++;
-                    $this->failures[] = [
-                        'row' => $rowNumber,
-                        'data' => $data,
-                        'errors' => ['Database error: ' . $e->getMessage()],
-                    ];
-                }
-            }
-
-        } catch (\Exception $e) {
-            $this->failed++;
-            $this->failures[] = [
-                'row' => $rowNumber,
-                'data' => $data,
-                'errors' => ['Error: ' . $e->getMessage()],
+            $this->classPeriodMap["{$s->class_id}:{$s->class_period_id}"] = [
+                'teacher_id'   => $s->teacher_id,
+                'teacher_name' => $s->teacher->name ?? 'guru lain',
             ];
         }
     }
 
     /**
-     * Check if row is empty
+     * Kolom yang diharapkan (heading row):
+     * nip | mapel | kelas | hari | jam_ke
+     *
+     * - nip     : NIP guru (harus sudah ada di tabel teachers)
+     * - mapel   : nama mata pelajaran (harus sudah ada di tabel subjects)
+     * - kelas   : format "TINGKAT JURUSAN" misal "10 RPL" / "11 AKL 1"
+     * - hari    : senin / selasa / rabu / kamis / jumat
+     * - jam_ke  : nomor urut jam pelajaran (misal 1, 2, 3, ...)
      */
-    protected function isEmptyRow(array $data): bool
+    public function model(array $row): ?TeacherSchedule
     {
-        return empty($data['email']) && empty($data['class']) && empty($data['subject']);
-    }
+        // Skip empty rows
+        $nip   = trim((string) ($row['nip']   ?? ''));
+        $mapel = trim((string) ($row['mapel'] ?? ''));
+        $kelas = trim((string) ($row['kelas'] ?? ''));
+        $hari  = strtolower(trim((string) ($row['hari']   ?? '')));
+        $jamKe = (int) ($row['jam_ke'] ?? 0);
 
-    /**
-     * Find class by name like "X RPL 1" or "XI IPA 1".
-     */
-    protected function findClass($className)
-    {
-        $className = trim($className);
-        
-        // Extract class number (X, XI, XII -> 10, 11, 12)
-        $classNumber = null;
-        if (str_starts_with($className, 'XII')) {
-            $classNumber = 12;
-            $rest = trim(substr($className, 3));
-        } elseif (str_starts_with($className, 'XI')) {
-            $classNumber = 11;
-            $rest = trim(substr($className, 2));
-        } elseif (str_starts_with($className, 'X')) {
-            $classNumber = 10;
-            $rest = trim(substr($className, 1));
-        }
-
-        if (!$classNumber) {
+        if ($nip === '' || $mapel === '' || $kelas === '' || $hari === '' || $jamKe === 0) {
             return null;
         }
 
-        // The rest is major
-        $major = $rest ?: null;
+        // 1. Lookup teacher by NIP (in-memory)
+        $teacher = $this->teachersByNip->get($nip);
+        if (!$teacher) {
+            $this->failedRows[] = [
+                'row'    => "NIP: {$nip}",
+                'reason' => "Guru dengan NIP {$nip} tidak ditemukan di sistem.",
+            ];
+            return null;
+        }
 
-        return ClassModel::where('class', $classNumber)
-            ->where(function ($query) use ($major) {
-                if ($major) {
-                    $query->where('major', $major);
-                } else {
-                    $query->whereNull('major');
-                }
-            })
-            ->first();
+        // 2. Lookup subject by name (in-memory, case-insensitive)
+        $subject = $this->subjectsByName->get(mb_strtolower($mapel));
+        if (!$subject) {
+            $this->failedRows[] = [
+                'row'    => "{$teacher->name} — {$mapel}",
+                'reason' => "Mata pelajaran \"{$mapel}\" tidak ditemukan. Pastikan nama mapel sesuai data di sistem.",
+            ];
+            return null;
+        }
+
+        // 3. Lookup class by "TINGKAT JURUSAN" (in-memory)
+        $kelasNorm = preg_replace('/\s+/', ' ', strtoupper($kelas));
+        $spacePos  = strpos($kelasNorm, ' ');
+        if ($spacePos === false) {
+            $this->failedRows[] = [
+                'row'    => "{$teacher->name} — {$kelas}",
+                'reason' => "Format kelas tidak valid: \"{$kelas}\". Gunakan format \"TINGKAT JURUSAN\" misal \"10 RPL\".",
+            ];
+            return null;
+        }
+        $tingkat  = (int) substr($kelasNorm, 0, $spacePos);
+        $jurusan  = trim(substr($kelasNorm, $spacePos + 1));
+        $classKey = $tingkat . ' ' . $jurusan;
+
+        $class = $this->classesByLabel->get($classKey);
+        if (!$class) {
+            $this->failedRows[] = [
+                'row'    => "{$teacher->name} — {$kelas}",
+                'reason' => "Kelas \"{$kelas}\" tidak ditemukan. Pastikan data kelas sudah tersedia di menu Data Kelas.",
+            ];
+            return null;
+        }
+
+        // 4. Lookup class period by day + sequence (in-memory)
+        if (!in_array($hari, ClassPeriod::DAYS, true)) {
+            $valid = implode(', ', ClassPeriod::DAYS);
+            $this->failedRows[] = [
+                'row'    => "{$teacher->name} — hari: {$hari}",
+                'reason' => "Hari \"{$hari}\" tidak valid. Gunakan salah satu dari: {$valid}.",
+            ];
+            return null;
+        }
+
+        $periodKey = "{$hari}-{$jamKe}";
+        $period    = $this->periodsByDaySeq->get($periodKey);
+        if (!$period) {
+            $this->failedRows[] = [
+                'row'    => "{$teacher->name} — {$hari} jam ke-{$jamKe}",
+                'reason' => "Jam ke-{$jamKe} pada hari " . ucfirst($hari) . " tidak ditemukan. Pastikan jam pelajaran sudah dikonfigurasi.",
+            ];
+            return null;
+        }
+
+        // 5. Duplicate check (in-memory)
+        $dupeKey = "{$teacher->id}-{$subject->id}-{$class->id}-{$period->id}";
+        if (isset($this->existingTSCP[$dupeKey])) {
+            $this->failedRows[] = [
+                'row'    => "{$teacher->name} — {$mapel} — {$kelas} — " . ucfirst($hari) . " jam ke-{$jamKe}",
+                'reason' => 'Jadwal ini sudah terdaftar di sistem (duplikat).',
+            ];
+            return null;
+        }
+
+        // 6. Teacher conflict: teacher already has another class at same period (in-memory)
+        $tpKey = "{$teacher->id}:{$period->id}";
+        if (isset($this->teacherPeriodMap[$tpKey]) && $this->teacherPeriodMap[$tpKey]['class_id'] !== $class->id) {
+            $conflict = $this->teacherPeriodMap[$tpKey];
+            $this->failedRows[] = [
+                'row'    => "{$teacher->name} — {$kelas} — " . ucfirst($hari) . " jam ke-{$jamKe}",
+                'reason' => "Bentrok! {$teacher->name} sudah mengajar di kelas {$conflict['class_label']} pada " . ucfirst($hari) . " jam ke-{$jamKe}.",
+            ];
+            return null;
+        }
+
+        // 7. Class conflict: class already has another teacher at same period (in-memory)
+        $cpKey = "{$class->id}:{$period->id}";
+        if (isset($this->classPeriodMap[$cpKey]) && $this->classPeriodMap[$cpKey]['teacher_id'] !== $teacher->id) {
+            $conflict = $this->classPeriodMap[$cpKey];
+            $this->failedRows[] = [
+                'row'    => "{$kelas} — " . ucfirst($hari) . " jam ke-{$jamKe}",
+                'reason' => "Bentrok! Kelas {$kelas} sudah memiliki jadwal dengan {$conflict['teacher_name']} pada " . ucfirst($hari) . " jam ke-{$jamKe}.",
+            ];
+            return null;
+        }
+
+        // ── Track new schedule in memory for subsequent row checks ──
+        $this->existingTSCP[$dupeKey] = true;
+        $this->teacherPeriodMap[$tpKey] = [
+            'class_id'     => $class->id,
+            'class_label'  => $class->class . ' ' . $class->major,
+            'subject_name' => $subject->name,
+        ];
+        $this->classPeriodMap[$cpKey] = [
+            'teacher_id'   => $teacher->id,
+            'teacher_name' => $teacher->name,
+        ];
+
+        $this->imported++;
+
+        return new TeacherSchedule([
+            'teacher_id'      => $teacher->id,
+            'subject_id'      => $subject->id,
+            'class_id'        => $class->id,
+            'class_period_id' => $period->id,
+        ]);
     }
 
-    /**
-     * Get import summary.
-     */
-    public function getSummary()
+    public function getImportedCount(): int
     {
-        return [
-            'inserted' => $this->inserted,
-            'skipped' => $this->skipped,
-            'failed' => $this->failed,
-        ];
+        return $this->imported;
+    }
+
+    public function getFailedRows(): array
+    {
+        return $this->failedRows;
     }
 }

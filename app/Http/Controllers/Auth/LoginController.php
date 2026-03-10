@@ -3,93 +3,62 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\HistoryLogin;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
 
 class LoginController extends Controller
 {
     /**
-     * Show the login form.
+     * Tampilkan halaman login.
      */
     public function showLoginForm()
     {
-        if (Auth::check()) {
-            return redirect()->route('admin.dashboard');
+        if (Auth::guard('admin')->check()) {
+            return redirect()->route('Dashboard');
         }
-        
-        return view('auth.login');
+
+        return view('Login.login');
     }
 
     /**
-     * Handle login request.
+     * Proses login admin.
      */
-    public function login(Request $request)
+    public function Login(Request $request)
     {
-        $credentials = $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
+        $request->validate([
+            'email'    => 'required|email',
+            'password' => 'required|string',
+        ], [
+            'email.required'    => 'Email wajib diisi.',
+            'email.email'       => 'Format email tidak valid.',
+            'password.required' => 'Password wajib diisi.',
         ]);
 
-        $remember = $request->filled('remember');
+        if (Auth::guard('admin')->attempt(['email' => $request->email, 'password' => $request->password])) {
+            $user = Auth::guard('admin')->user();
 
-        if (Auth::attempt($credentials, $remember)) {
+            if ($user->role !== 'admin' || !$user->is_active) {
+                Auth::guard('admin')->logout();
+                return back()
+                    ->withInput($request->only('email'))
+                    ->withErrors(['email' => 'Akun Anda tidak memiliki akses admin.']);
+            }
+
             $request->session()->regenerate();
-
-            // Create login history record
-            HistoryLogin::create([
-                'user_id' => Auth::id(),
-                'login_at' => Carbon::now(),
-                'ip_address' => $request->ip(),
-                'status' => 'success',
-            ]);
-
-            return redirect()->intended(route('admin.dashboard'));
+            return redirect()->route('Dashboard');
         }
 
-        return back()->withErrors([
-            'email' => 'Email atau password salah.',
-        ])->onlyInput('email');
+        return back()
+            ->withInput($request->only('email'))
+            ->withErrors(['email' => 'Email atau password salah.']);
     }
 
     /**
-     * Handle logout request.
+     * Logout admin.
      */
     public function logout(Request $request)
     {
-        // Update login history - set logout time and calculate duration
-        $lastLogin = HistoryLogin::where('user_id', Auth::id())
-            ->whereNull('logout_at')
-            ->latest('login_at')
-            ->first();
-
-        if ($lastLogin) {
-            $logoutAt = Carbon::now();
-
-            // Ensure we have a Carbon instance for login_at
-            try {
-                $loginAt = $lastLogin->login_at ? Carbon::parse($lastLogin->login_at) : null;
-            } catch (\Throwable $e) {
-                $loginAt = null;
-            }
-
-            // Calculate duration in whole minutes and guard against negative/float values
-            if ($loginAt) {
-                $rawMinutes = $logoutAt->diffInMinutes($loginAt);
-                $duration = (int) max(0, floor($rawMinutes));
-            } else {
-                $duration = 0;
-            }
-
-            $lastLogin->update([
-                'logout_at' => $logoutAt,
-                'duration_minutes' => $duration,
-            ]);
-        }
-
-        Auth::logout();
-
+        Auth::guard('admin')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 

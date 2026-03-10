@@ -2,56 +2,81 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 class SchoolCalendar extends Model
 {
-    use HasFactory;
-
     protected $table = 'school_calendar';
 
-    protected $fillable = [
-        'date',
-        'year',
-        'month',
-        'day',
-        'status',
-    ];
+    protected $fillable = ['date', 'year', 'month', 'day', 'status', 'notes'];
 
     protected $casts = [
-        'date' => 'date',
+        'date'  => 'date',
+        'year'  => 'integer',
+        'month' => 'integer',
+        'day'   => 'integer',
     ];
 
-    /**
-     * Get all student attendances for the calendar date.
-     */
-    public function studentAttendances()
+    /* ── Accessors ───────────────────────────────────── */
+
+    /** Indonesian day name (Senin–Minggu) */
+    public function getDayNameAttribute(): string
     {
-        return $this->hasMany(StudentAttendance::class, 'calendar_id');
+        $map = [
+            'Monday'    => 'Senin',
+            'Tuesday'   => 'Selasa',
+            'Wednesday' => 'Rabu',
+            'Thursday'  => 'Kamis',
+            'Friday'    => 'Jumat',
+            'Saturday'  => 'Sabtu',
+            'Sunday'    => 'Minggu',
+        ];
+        return $map[Carbon::parse($this->date)->format('l')] ?? '-';
     }
 
-    /**
-     * Get all teacher attendances for the calendar date.
-     */
-    public function teacherAttendances()
+    public function getIsHolidayAttribute(): bool
     {
-        return $this->hasMany(TeacherAttendance::class, 'calendar_id');
+        return $this->status === 'libur';
     }
 
-    /**
-     * Scope for active school days.
-     */
-    public function scopeActive($query)
+    /* ── Scopes ──────────────────────────────────────── */
+
+    public function scopeForYear($query, int $year)
+    {
+        return $query->where('year', $year);
+    }
+
+    public function scopeForMonth($query, int $year, int $month)
+    {
+        return $query->where('year', $year)->where('month', $month);
+    }
+
+    public function scopeHolidays($query)
+    {
+        return $query->where('status', 'libur');
+    }
+
+    public function scopeSchoolDays($query)
     {
         return $query->where('status', 'aktif');
     }
 
-    /**
-     * Scope for holidays.
-     */
-    public function scopeHoliday($query)
+    /* ── Static helpers ──────────────────────────────── */
+
+    /** Get or create calendar entry for a given date string (Y-m-d) */
+    public static function forDate(string $date): self
     {
-        return $query->where('status', 'libur');
+        $d = Carbon::parse($date);
+
+        return self::firstOrCreate(
+            ['date' => $d->toDateString()],
+            [
+                'year'   => $d->year,
+                'month'  => $d->month,
+                'day'    => $d->day,
+                'status' => 'aktif',
+            ]
+        );
     }
 }

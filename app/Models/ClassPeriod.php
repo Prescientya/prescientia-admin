@@ -3,8 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Collection;
-use Carbon\Carbon;
 
 class ClassPeriod extends Model
 {
@@ -21,130 +19,71 @@ class ClassPeriod extends Model
     ];
 
     protected $casts = [
-        'start_time' => 'datetime:H:i:s',
-        'end_time' => 'datetime:H:i:s',
-        'sequence' => 'integer',
-        'duration_minutes' => 'integer',
+        'start_time' => 'string',
+        'end_time'   => 'string',
     ];
 
-    /**
-     * Scope: Get semua periode untuk hari tertentu
-     */
-    public function scopeByDay($query, string $day)
+    /* ── Constants ─────────────────────────────────────── */
+
+    const DAYS = ['senin', 'selasa', 'rabu', 'kamis', 'jumat'];
+
+    const DAY_LABELS = [
+        'senin'   => 'Senin',
+        'selasa'  => 'Selasa',
+        'rabu'    => 'Rabu',
+        'kamis'   => 'Kamis',
+        'jumat'   => 'Jumat',
+    ];
+
+    const ACTIVITY_TYPES = [
+        'lesson'   => 'Jam Pelajaran',
+        'break'    => 'Istirahat',
+        'ceremony' => 'Upacara',
+        'prayer'   => 'Ibadah / Sholat',
+        'cleaning' => 'Kebersihan',
+        'other'    => 'Lainnya',
+    ];
+
+    const ACTIVITY_COLORS = [
+        'lesson'   => 'white',
+        'break'    => 'green',
+        'ceremony' => 'yellow',
+        'prayer'   => 'blue',
+        'cleaning' => 'purple',
+        'other'    => 'gray',
+    ];
+
+    /* ── Accessors ──────────────────────────────────────── */
+
+    public function getDayLabelAttribute(): string
     {
-        return $query->where('day', $day)->orderBy('sequence', 'asc');
+        return self::DAY_LABELS[$this->day] ?? ucfirst($this->day);
     }
 
-    /**
-     * Scope: Get hanya periode pelajaran (exclude istirahat, upacara, dll)
-     */
-    public function scopeLessonOnly($query)
-    {
-        return $query->where('activity_type', 'lesson');
-    }
-
-    /**
-     * Scope: Get periode berdasarkan waktu yang sedang berlangsung
-     */
-    public function scopeCurrentPeriod($query, string $day)
-    {
-        $now = now()->format('H:i:s');
-        return $query->where('day', $day)
-                     ->where('start_time', '<=', $now)
-                     ->where('end_time', '>', $now)
-                     ->first();
-    }
-
-    /**
-     * Get periode berikutnya setelah periode tertentu
-     */
-    public function nextPeriod()
-    {
-        return self::where('day', $this->day)
-                   ->where('sequence', '>', $this->sequence)
-                   ->orderBy('sequence', 'asc')
-                   ->first();
-    }
-
-    /**
-     * Get periode sebelumnya
-     */
-    public function previousPeriod()
-    {
-        return self::where('day', $this->day)
-                   ->where('sequence', '<', $this->sequence)
-                   ->orderBy('sequence', 'desc')
-                   ->first();
-    }
-
-    /**
-     * Format readable untuk tampilan
-     */
-    public function getTimeRangeAttribute(): string
-    {
-        $start = $this->start_time instanceof Carbon 
-            ? $this->start_time->format('H:i') 
-            : date('H:i', strtotime($this->start_time));
-        
-        $end = $this->end_time instanceof Carbon 
-            ? $this->end_time->format('H:i') 
-            : date('H:i', strtotime($this->end_time));
-        
-        return "{$start} - {$end}";
-    }
-
-    /**
-     * Get label untuk jenis aktivitas
-     */
     public function getActivityLabelAttribute(): string
     {
-        $labels = [
-            'lesson' => 'Pelajaran',
-            'break' => 'Istirahat',
-            'ceremony' => 'Upacara',
-            'prayer' => 'Ibadah',
-            'cleaning' => 'Kebersihan',
-            'other' => 'Lainnya',
-        ];
-
-        return $labels[$this->activity_type] ?? $this->activity_type;
+        return self::ACTIVITY_TYPES[$this->activity_type] ?? $this->activity_type;
     }
 
-    /**
-     * Check apakah saat ini termasuk jam pelajaran
-     */
-    public static function isSchoolHours(): bool
+    public function getTimeRangeAttribute(): string
     {
-        $today = now()->format('l');
-        $dayMap = [
-            'Monday' => 'senin',
-            'Tuesday' => 'selasa',
-            'Wednesday' => 'rabu',
-            'Thursday' => 'kamis',
-            'Friday' => 'jumat',
-        ];
-
-        $day = $dayMap[$today] ?? null;
-
-        if (!$day) {
-            return false; // Weekend
-        }
-
-        $now = now()->format('H:i:s');
-
-        return self::where('day', $day)
-                   ->where('start_time', '<=', $now)
-                   ->where('end_time', '>', $now)
-                   ->exists();
+        return substr($this->start_time, 0, 5) . ' – ' . substr($this->end_time, 0, 5);
     }
 
-    /**
-     * Get total jam pelajaran per hari (exclude break/ceremony/dll)
-     */
-    public static function totalLessonHoursByDay(string $day): int
+    public function getIsLessonAttribute(): bool
     {
-        return self::byDay($day)
-                   ->lessonOnly()
-                   ->sum('duration_minutes');
+        return $this->activity_type === 'lesson';
+    }
+
+    /* ── Scopes ─────────────────────────────────────────── */
+
+    public function scopeForDay($query, string $day)
+    {
+        return $query->where('day', $day)->orderBy('sequence');
+    }
+
+    public function scopeLessonsOnly($query)
+    {
+        return $query->where('activity_type', 'lesson');
     }
 }

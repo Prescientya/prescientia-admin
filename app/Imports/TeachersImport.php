@@ -2,271 +2,238 @@
 
 namespace App\Imports;
 
+use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\User;
-use App\Models\Subject;
-use Illuminate\Support\Facades\Hash;
+use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Validator;
-use PhpOffice\PhpSpreadsheet\Shared\Date;
+use Illuminate\Support\Facades\Hash;
+use Maatwebsite\Excel\Concerns\ToCollection;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
 /**
- * Import Akun Guru (Teacher Account Only)
- * 
- * Purpose: Create teacher accounts with subjects
- * Does NOT handle class assignments
- * 
- * Excel Format (STRICT):
- * - Column A: email (required, unique)
- * - Column B: nip (required, unique)
- * - Column C: name (required)
- * - Column D: gender (required: L or P)
- * - Column E: birth_date (required: yyyy-mm-dd)
- * - Column F: phone (optional)
- * - Column G: address (optional)
- * - Column H: subjects (optional, comma-separated for multiple)
+ * Bulk teacher importer  ToCollection strategy.
+ *
+ * Loads all existing NIPs, emails, and subjects in 3 queries upfront,
+ * then validates every row in PHP, bulk-inserts users + teachers,
+ * and inserts the teacher_subject pivot rows  all inside one transaction.
+ *
+ * Column mapping (heading row):
+ *   nip | nama | email | gender | tanggal_lahir | no_hp | alamat | mapel
+ *
+ * - gender       : L / P
+ * - tanggal_lahir: Y-m-d or any format recognised by Carbon
+ * - mapel        : comma-separated subject names (e.g. "Matematika,Fisika Dasar")
+ * - password     : auto-set to NIP (bcrypt rounds=10)
  */
-class TeachersImport
+class TeachersImport implements ToCollection, WithHeadingRow
 {
-    private $worksheet;
-    private $successCount = 0;
-    private $failures = [];
+    private int   $imported   = 0;
+    private array $failedRows = [];
 
-    public function __construct($worksheet)
+    /*  MAIN  */
+
+    public function collection(Collection $rows): void
     {
-        $this->worksheet = $worksheet;
-    }
+        //  1. Preload lookup sets 
+        $existingNips   = DB::table('teachers')->pluck('nip')->flip()->toArray();
+        $existingEmails = DB::table('users')->pluck('email')->flip()->toArray();
 
-    /**
-     * Process the import and return results
-     * @return array [successCount, failures]
-     */
-    public function process(): array
-    {
-        $rows = $this->worksheet->toArray(null, true, true, true);
-        $headerRow = true;
+        // Build subject map:  lowercase(name) => id
+        $subjectMap = Subject::pluck('id', 'name')
+            ->mapWithKeys(fn($id, $name) => [strtolower(trim($name)) => $id])
+            ->toArray();
 
-        foreach ($rows as $index => $row) {
-            // Skip header row
-            if ($headerRow) {
-                $headerRow = false;
+        //  2. Validate & bucket rows 
+        $toInsertUsers    = [];   // sequential, same order as teacherDataByNip
+        $teacherDataByNip = [];   // nip => [fields]
+        $subjectsByNip    = [];   // nip => [subject_id, ...]
+        $seenNips         = [];   // within this file
+        $now              = now()->toDateTimeString();
+
+        foreach ($rows as $row) {
+            $row = $row->toArray();
+
+            if (empty($row['nip']) || empty($row['nama'])) {
                 continue;
             }
 
-            $rowNumber = $index;
-            
-            // Extract data (ACCOUNT COLUMNS ONLY)
-            $data = [
-                'email' => isset($row['A']) ? trim($row['A']) : null,
-                'nip' => isset($row['B']) ? trim($row['B']) : null,
-                'name' => isset($row['C']) ? trim($row['C']) : null,
-                'gender' => isset($row['D']) ? strtoupper(trim($row['D'])) : null,
-                'birth_date_raw' => isset($row['E']) ? $row['E'] : null,
-                'phone' => isset($row['F']) ? trim($row['F']) : null,
-                'address' => isset($row['G']) ? trim($row['G']) : null,
-                'subjects_raw' => isset($row['H']) ? trim($row['H']) : null,
+            $nip   = trim((string) $row['nip']);
+            $nama  = trim($row['nama']);
+            $email = trim($row['email'] ?? '');
+
+            if (empty($email)) {
+                $email = $nip . '@guru.prescientia.id';
+            }
+
+            // Duplicate NIP (DB or within this file)
+            if (isset($existingNips[$nip]) || isset($seenNips[$nip])) {
+                $this->failedRows[] = [
+                    'nip'    => $nip,
+                    'nama'   => $nama,
+                    'reason' => "NIP {$nip} sudah terdaftar di sistem.",
+                ];
+                continue;
+            }
+
+            // Duplicate email
+            if (isset($existingEmails[$email])) {
+                $this->failedRows[] = [
+                    'nip'    => $nip,
+                    'nama'   => $nama,
+                    'reason' => "Email {$email} sudah digunakan akun lain.",
+                ];
+                continue;
+            }
+
+            // Parse date of birth
+            $dob = now()->format('Y-m-d');
+            if (!empty($row['tanggal_lahir'])) {
+                try {
+                    $dob = Carbon::parse($row['tanggal_lahir'])->format('Y-m-d');
+                } catch (\Exception) {
+                }
+            }
+
+            // Resolve mapel  subject IDs
+            $subjectIds    = [];
+            $notFoundMapel = [];
+            if (!empty($row['mapel'])) {
+                $mapelNames = array_filter(array_map('trim', explode(',', (string) $row['mapel'])));
+                foreach ($mapelNames as $mName) {
+                    $key = strtolower($mName);
+                    if (isset($subjectMap[$key])) {
+                        $subjectIds[] = $subjectMap[$key];
+                    } else {
+                        $notFoundMapel[] = $mName;
+                    }
+                }
+            }
+
+            if (!empty($notFoundMapel)) {
+                $list = collect($notFoundMapel)->map(fn($n) => '"' . $n . '"')->implode(', ');
+                $this->failedRows[] = [
+                    'nip'    => $nip,
+                    'nama'   => $nama,
+                    'reason' => "Mapel {$list} tidak ditemukan di sistem sekolah ini.",
+                ];
+                continue;
+            }
+
+            // Mark as seen
+            $seenNips[$nip]         = true;
+            $existingEmails[$email] = true;
+
+            $toInsertUsers[] = [
+                'email'      => $email,
+                'password'   => Hash::make($nip, ['rounds' => 10]),
+                'role'       => 'teacher',
+                'is_active'  => true,
+                'created_at' => $now,
+                'updated_at' => $now,
             ];
 
-            // Skip completely empty rows
-            if ($this->isEmptyRow($data)) {
-                continue;
+            $teacherDataByNip[$nip] = [
+                'nip'           => $nip,
+                'name'          => $nama,
+                'gender'        => strtoupper(trim($row['gender'] ?? 'L')) === 'P' ? 'P' : 'L',
+                'date_of_birth' => $dob,
+                'phone_number'  => $row['no_hp'] ?? null,
+                'address'       => $row['alamat'] ?? null,
+                'email'         => $email,
+                'created_at'    => $now,
+                'updated_at'    => $now,
+            ];
+
+            $subjectsByNip[$nip] = array_unique($subjectIds);
+        }
+
+        if (empty($toInsertUsers)) {
+            return;
+        }
+
+        //  3. Bulk insert inside a transaction 
+        DB::transaction(function () use ($toInsertUsers, $teacherDataByNip, $subjectsByNip, $now) {
+
+            // Insert users in chunks of 200
+            foreach (array_chunk($toInsertUsers, 200) as $chunk) {
+                DB::table('users')->insert($chunk);
             }
 
-            // Convert Excel date
-            $birthDate = $this->convertExcelDate($data['birth_date_raw']);
-            if (!$birthDate) {
-                $this->failures[] = [
-                    'row' => $rowNumber,
-                    'data' => $data,
-                    'errors' => ['Format tanggal lahir tidak valid. Gunakan format: yyyy-mm-dd'],
-                ];
-                continue;
-            }
+            // Retrieve inserted user IDs by email
+            $emails        = array_column($toInsertUsers, 'email');
+            $userIdByEmail = DB::table('users')
+                ->whereIn('email', $emails)
+                ->pluck('id', 'email')
+                ->toArray();
 
-            // Validate data
-            $validator = Validator::make([
-                'email' => $data['email'],
-                'nip' => $data['nip'],
-                'name' => $data['name'],
-                'gender' => $data['gender'],
-                'birth_date' => $birthDate,
-            ], [
-                'email' => 'required|email|unique:users,email',
-                'nip' => 'required|unique:teachers,nip',
-                'name' => 'required|string|max:255',
-                'gender' => 'required|in:L,P',
-                'birth_date' => 'required|date',
-            ], [
-                'email.required' => 'Email wajib diisi',
-                'email.email' => 'Format email tidak valid',
-                'email.unique' => 'Email sudah terdaftar',
-                'nip.required' => 'NIP wajib diisi',
-                'nip.unique' => 'NIP sudah terdaftar',
-                'name.required' => 'Nama wajib diisi',
-                'gender.required' => 'Jenis kelamin wajib diisi',
-                'gender.in' => 'Jenis kelamin harus L atau P',
-                'birth_date.required' => 'Tanggal lahir wajib diisi',
-                'birth_date.date' => 'Format tanggal lahir tidak valid',
-            ]);
-
-            if ($validator->fails()) {
-                $this->failures[] = [
-                    'row' => $rowNumber,
-                    'data' => $data,
-                    'errors' => $validator->errors()->all(),
-                ];
-                continue;
-            }
-
-            // Parse subjects (FIX: Create proper relationships)
-            $subjectIds = $this->parseSubjects($data['subjects_raw']);
-            $subjectNames = $this->getSubjectNames($subjectIds); // Get actual subject names
-
-            // Import the teacher
-            try {
-                DB::transaction(function () use ($data, $birthDate, $subjectIds, $subjectNames) {
-                    // Create user account
-                    $user = User::create([
-                        'email' => $data['email'],
-                        'password' => Hash::make($data['nip']), // Default password = NIP
-                    ]);
-                    
-                    // Create teacher record
-                    $teacher = Teacher::create([
-                        'user_id' => $user->id,
-                        'nip' => $data['nip'],
-                        'name' => $data['name'],
-                        'gender' => $data['gender'],
-                        'date_of_birth' => $birthDate,
-                        'phone_number' => $data['phone'] ?? null,
-                        'address' => $data['address'] ?? null,
-                        'department' => !empty($subjectNames) ? $subjectNames : null, // Store subject names as array
-                    ]);
-                    
-                    // FIX: Properly attach subjects to teacher (many-to-many)
-                    if (!empty($subjectIds)) {
-                        $teacher->subjects()->sync($subjectIds);
-                        
-                        Log::info('Teacher subjects attached', [
-                            'teacher_id' => $teacher->id,
-                            'teacher_name' => $teacher->name,
-                            'subject_ids' => $subjectIds,
-                            'subject_names' => $subjectNames,
-                        ]);
-                    }
-                });
-
-                $this->successCount++;
-                
-            } catch (\Throwable $e) {
-                Log::error('Failed to import teacher', [
-                    'row' => $rowNumber,
-                    'data' => $data,
-                    'error' => $e->getMessage(),
-                ]);
-                
-                $this->failures[] = [
-                    'row' => $rowNumber,
-                    'data' => $data,
-                    'errors' => ['Gagal menyimpan data: ' . $e->getMessage()],
+            // Build teachers rows
+            $toInsertTeachers = [];
+            foreach ($teacherDataByNip as $nip => $data) {
+                $userId = $userIdByEmail[$data['email']] ?? null;
+                if (!$userId) {
+                    continue;
+                }
+                $toInsertTeachers[] = [
+                    'user_id'       => $userId,
+                    'nip'           => $nip,
+                    'name'          => $data['name'],
+                    'gender'        => $data['gender'],
+                    'date_of_birth' => $data['date_of_birth'],
+                    'phone_number'  => $data['phone_number'],
+                    'address'       => $data['address'],
+                    'created_at'    => $data['created_at'],
+                    'updated_at'    => $data['updated_at'],
                 ];
             }
-        }
 
-        return [$this->successCount, $this->failures];
-    }
-
-    /**
-     * Get subject names from subject IDs
-     */
-    private function getSubjectNames(array $subjectIds): array
-    {
-        if (empty($subjectIds)) {
-            return [];
-        }
-
-        return Subject::whereIn('id', $subjectIds)
-            ->pluck('name')
-            ->toArray();
-    }
-
-    /**
-     * Parse comma-separated subjects and return subject IDs
-     * Supports multiple subjects per teacher
-     */
-    private function parseSubjects(?string $subjectsRaw): array
-    {
-        if (empty($subjectsRaw)) {
-            return [];
-        }
-
-        $subjectNames = array_filter(array_map('trim', explode(',', $subjectsRaw)));
-        $subjectIds = [];
-
-        foreach ($subjectNames as $subjectName) {
-            if (empty($subjectName)) {
-                continue;
+            // Insert teachers in chunks of 200
+            foreach (array_chunk($toInsertTeachers, 200) as $chunk) {
+                DB::table('teachers')->insert($chunk);
             }
 
-            // Find subject (case-insensitive)
-            $subject = Subject::whereRaw('LOWER(name) = ?', [mb_strtolower($subjectName)])->first();
-            
-            // Try partial match if exact match fails
-            if (!$subject) {
-                $subject = Subject::where('name', 'ilike', '%' . $subjectName . '%')->first();
+            // Retrieve teacher IDs by NIP
+            $insertedNips     = array_column($toInsertTeachers, 'nip');
+            $teacherIdByNip   = DB::table('teachers')
+                ->whereIn('nip', $insertedNips)
+                ->pluck('id', 'nip')
+                ->toArray();
+
+            // Build pivot rows (teacher_subject)
+            $pivotRows = [];
+            foreach ($subjectsByNip as $nip => $subjectIds) {
+                $teacherId = $teacherIdByNip[$nip] ?? null;
+                if (!$teacherId || empty($subjectIds)) {
+                    continue;
+                }
+                foreach ($subjectIds as $subjectId) {
+                    $pivotRows[] = [
+                        'teacher_id' => $teacherId,
+                        'subject_id' => $subjectId,
+                    ];
+                }
             }
 
-            if ($subject) {
-                $subjectIds[] = $subject->id;
-            } else {
-                Log::warning('Subject not found during import', ['subject_name' => $subjectName]);
+            if (!empty($pivotRows)) {
+                foreach (array_chunk($pivotRows, 500) as $chunk) {
+                    DB::table('teacher_subject')->insert($chunk);
+                }
             }
-        }
 
-        return array_unique($subjectIds);
+            $this->imported = count($toInsertTeachers);
+        });
     }
 
-    /**
-     * Convert Excel date to Y-m-d format
-     */
-    private function convertExcelDate($value): ?string
+    /*  ACCESSORS  */
+
+    public function getImportedCount(): int
     {
-        if (empty($value)) {
-            return null;
-        }
-
-        // If already a string in Y-m-d format
-        if (is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
-            return $value;
-        }
-
-        // If numeric (Excel serial date)
-        if (is_numeric($value)) {
-            try {
-                $date = Date::excelToDateTimeObject($value);
-                return $date->format('Y-m-d');
-            } catch (\Exception $e) {
-                return null;
-            }
-        }
-
-        // Try parsing various formats
-        try {
-            $date = \Carbon\Carbon::parse($value);
-            return $date->format('Y-m-d');
-        } catch (\Exception $e) {
-            return null;
-        }
+        return $this->imported;
     }
 
-    /**
-     * Check if row is completely empty
-     */
-    private function isEmptyRow(array $data): bool
+    public function getFailedRows(): array
     {
-        return empty($data['email']) 
-            && empty($data['nip']) 
-            && empty($data['name']);
+        return $this->failedRows;
     }
 }

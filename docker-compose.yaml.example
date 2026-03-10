@@ -14,22 +14,40 @@ services:
             - ./:/app
         networks:
             - compass_network
-    postgres:
-        image: postgres:15-alpine
+    # --- MySQL (active) ---
+    mysql:
+        image: mysql:8.0
         container_name: prescientia-db
         environment:
-            POSTGRES_USER: prescientia
-            POSTGRES_DB: prescientia
-            POSTGRES_PASSWORD: ProjectManagement@2024
-            TZ: Asia/Jakarta  # Set default timezone
-            PGTZ: Asia/Jakarta # Set PostgreSQL internal timezone
+            MYSQL_ROOT_PASSWORD: ProjectManagement@2024
+            MYSQL_DATABASE: prescientia
+            MYSQL_USER: prescientia
+            MYSQL_PASSWORD: ProjectManagement@2024
+            TZ: Asia/Jakarta
         ports:
-            - "5432:5432"
+            - "3306:3306"
         volumes:
-            - /var/data/pgsql:/var/lib/postgresql/data
+            - /var/data/mysql:/var/lib/mysql
         restart: always
         networks:
             - prescientia_network
+    # --- PostgreSQL (commented out, uncomment to switch back) ---
+    # postgres:
+    #     image: postgres:15-alpine
+    #     container_name: prescientia-db
+    #     environment:
+    #         POSTGRES_USER: prescientia
+    #         POSTGRES_DB: prescientia
+    #         POSTGRES_PASSWORD: ProjectManagement@2024
+    #         TZ: Asia/Jakarta
+    #         PGTZ: Asia/Jakarta
+    #     ports:
+    #         - "5432:5432"
+    #     volumes:
+    #         - /var/data/pgsql:/var/lib/postgresql/data
+    #     restart: always
+    #     networks:
+    #         - prescientia_network
 
 
 networks:

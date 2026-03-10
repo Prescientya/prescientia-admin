@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 
 class DeviceChangeRequest extends Model
 {
-    use HasFactory;
+    protected $table = 'device_change_requests';
 
     protected $fillable = [
         'user_id',
@@ -18,22 +18,31 @@ class DeviceChangeRequest extends Model
         'submitted_by',
     ];
 
-    protected static function booted()
-    {
-        static::saved(function (DeviceChangeRequest $request) {
-            $originalStatus = $request->getOriginal('status');
-            if ($request->status === 'confirm' && $originalStatus !== 'confirm') {
-                $user = $request->user()->first();
-                if ($user) {
-                    $user->device_id = $request->device_id_new;
-                    $user->save();
-                }
-            }
-        });
-    }
+    /* ── Relationships ──────────────────────────────── */
 
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function student(): HasOneThrough
+    {
+        return $this->hasOneThrough(Student::class, User::class, 'id', 'user_id', 'user_id', 'id');
+    }
+
+    /* ── Scopes ──────────────────────────────────────── */
+    public function scopePending($q)   { return $q->where('status', 'pending'); }
+    public function scopeApproved($q)  { return $q->where('status', 'approved'); }
+    public function scopeRejected($q)  { return $q->where('status', 'rejected'); }
+
+    /* ── Helpers ─────────────────────────────────────── */
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            'pending'  => 'Menunggu',
+            'approved' => 'Disetujui',
+            'rejected' => 'Ditolak',
+            default    => ucfirst($this->status),
+        };
     }
 }

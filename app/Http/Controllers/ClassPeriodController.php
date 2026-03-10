@@ -2,468 +2,358 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\ClassPeriodTemplateExport;
 use App\Models\ClassPeriod;
-use App\Services\ClassPeriodImportService;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Routing\Controller;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ClassPeriodController extends Controller
 {
-    protected ClassPeriodImportService $importService;
+    /* ── INDEX ─────────────────────────────────────────── */
 
-    public function __construct(ClassPeriodImportService $importService)
+    public function index()
     {
-        $this->importService = $importService;
-        $this->middleware('auth');
-        $this->middleware('admin'); // Hanya admin
-    }
-
-    /**
-     * GET: List semua class periods
-     */
-    public function index(Request $request)
-    {
-        // Jika request JSON (AJAX), return JSON
-        if ($request->wantsJson()) {
-            $day = $request->query('day');
-
-            $query = ClassPeriod::query();
-
-            if ($day) {
-                $query->where('day', $day);
-            }
-
-            $periods = $query->orderBy('day')->orderBy('sequence')->get();
-
-            // Group by day untuk tampilan
-            $grouped = $periods->groupBy('day');
-
-            return response()->json([
-                'success' => true,
-                'data' => $grouped,
-                'has_data' => ClassPeriod::exists(),
-            ]);
+        $days = ClassPeriod::DAYS;
+        $grouped = [];
+        foreach ($days as $day) {
+            $grouped[$day] = ClassPeriod::forDay($day)->get();
         }
-
-        // Jika request HTML, return view
-        // Dapatkan hari ini dalam bahasa Indonesia
-        $today = strtolower(\Carbon\Carbon::now()->locale('id')->translatedFormat('l'));
-        
-        // Mapping hari ke bahasa Indonesia
-        $dayMapping = [
-            'monday' => 'senin',
-            'tuesday' => 'selasa',
-            'wednesday' => 'rabu',
-            'thursday' => 'kamis',
-            'friday' => 'jumat',
-            'saturday' => 'sabtu',
-            'sunday' => 'minggu'
-        ];
-        
-        $dayEnglish = strtolower(\Carbon\Carbon::now()->format('l'));
-        $currentDay = $dayMapping[$dayEnglish] ?? $today;
-        
-        // Ambil jadwal hari ini saja
-        $todayPeriods = ClassPeriod::where('day', $currentDay)
-                                   ->orderBy('sequence')
-                                   ->get();
-        
-        return view('admin.class-periods.index', [
-            'currentDay' => $currentDay,
-            'todayPeriods' => $todayPeriods,
-            'dayName' => ucfirst($currentDay)
-        ]);
+        return view('Jam_Pelajaran.index', compact('grouped'));
     }
 
-    /**
-     * GET: Detail satu periode
-     */
-    public function show(ClassPeriod $classPeriod)
+    /* ── STORE ─────────────────────────────────────────── */
+
+    public function store(Request $request)
     {
-        return response()->json([
-            'success' => true,
-            'data' => $classPeriod,
-        ]);
-    }
+        $data = $this->validatePeriod($request);
 
-    /**
-     * GET: Show edit form for a class period
-     */
-    public function edit(ClassPeriod $classPeriod)
-    {
-        $days = ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu'];
-        $activityTypes = ['belajar', 'istirahat', 'shalat'];
-        
-        return view('admin.class-periods.edit', compact('classPeriod', 'days', 'activityTypes'));
-    }
+        // Auto-calculate duration
+        $data['duration_minutes'] = $this->calcDuration($data['start_time'], $data['end_time']);
 
-    /**
-     * PUT/PATCH: Update a class period
-     */
-    public function update(Request $request, ClassPeriod $classPeriod)
-    {
-        $request->validate([
-            'day' => 'required|in:senin,selasa,rabu,kamis,jumat,sabtu,minggu',
-            'sequence' => 'required|integer|min:0',
-            'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i|after:start_time',
-            'activity_type' => 'required|in:belajar,istirahat,shalat',
-            'note' => 'nullable|string|max:255',
-        ]);
+        // Shift sequences down to make room for insertion
+        $this->shiftSequences($data['day'], $data['sequence'], 1);
 
-        $classPeriod->update([
-            'day' => $request->day,
-            'sequence' => $request->sequence,
-            'start_time' => $request->start_time,
-            'end_time' => $request->end_time,
-            'activity_type' => $request->activity_type,
-            'note' => $request->note,
-        ]);
+        ClassPeriod::create($data);
 
-        return redirect()->route('admin.class-periods.index')
-                        ->with('success', 'Jadwal pelajaran berhasil diperbarui');
-    }
-
-    /**
-     * DELETE: Delete a single class period
-     */
-    public function destroy(ClassPeriod $classPeriod)
-    {
-        $classPeriod->delete();
-
-        return redirect()->route('admin.class-periods.index')
-                        ->with('success', 'Jadwal pelajaran berhasil dihapus');
-    }
-
-    /**
-     * POST: Import jadwal dari file Excel/CSV
-     * 
-     * Request:
-     * {
-     *   "file": File (xlsx, csv)
-     * }
-     */
-    public function import(Request $request): JsonResponse
-    {
-        // Validasi file
-        $request->validate([
-            'file' => 'required|file|mimes:xlsx,csv,xls|max:5120', // max 5MB
-        ]);
-
-        try {
-            // Cek apakah sudah ada data
-            if ($this->importService->hasExistingData()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Data jadwal pelajaran sudah ada. Hapus data terlebih dahulu dengan tombol "Delete All" sebelum import yang baru.',
-                    'action' => 'delete_first',
-                ], 422);
-            }
-
-            // Parse file
-            $filePath = $request->file('file')->store('temp');
-            $data = $this->importService->parseFile(storage_path('app/' . $filePath));
-
-            // Validasi data
-            $errors = $this->importService->validate($data);
-            if (!empty($errors)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Data tidak valid',
-                    'errors' => $errors,
-                ], 422);
-            }
-
-            // Import ke database
-            $count = $this->importService->import($data);
-
-            // Bersihkan temp file
-            @unlink(storage_path('app/' . $filePath));
-
-            return response()->json([
-                'success' => true,
-                'message' => "Import berhasil! {$count} periode jadwal telah ditambahkan.",
-                'count' => $count,
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 422);
+        if ($request->expectsJson()) {
+            return $this->jsonDayResponse($data['day']);
         }
+        return back()->with('success', 'Jam pelajaran berhasil ditambahkan.');
     }
 
-    /**
-     * PATCH: Update note untuk periode tertentu per hari
-     * 
-     * Request:
-     * {
-     *   "day": "senin",
-     *   "sequence": 0,
-     *   "note": "Upacara Bendera"
-     * }
-     */
-    public function updateNote(Request $request): JsonResponse
+    /* ── UPDATE ─────────────────────────────────────────── */
+
+    public function update(Request $request, ClassPeriod $jamPelajaran)
     {
-        $request->validate([
-            'day' => 'required|in:senin,selasa,rabu,kamis,jumat',
-            'sequence' => 'required|integer|min:0',
-            'note' => 'nullable|string|max:255',
-        ]);
+        $data = $this->validatePeriod($request, $jamPelajaran->id);
+        $data['duration_minutes'] = $this->calcDuration($data['start_time'], $data['end_time']);
 
-        $period = ClassPeriod::where('day', $request->day)
-                             ->where('sequence', $request->sequence)
-                             ->first();
+        $jamPelajaran->update($data);
 
-        if (!$period) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Periode tidak ditemukan',
-            ], 404);
+        if ($request->expectsJson()) {
+            return $this->jsonDayResponse($data['day']);
         }
-
-        $period->update(['note' => $request->note]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Catatan periode berhasil diperbarui',
-            'data' => $period,
-        ]);
+        return back()->with('success', 'Jam pelajaran berhasil diperbarui.');
     }
 
-    /**
-     * DELETE: Hapus SEMUA jadwal pelajaran (bulk delete)
-     * Memerlukan konfirmasi dan admin authorization
-     */
-    public function deleteAll(Request $request): JsonResponse
-    {
-        // Double check: cegah accident delete
-        $request->validate([
-            'confirm' => 'required|in:yes,true,1',
-        ]);
+    /* ── DESTROY ────────────────────────────────────────── */
 
-        if ($request->confirm !== 'yes') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Konfirmasi tidak sesuai',
-            ], 422);
+    public function destroy(Request $request, ClassPeriod $jamPelajaran)
+    {
+        $day = $jamPelajaran->day;
+        $jamPelajaran->delete();
+
+        // Re-sequence remaining rows
+        $this->resequence($day);
+
+        if ($request->expectsJson()) {
+            return $this->jsonDayResponse($day);
         }
-
-        $count = ClassPeriod::count();
-        ClassPeriod::query()->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => "Semua {$count} periode jadwal telah dihapus. Silakan import jadwal baru.",
-            'count' => $count,
-        ]);
+        return back()->with('success', 'Jam pelajaran berhasil dihapus.');
     }
 
-    /**
-     * GET: Check status — apakah sudah ada data atau belum
-     */
-    public function checkStatus(): JsonResponse
-    {
-        return response()->json([
-            'success' => true,
-            'has_data' => ClassPeriod::exists(),
-            'total' => ClassPeriod::count(),
-        ]);
-    }
+    /* ── DOWNLOAD TEMPLATE ──────────────────────────────── */
 
-    /**
-     * GET: Download template Excel untuk import jam pelajaran
-     */
     public function downloadTemplate()
     {
-        $templatePath = storage_path('app/templates/Template_Jam_Pelajaran.xlsx');
-        
-        // Always create fresh template
-        $this->createTemplate($templatePath);
-        
-        return response()->download($templatePath, 'Template_Jam_Pelajaran.xlsx');
+        return Excel::download(new ClassPeriodTemplateExport, 'template_jam_pelajaran.xlsx');
     }
 
-    /**
-     * Create Excel template file using PhpSpreadsheet
-     */
-    private function createTemplate($templatePath)
-    {
-        // Make sure directory exists
-        $directory = dirname($templatePath);
-        if (!is_dir($directory)) {
-            mkdir($directory, 0755, true);
-        }
+    /* ── IMPORT EXCEL ────────────────────────────────────── */
 
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        
-        // Set title
-        $sheet->setTitle('Template Jam Pelajaran');
-        
-        // Header row
-        $headers = ['HARI', 'JAM_KE', 'WAKTU_MULAI', 'WAKTU_SELESAI', 'KETERANGAN'];
-        $sheet->fromArray($headers, null, 'A1');
-        
-        // Style header
-        $headerRange = 'A1:E1';
-        $sheet->getStyle($headerRange)->getFont()->setBold(true);
-        $sheet->getStyle($headerRange)->getFill()
-            ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-            ->getStartColor()->setARGB('FFE2E8F0');
-        
-        // Template data based on the PDF format shown
-        $templateData = [
-            // SENIN (13 periods)
-            ['senin', 0, '06:30', '07:15', 'Upacara'],
-            ['senin', 1, '07:15', '07:55', ''],
-            ['senin', 2, '07:55', '08:35', ''],
-            ['senin', 3, '08:35', '09:15', ''],
-            ['senin', 4, '09:15', '09:55', ''],
-            ['senin', 5, '09:55', '10:25', 'Istirahat/MBG'],
-            ['senin', 6, '10:25', '11:05', ''],
-            ['senin', 7, '11:05', '11:45', ''],
-            ['senin', 8, '11:45', '12:20', 'Istirahat'],
-            ['senin', 9, '12:20', '13:00', ''],
-            ['senin', 10, '13:00', '13:40', ''],
-            ['senin', 11, '13:40', '14:20', ''],
-            ['senin', 12, '14:20', '15:00', ''],
-            
-            // SELASA, RABU, KAMIS (14 periods each - identical schedule)
-            ['selasa', 0, '06:10', '06:30', 'Tadarus & Kebersihan'],
-            ['selasa', 1, '06:30', '07:10', ''],
-            ['selasa', 2, '07:10', '07:50', ''],
-            ['selasa', 3, '07:50', '08:30', ''],
-            ['selasa', 4, '08:30', '09:10', ''],
-            ['selasa', 5, '09:10', '09:50', ''],
-            ['selasa', 6, '09:50', '10:20', 'Istirahat/MBG'],
-            ['selasa', 7, '10:20', '11:00', ''],
-            ['selasa', 8, '11:00', '11:40', ''],
-            ['selasa', 9, '11:40', '12:30', 'Istirahat'],
-            ['selasa', 10, '12:30', '13:10', ''],
-            ['selasa', 11, '13:10', '13:50', ''],
-            ['selasa', 12, '13:50', '14:30', ''],
-            ['selasa', 13, '14:30', '15:10', ''],
-            
-            // RABU (same as Tuesday)
-            ['rabu', 0, '06:10', '06:30', 'Tadarus & Kebersihan'],
-            ['rabu', 1, '06:30', '07:10', ''],
-            ['rabu', 2, '07:10', '07:50', ''],
-            ['rabu', 3, '07:50', '08:30', ''],
-            ['rabu', 4, '08:30', '09:10', ''],
-            ['rabu', 5, '09:10', '09:50', ''],
-            ['rabu', 6, '09:50', '10:20', 'Istirahat/MBG'],
-            ['rabu', 7, '10:20', '11:00', ''],
-            ['rabu', 8, '11:00', '11:40', ''],
-            ['rabu', 9, '11:40', '12:30', 'Istirahat'],
-            ['rabu', 10, '12:30', '13:10', ''],
-            ['rabu', 11, '13:10', '13:50', ''],
-            ['rabu', 12, '13:50', '14:30', ''],
-            ['rabu', 13, '14:30', '15:10', ''],
-            
-            // KAMIS (same as Tuesday/Wednesday)
-            ['kamis', 0, '06:10', '06:30', 'Tadarus & Kebersihan'],
-            ['kamis', 1, '06:30', '07:10', ''],
-            ['kamis', 2, '07:10', '07:50', ''],
-            ['kamis', 3, '07:50', '08:30', ''],
-            ['kamis', 4, '08:30', '09:10', ''],
-            ['kamis', 5, '09:10', '09:50', ''],
-            ['kamis', 6, '09:50', '10:20', 'Istirahat/MBG'],
-            ['kamis', 7, '10:20', '11:00', ''],
-            ['kamis', 8, '11:00', '11:40', ''],
-            ['kamis', 9, '11:40', '12:30', 'Istirahat'],
-            ['kamis', 10, '12:30', '13:10', ''],
-            ['kamis', 11, '13:10', '13:50', ''],
-            ['kamis', 12, '13:50', '14:30', ''],
-            ['kamis', 13, '14:30', '15:10', ''],
-            
-            // JUMAT (10 periods)
-            ['jumat', 0, '06:30', '07:30', 'Kerohanian/Olahraga/Kebersihan'],
-            ['jumat', 1, '07:30', '08:05', ''],
-            ['jumat', 2, '08:05', '08:40', ''],
-            ['jumat', 3, '08:40', '09:15', ''],
-            ['jumat', 4, '09:15', '09:50', ''],
-            ['jumat', 5, '09:50', '10:25', 'Istirahat/MBG'],
-            ['jumat', 6, '10:25', '10:55', ''],
-            ['jumat', 7, '10:55', '11:30', ''],
-            ['jumat', 8, '11:30', '12:30', 'Shalat Jum\'at / Keputian'],
-            ['jumat', 9, '12:30', '13:10', 'Istirahat'],
-        ];
-        
-        // Add data to sheet
-        $sheet->fromArray($templateData, null, 'A2');
-        
-        // Auto-size columns
-        foreach (range('A', 'E') as $column) {
-            $sheet->getColumnDimension($column)->setAutoSize(true);
-        }
-        
-        // Add borders to all data
-        $lastRow = count($templateData) + 1;
-        $sheet->getStyle("A1:E{$lastRow}")->getBorders()->getAllBorders()->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
-        
-        // Add instructions in a separate sheet
-        $instructionSheet = $spreadsheet->createSheet();
-        $instructionSheet->setTitle('Petunjuk');
-        
-        $instructions = [
-            ['PETUNJUK PENGGUNAAN TEMPLATE JAM PELAJARAN'],
-            [''],
-            ['1. Isi data pada sheet "Template Jam Pelajaran"'],
-            ['2. Format kolom:'],
-            ['   - HARI: senin, selasa, rabu, kamis, jumat (huruf kecil)'],
-            ['   - JAM_KE: angka urutan (0, 1, 2, dst)'],
-            ['   - WAKTU_MULAI: format HH:MM (contoh: 06:30)'],
-            ['   - WAKTU_SELESAI: format HH:MM (contoh: 07:15)'],
-            ['   - KETERANGAN: teks bebas (boleh kosong)'],
-            [''],
-            ['3. Jangan ubah nama kolom header'],
-            ['4. Simpan file dalam format Excel (.xlsx)'],
-            ['5. Upload file di sistem admin'],
-        ];
-        
-        $instructionSheet->fromArray($instructions, null, 'A1');
-        $instructionSheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
-        $instructionSheet->getColumnDimension('A')->setAutoSize(true);
-        
-        // Set active sheet back to template
-        $spreadsheet->setActiveSheetIndex(0);
-        
-        // Save file
-        $writer = new Xlsx($spreadsheet);
-        $writer->save($templatePath);
-    }
-
-    /**
-     * Seed class periods data via API
-     * 
-     * @return JsonResponse
-     */
-    public function seedData(): JsonResponse
+    public function importExcel(Request $request)
     {
+        set_time_limit(0);
+
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv|max:5120',
+        ], [
+            'file.required' => 'Pilih file Excel terlebih dahulu.',
+            'file.mimes'    => 'Format file harus .xlsx, .xls, atau .csv.',
+            'file.max'      => 'Ukuran file maksimal 5MB.',
+        ]);
+
         try {
-            // Hapus data lama jika ada
-            ClassPeriod::truncate();
-            
-            // Jalankan seeder
-            $seeder = new \Database\Seeders\ClassPeriodSeeder();
-            $seeder->run();
-            
-            $totalPeriods = ClassPeriod::count();
-            
-            return response()->json([
-                'success' => true,
-                'message' => 'Class periods data seeded successfully',
-                'total_periods' => $totalPeriods
-            ]);
+            // Parse the uploaded file with heading row support
+            $sheets = Excel::toCollection(
+                new class implements WithHeadingRow {},
+                $request->file('file')
+            );
+            $rows = $sheets->first();
+
+            $validDays   = ClassPeriod::DAYS;
+            $validTypes  = array_keys(ClassPeriod::ACTIVITY_TYPES);
+            // Map lowercase Indonesian label → type key
+            $labelToType = array_flip(array_map('strtolower', ClassPeriod::ACTIVITY_TYPES));
+
+            $grouped   = [];  // day => [ DB rows ]
+            $errors    = [];
+            $rowNumber = 2;   // spreadsheet row (row 1 = heading)
+
+            foreach ($rows as $row) {
+                $row = $row->toArray();
+
+                // Skip empty / info comment rows
+                $hari = strtolower(trim((string)($row['hari'] ?? '')));
+                if (empty($hari) || str_starts_with($hari, '[info]')) {
+                    $rowNumber++;
+                    continue;
+                }
+
+                if (!in_array($hari, $validDays)) {
+                    $errors[] = "Baris {$rowNumber}: hari \u2018{$hari}\u2019 tidak valid.";
+                    $rowNumber++;
+                    continue;
+                }
+
+                $jamKeRaw = $row['jam_ke'] ?? '';
+                // Allow empty/null jam_ke → treat as 0 (for ceremony / break / etc.)
+                if ($jamKeRaw === '' || $jamKeRaw === null) {
+                    $jamKe = 0;
+                } elseif (is_numeric($jamKeRaw) && (int)$jamKeRaw >= 0 && (int)$jamKeRaw <= 30) {
+                    $jamKe = (int)$jamKeRaw;
+                } else {
+                    $errors[] = "Baris {$rowNumber}: jam_ke \u2018{$jamKeRaw}\u2019 tidak valid (angka 0\u201330 atau kosong).";
+                    $rowNumber++;
+                    continue;
+                }
+
+                $waktuMulai   = trim((string)($row['waktu_mulai']   ?? ''));
+                $waktuSelesai = trim((string)($row['waktu_selesai'] ?? ''));
+
+                // Excel may store times as floats (fraction of day) — convert if needed
+                if (is_numeric($waktuMulai)) {
+                    $waktuMulai = $this->excelTimeToHHMM((float)$waktuMulai);
+                }
+                if (is_numeric($waktuSelesai)) {
+                    $waktuSelesai = $this->excelTimeToHHMM((float)$waktuSelesai);
+                }
+
+                // Also handle HH:MM:SS format from Maatwebsite
+                if (preg_match('/^\d{2}:\d{2}:\d{2}$/', $waktuMulai)) {
+                    $waktuMulai = substr($waktuMulai, 0, 5);
+                }
+                if (preg_match('/^\d{2}:\d{2}:\d{2}$/', $waktuSelesai)) {
+                    $waktuSelesai = substr($waktuSelesai, 0, 5);
+                }
+
+                if (!preg_match('/^\d{2}:\d{2}$/', $waktuMulai)) {
+                    $errors[] = "Baris {$rowNumber}: waktu_mulai \u2018{$waktuMulai}\u2019 tidak valid (format HH:MM).";
+                    $rowNumber++;
+                    continue;
+                }
+                if (!preg_match('/^\d{2}:\d{2}$/', $waktuSelesai)) {
+                    $errors[] = "Baris {$rowNumber}: waktu_selesai \u2018{$waktuSelesai}\u2019 tidak valid (format HH:MM).";
+                    $rowNumber++;
+                    continue;
+                }
+
+                // Resolve jenis → activity_type
+                $jenisRaw = trim((string)($row['jenis'] ?? 'lesson'));
+                $type     = in_array($jenisRaw, $validTypes)
+                    ? $jenisRaw
+                    : ($labelToType[strtolower($jenisRaw)] ?? null);
+
+                if (!$type) {
+                    $errors[] = "Baris {$rowNumber}: jenis \u2018{$jenisRaw}\u2019 tidak dikenal. Gunakan: " . implode(', ', $validTypes) . ".";
+                    $rowNumber++;
+                    continue;
+                }
+
+                // Calculate duration
+                [$sh, $sm] = explode(':', $waktuMulai);
+                [$eh, $em] = explode(':', $waktuSelesai);
+                $duration  = ((int)$eh * 60 + (int)$em) - ((int)$sh * 60 + (int)$sm);
+
+                if ($duration <= 0) {
+                    $errors[] = "Baris {$rowNumber}: waktu selesai harus setelah waktu mulai.";
+                    $rowNumber++;
+                    continue;
+                }
+
+                $grouped[$hari][] = [
+                    'day'              => $hari,
+                    'sequence'         => (int)$jamKe,
+                    'start_time'       => $waktuMulai   . ':00',
+                    'end_time'         => $waktuSelesai . ':00',
+                    'duration_minutes' => $duration,
+                    'activity_type'    => $type,
+                    'note'             => !empty($row['keterangan']) ? (string)$row['keterangan'] : null,
+                    'created_at'       => now(),
+                    'updated_at'       => now(),
+                ];
+
+                $rowNumber++;
+            }
+
+            if (empty($grouped)) {
+                $errMsg = !empty($errors)
+                    ? 'Import gagal. Temuan: ' . implode(' | ', array_slice($errors, 0, 5))
+                    : 'Tidak ada data valid dalam file. Pastikan format sesuai template.';
+                return back()->with('error', $errMsg);
+            }
+
+            // Replace rows for each affected day
+            $totalInserted = 0;
+            DB::transaction(function () use ($grouped, &$totalInserted) {
+                foreach ($grouped as $day => $dayRows) {
+                    ClassPeriod::where('day', $day)->delete();
+                    ClassPeriod::insert($dayRows);
+                    $totalInserted += count($dayRows);
+                }
+            });
+
+            $dayLabels = collect(array_keys($grouped))
+                ->map(fn($d) => ClassPeriod::DAY_LABELS[$d] ?? $d)
+                ->join(', ');
+
+            $msg = "Berhasil mengimpor {$totalInserted} slot jam untuk hari: {$dayLabels}.";
+            if (!empty($errors)) {
+                $msg .= ' (' . count($errors) . ' baris dilewati karena tidak valid)';
+            }
+
+            return redirect()->route('jam-pelajaran.index')->with('success', $msg);
+
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to seed data: ' . $e->getMessage()
-            ], 500);
+            return back()->with('error', 'Gagal membaca file: ' . $e->getMessage());
         }
+    }
+
+    /* ── RESET (re-seed satu hari) ──────────────────────── */
+
+    public function reset(Request $request)
+    {
+        $request->validate(['day' => ['required', Rule::in(ClassPeriod::DAYS)]]);
+        $day = $request->day;
+
+        DB::transaction(function () use ($day) {
+            ClassPeriod::where('day', $day)->delete();
+            $seeder = new \Database\Seeders\ClassPeriodSeeder;
+            // Re-insert only one day using the seeder map
+            $rows = $seeder->rowsForDay($day);
+            ClassPeriod::insert($rows);
+        });
+
+        if ($request->expectsJson()) {
+            return $this->jsonDayResponse($day);
+        }
+        return back()->with('success', 'Jadwal hari ' . ClassPeriod::DAY_LABELS[$day] . ' berhasil direset.');
+    }
+
+    /* ── DAY TABLE (AJAX partial HTML) ─────────────────── */
+
+    public function dayTable(Request $request, string $day)
+    {
+        if (!in_array($day, ClassPeriod::DAYS)) {
+            return response()->json(['message' => 'Hari tidak valid'], 422);
+        }
+
+        $periods = ClassPeriod::forDay($day)->get();
+        $html = view('Jam_Pelajaran._table', compact('periods', 'day'))->render();
+        $lessonCount = $periods->where('activity_type', 'lesson')->count();
+
+        return response()->json(['html' => $html, 'day' => $day, 'lesson_count' => $lessonCount]);
+    }
+
+    /* ── HELPERS ────────────────────────────────────────── */
+
+    private function validatePeriod(Request $request, ?int $ignoreId = null): array
+    {
+        return $request->validate([
+            'day'           => ['required', Rule::in(ClassPeriod::DAYS)],
+            'sequence'      => [
+                'required', 'integer', 'min:0', 'max:30',
+                Rule::unique('class_periods', 'sequence')
+                    ->where('day', $request->day)
+                    ->ignore($ignoreId),
+            ],
+            'start_time'    => 'required|date_format:H:i',
+            'end_time'      => 'required|date_format:H:i|after:start_time',
+            'activity_type' => ['required', Rule::in(array_keys(ClassPeriod::ACTIVITY_TYPES))],
+            'note'          => 'nullable|string|max:200',
+        ], [
+            'sequence.unique'   => 'Urutan jam ini sudah ada di hari tersebut.',
+            'end_time.after'    => 'Waktu selesai harus setelah waktu mulai.',
+        ]);
+    }
+
+    /**
+     * Convert an Excel fractional day value (0–1) to "HH:MM" string.
+     * e.g. 0.25 -> "06:00"
+     */
+    private function excelTimeToHHMM(float $fraction): string
+    {
+        $totalMinutes = (int) round($fraction * 1440);
+        $h = intdiv($totalMinutes, 60);
+        $m = $totalMinutes % 60;
+        return str_pad($h, 2, '0', STR_PAD_LEFT) . ':' . str_pad($m, 2, '0', STR_PAD_LEFT);
+    }
+
+    private function calcDuration(string $start, string $end): int
+    {
+        [$sh, $sm] = explode(':', $start);
+        [$eh, $em] = explode(':', $end);
+        return ((int)$eh * 60 + (int)$em) - ((int)$sh * 60 + (int)$sm);
+    }
+
+    private function shiftSequences(string $day, int $fromSeq, int $offset): void
+    {
+        ClassPeriod::where('day', $day)
+            ->where('sequence', '>=', $fromSeq)
+            ->orderBy('sequence', 'desc')
+            ->each(fn($p) => $p->update(['sequence' => $p->sequence + $offset]));
+    }
+
+    private function resequence(string $day): void
+    {
+        ClassPeriod::where('day', $day)->orderBy('sequence')->get()
+            ->each(fn($p, $i) => $p->sequence !== $i ? $p->update(['sequence' => $i]) : null);
+    }
+
+    private function jsonDayResponse(string $day): \Illuminate\Http\JsonResponse
+    {
+        $periods = ClassPeriod::forDay($day)->get()->map(fn($p) => [
+            'id'             => $p->id,
+            'sequence'       => $p->sequence,
+            'start_time'     => substr($p->start_time, 0, 5),
+            'end_time'       => substr($p->end_time, 0, 5),
+            'duration_minutes' => $p->duration_minutes,
+            'activity_type'  => $p->activity_type,
+            'activity_label' => $p->activity_label,
+            'note'           => $p->note,
+            'is_lesson'      => $p->is_lesson,
+        ]);
+
+        $lessonCount = $periods->where('is_lesson', true)->count();
+
+        return response()->json([
+            'success' => true,
+            'day'     => $day,
+            'periods' => $periods,
+            'lesson_count' => $lessonCount,
+        ]);
     }
 }

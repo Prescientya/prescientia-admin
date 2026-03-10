@@ -2,105 +2,62 @@
 
 namespace App\Exports;
 
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use Maatwebsite\Excel\Concerns\FromArray;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Style\Alignment;
-use PhpOffice\PhpSpreadsheet\Style\Font;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
 
-/**
- * Template Excel untuk Import Akun Guru
- * 
- * Purpose: Memandu admin untuk membuat akun guru dengan benar
- * Contains: 10 dummy rows dengan contoh data
- * Subjects: Limited to 5 general subjects (Matematika, Bahasa Indonesia, Bahasa Inggris, Pendidikan Agama, PJOK)
- * 
- * IMPORTANT: Template ini HANYA untuk pembuatan akun guru.
- * Penugasan kelas (class assignment) dilakukan terpisah di halaman Manajemen Guru Mengajar.
- */
-class TeacherTemplateExport
+class TeacherTemplateExport implements FromArray, WithStyles, WithColumnWidths
 {
-    public function generate(): Spreadsheet
+    public function array(): array
     {
-        $spreadsheet = new Spreadsheet();
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Template Akun Guru');
+        return [
+            // Header row
+            ['nip', 'nama', 'email', 'gender', 'tanggal_lahir', 'no_hp', 'alamat', 'mapel'],
 
-        // Set header row (ACCOUNT ONLY - NO CLASS ASSIGNMENT)
-        $headers = [
-            'Email',
-            'NIP',
-            'Nama',
-            'Jenis Kelamin',
-            'Tanggal Lahir',
-            'Nomor Telepon',
-            'Alamat',
-            'Mata Pelajaran',
+            // Example data — mapel can be single or comma-separated (e.g. "Matematika,Fisika")
+            ['19800101001', 'Ahmad Fauzan',       'ahmad.fauzan@guru.sch.id',      'L', '1980-01-01', '081234567801', 'Jl. Mawar No.1, Jakarta',        'Matematika'],
+            ['19820305002', 'Siti Munawaroh',     'siti.munawaroh@guru.sch.id',    'P', '1982-03-05', '081234567802', 'Jl. Melati No.2, Bandung',        'Bahasa Indonesia'],
+            ['19851112003', 'Budi Hartono',       'budi.hartono@guru.sch.id',      'L', '1985-11-12', '081234567803', 'Jl. Anggrek No.3, Surabaya',      'Fisika,Kimia'],
+            ['19780620004', 'Dewi Kurniasih',     'dewi.kurniasih@guru.sch.id',    'P', '1978-06-20', '081234567804', 'Jl. Dahlia No.4, Yogyakarta',     'Biologi'],
+            ['19900428005', 'Rizky Firmansyah',   'rizky.firmansyah@guru.sch.id',  'L', '1990-04-28', '081234567805', 'Jl. Kenanga No.5, Semarang',      'Bahasa Inggris'],
+            ['19880715006', 'Nurul Khasanah',     'nurul.khasanah@guru.sch.id',    'P', '1988-07-15', '081234567806', 'Jl. Flamboyan No.6, Medan',       'Sejarah,IPS'],
+            ['19830209007', 'Fajar Nugroho',      'fajar.nugroho@guru.sch.id',     'L', '1983-02-09', '081234567807', 'Jl. Cempaka No.7, Makassar',      'Pendidikan Jasmani'],
+            ['19910930008', 'Rika Wulandari',     'rika.wulandari@guru.sch.id',    'P', '1991-09-30', '081234567808', 'Jl. Bougenville No.8, Palembang', 'Seni Budaya'],
+            ['19860517009', 'Hendra Prasetyo',    'hendra.prasetyo@guru.sch.id',   'L', '1986-05-17', '081234567809', 'Jl. Lavender No.9, Denpasar',     'Teknologi Informasi'],
+            ['19940223010', 'Indah Ratnasari',    'indah.ratnasari@guru.sch.id',   'P', '1994-02-23', '081234567810', 'Jl. Tulip No.10, Malang',         'PKN,Agama'],
         ];
-        $sheet->fromArray([$headers], null, 'A1');
+    }
 
-        // Style header row
-        $headerStyle = [
-            'font' => [
-                'bold' => true,
-                'color' => ['rgb' => 'FFFFFF'],
-                'size' => 11,
-            ],
-            'fill' => [
-                'fillType' => Fill::FILL_SOLID,
-                'startColor' => ['rgb' => '2563eb'], // Blue color
-            ],
-            'alignment' => [
-                'horizontal' => Alignment::HORIZONTAL_CENTER,
-                'vertical' => Alignment::VERTICAL_CENTER,
-                'wrapText' => true,
+    public function styles(Worksheet $sheet): array
+    {
+        $styles = [
+            // Bold header row with blue background
+            1 => [
+                'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+                'fill' => ['fillType' => 'solid', 'startColor' => ['rgb' => '1D4ED8']],
             ],
         ];
 
-        $sheet->getStyle('A1:H1')->applyFromArray($headerStyle);
+        // Light blue for all 10 example rows (rows 2–11)
+        for ($i = 2; $i <= 11; $i++) {
+            $styles[$i] = ['fill' => ['fillType' => 'solid', 'startColor' => ['rgb' => 'EFF6FF']]];
+        }
 
-        // Set column widths
-        $sheet->getColumnDimension('A')->setWidth(30); // Email
-        $sheet->getColumnDimension('B')->setWidth(18); // NIP
-        $sheet->getColumnDimension('C')->setWidth(25); // Nama
-        $sheet->getColumnDimension('D')->setWidth(15); // Gender
-        $sheet->getColumnDimension('E')->setWidth(18); // Birth Date
-        $sheet->getColumnDimension('F')->setWidth(18); // Phone
-        $sheet->getColumnDimension('G')->setWidth(35); // Address
-        $sheet->getColumnDimension('H')->setWidth(40); // Subjects (comma-separated)
+        return $styles;
+    }
 
-        // Add 10 dummy teacher rows with realistic data
-        $dummyData = [
-            ['ahmad.fauzi@sekolah.id', '198501011', 'Ahmad Fauzi', 'L', '1985-01-15', '081234567801', 'Jl. Pendidikan No. 1, Jakarta', 'Matematika'],
-            ['siti.nurhaliza@sekolah.id', '198602012', 'Siti Nurhaliza', 'P', '1986-02-20', '081234567802', 'Jl. Guru No. 2, Bandung', 'Bahasa Indonesia'],
-            ['budi.santoso@sekolah.id', '198703013', 'Budi Santoso', 'L', '1987-03-10', '081234567803', 'Jl. Cendekia No. 3, Surabaya', 'Bahasa Inggris'],
-            ['dewi.kartika@sekolah.id', '198804014', 'Dewi Kartika', 'P', '1988-04-25', '081234567804', 'Jl. Ilmu No. 4, Yogyakarta', 'Pendidikan Agama'],
-            ['rizki.ramadhan@sekolah.id', '198905015', 'Rizki Ramadhan', 'L', '1989-05-12', '081234567805', 'Jl. Belajar No. 5, Semarang', 'PJOK'],
-            ['linda.wijaya@sekolah.id', '199006016', 'Linda Wijaya', 'P', '1990-06-18', '081234567806', 'Jl. Pahlawan No. 6, Malang', 'Matematika, Bahasa Indonesia'],
-            ['eko.prasetyo@sekolah.id', '199107017', 'Eko Prasetyo', 'L', '1991-07-22', '081234567807', 'Jl. Merdeka No. 7, Solo', 'Bahasa Inggris, PJOK'],
-            ['rina.sulastri@sekolah.id', '199208018', 'Rina Sulastri', 'P', '1992-08-30', '081234567808', 'Jl. Kemerdekaan No. 8, Medan', 'Pendidikan Agama, Bahasa Indonesia'],
-            ['hendra.gunawan@sekolah.id', '199309019', 'Hendra Gunawan', 'L', '1993-09-14', '081234567809', 'Jl. Proklamasi No. 9, Palembang', 'Matematika, Bahasa Inggris'],
-            ['fitri.handayani@sekolah.id', '199410020', 'Fitri Handayani', 'P', '1994-10-05', '081234567810', 'Jl. Nusantara No. 10, Makassar', 'Bahasa Indonesia, Pendidikan Agama'],
+    public function columnWidths(): array
+    {
+        return [
+            'A' => 18,  // nip
+            'B' => 28,  // nama
+            'C' => 32,  // email
+            'D' => 10,  // gender
+            'E' => 18,  // tanggal_lahir
+            'F' => 18,  // no_hp
+            'G' => 38,  // alamat
+            'H' => 35,  // mapel (comma-separated)
         ];
-
-        $sheet->fromArray($dummyData, null, 'A2');
-
-        // Style dummy data rows (light gray to indicate it's sample data)
-        $sampleStyle = [
-            'alignment' => [
-                'horizontal' => Alignment::HORIZONTAL_LEFT,
-                'vertical' => Alignment::VERTICAL_CENTER,
-            ],
-            'font' => [
-                'color' => ['rgb' => '6b7280'], // Gray color
-                'size' => 10,
-            ],
-        ];
-        $sheet->getStyle('A2:H11')->applyFromArray($sampleStyle);
-
-        // Freeze header row
-        $sheet->freezePane('A2');
-
-        return $spreadsheet;
     }
 }

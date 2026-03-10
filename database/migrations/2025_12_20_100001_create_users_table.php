@@ -23,8 +23,7 @@ return new class extends Migration
             $table->dateTime('last_login_at')->nullable();
             $table->rememberToken();
             $table->timestamps();
-            $table->softDeletes();
-            
+
             // Indexes
             $table->index('role');
             $table->index('device_id');

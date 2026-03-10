@@ -1,0 +1,151 @@
+﻿/* ============================================================
+   DATA SISWA  style.css
+   Shared patterns (page layout, header, toolbar, badge, photo-upload,
+   input-password, toggle, detail-grid, edit-card, excel-dropzone)
+   are in components/global.css.
+   Only Data-Siswa-specific styles live here.
+   ============================================================ */
+
+/*  Student Row  */
+.ds-student { display: flex; align-items: center; gap: 10px; }
+.ds-avatar {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    background: var(--accent); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.875rem; overflow: hidden;
+}
+.ds-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.ds-student-name { font-weight: 600; }
+
+/*  Modal Tabs (tambah siswa: Form / Import)  */
+.modal-tabs { display: flex; border-bottom: 1px solid var(--card-border); padding: 0 22px; }
+.modal-tab-btn {
+    padding: 11px 18px; font-size: 0.875rem; font-weight: 600;
+    color: var(--text-muted); cursor: pointer; border: none;
+    background: transparent; border-bottom: 2px solid transparent;
+    margin-bottom: -1px; transition: color 0.15s, border-color 0.15s;
+}
+.modal-tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.modal-tab-content { display: none; }
+.modal-tab-content.active { display: block; }
+
+/*  Form Section Divider  */
+.form-section { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--card-border); }
+
+/*  DETAIL MODAL Header  */
+.detail-header {
+    display: flex; align-items: center; gap: 16px;
+    padding: 20px 22px; border-bottom: 1px solid var(--card-border);
+}
+.detail-avatar {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 1.4rem; flex-shrink: 0; overflow: hidden;
+}
+.detail-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.detail-name { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); }
+.detail-nis  { font-size: 0.83rem; color: var(--text-secondary); margin-top: 3px; }
+
+/*  DELETE MODAL  */
+.delete-title   { font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
+.delete-student-card {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--content-bg); border: 1px solid var(--card-border);
+    border-radius: 10px; padding: 12px 16px; margin: 14px 0; text-align: left;
+}
+.delete-student-name { font-weight: 600; font-size: 0.9rem; color: var(--text-primary); }
+.delete-student-nis  { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+.delete-warning { font-size: 0.845rem; color: var(--text-secondary); line-height: 1.6; }
+.delete-warning strong { color: #dc2626; }
+
+/*  Edit Page Wrapper  */
+.edit-page-wrap { max-width: 820px; margin: 0 auto; }
+
+/*  Role Select  */
+.role-select-wrap { position: relative; }
+
+.role-hints { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+
+.role-hint-item {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 0.78rem; padding: 3px 8px; border-radius: 6px;
+    color: #92400e; background: #fef3c7; border: 1px solid #fcd34d;
+}
+.role-hint-item svg { flex-shrink: 0; }
+
+/*  Responsive  */
+@media (max-width: 768px) {
+    .data-table th:nth-child(4),
+    .data-table td:nth-child(4) { display: none; }
+}
+
+/* ─── IMPORT EXCEL – Reading progress ───────────────────── */
+.import-reading-section {
+    border: 1px solid var(--card-border); border-radius: 10px;
+    padding: 12px 14px; background: var(--content-bg);
+    display: flex; flex-direction: column; gap: 8px;
+}
+.import-reading-header {
+    display: flex; align-items: center; gap: 8px;
+}
+.import-progress-bar {
+    height: 7px; border-radius: 99px;
+    background: var(--card-border); overflow: hidden;
+}
+.import-progress-fill {
+    height: 100%; border-radius: 99px;
+    background: linear-gradient(90deg, var(--accent), #60a5fa);
+    transition: width 0.35s ease;
+}
+
+/* ─── IMPORT EXCEL – Missing classes section ─────────────── */
+.import-missing-section {
+    border: 1px solid #fcd34d; border-radius: 10px; overflow: hidden;
+}
+[data-mode="dark"] .import-missing-section { border-color: #92400e; }
+.import-missing-header {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 9px 14px; background: #fffbeb; border-bottom: 1px solid #fcd34d;
+}
+[data-mode="dark"] .import-missing-header {
+    background: #1c1407; border-color: #92400e;
+}
+.import-missing-title {
+    font-weight: 700; font-size: 0.85rem; color: #92400e; flex: 1; min-width: 140px;
+}
+[data-mode="dark"] .import-missing-title { color: #fbbf24; }
+.import-missing-subtitle {
+    font-size: 0.78rem; color: #a16207; white-space: nowrap;
+}
+[data-mode="dark"] .import-missing-subtitle { color: #d97706; }
+.import-missing-list {
+    padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 8px;
+    background: var(--card-bg);
+}
+.import-missing-item {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 0.84rem;
+    background: var(--content-bg); border: 1px solid var(--card-border);
+    transition: background .15s, border-color .15s;
+    user-select: none;
+}
+.import-missing-item:hover { border-color: var(--accent); background: var(--accent-light); }
+.import-missing-item input[type="checkbox"] { accent-color: var(--accent); flex-shrink: 0; }
+.import-missing-item-label { font-weight: 600; color: var(--text-primary); }
+.import-missing-badge {
+    font-size: 0.7rem; font-weight: 700; padding: 1px 6px; border-radius: 5px;
+    background: #fef3c7; color: #92400e; border: 1px solid #fcd34d;
+}
+[data-mode="dark"] .import-missing-badge { background: #1c1407; color: #fbbf24; border-color: #92400e; }
+
+/* ─── IMPORT EXCEL – auto-create label ──────────────────── */
+.import-autocreate-label {
+    display: flex; align-items: flex-start; gap: 10px;
+    cursor: pointer; font-size: 0.875rem; color: var(--text-secondary);
+    padding: 10px 12px; border-radius: 9px;
+    border: 1px solid var(--card-border); background: var(--content-bg);
+    transition: border-color .15s;
+}
+.import-autocreate-label:hover { border-color: var(--accent); }
+

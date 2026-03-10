@@ -2,12 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class WifiNetwork extends Model
 {
-    use HasFactory;
+    protected $table = 'wifi_networks';
 
     protected $fillable = [
         'ssid',
@@ -15,11 +14,12 @@ class WifiNetwork extends Model
         'ip_address',
     ];
 
-    /**
-     * Get all presence logs for the wifi network.
-     */
-    public function presenceLogs()
-    {
-        return $this->hasMany(WifiPresenceLog::class, 'wifi_id');
-    }
+    /* ── Relationships ──────────────────────────────── */
+
+    // Note: WifiPresenceLog model is in the student/teacher app, not admin.
+    // Relation kept commented for reference.
+    // public function presenceLogs()
+    // {
+    //     return $this->hasMany(WifiPresenceLog::class, 'wifi_id');
+    // }
 }

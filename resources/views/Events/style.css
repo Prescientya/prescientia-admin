@@ -1,0 +1,192 @@
+/* ============================================================
+   EVENTS  style.css
+   Only Event-specific styles; shared patterns are in global.css.
+   ============================================================ */
+
+/* ── Page Layout ──────────────────────────────────────────── */
+.ev-page {
+    display: flex; flex-direction: column; gap: 20px;
+}
+
+/* ── Header ───────────────────────────────────────────────── */
+.ev-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px;
+}
+.ev-subtitle {
+    font-size: 0.84rem; color: var(--text-muted); margin: 3px 0 0;
+}
+
+/* ── Toolbar ──────────────────────────────────────────────── */
+.ev-toolbar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.ev-search {
+    flex: 1; min-width: 200px; position: relative;
+}
+.ev-search svg {
+    position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+    color: var(--text-muted); pointer-events: none;
+}
+.ev-search input {
+    width: 100%; padding: 9px 14px 9px 36px;
+    border: 1px solid var(--card-border); border-radius: 8px;
+    background: var(--card-bg); color: var(--text-primary);
+    font-size: 0.875rem; outline: none;
+    transition: border-color .15s, box-shadow .15s;
+}
+.ev-search input:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light);
+}
+.ev-search input::placeholder { color: var(--text-muted); }
+.ev-filter-select {
+    padding: 9px 14px; border: 1px solid var(--card-border); border-radius: 8px;
+    background: var(--card-bg); color: var(--text-primary);
+    font-size: 0.875rem; outline: none; cursor: pointer;
+    transition: border-color .15s;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+}
+.ev-filter-select:focus { border-color: var(--accent); }
+
+/* ── Title Cell ───────────────────────────────────────────── */
+.ev-title-cell {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.ev-link-badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 8px; border-radius: 12px; font-size: 0.72rem; font-weight: 600;
+    background: rgba(59,130,246,0.1); color: #3b82f6;
+}
+body[data-mode="dark"] .ev-link-badge { background: rgba(59,130,246,0.2); color: #93c5fd; }
+
+/* ── Audience Badges ──────────────────────────────────────── */
+.ev-audience {
+    display: inline-flex; align-items: center;
+    padding: 4px 10px; border-radius: 7px; font-size: 0.78rem; font-weight: 600;
+}
+.ev-audience--semua { background: rgba(59,130,246,0.1); color: #2563eb; }
+.ev-audience--guru  { background: rgba(168,85,247,0.1); color: #7c3aed; }
+.ev-audience--siswa { background: rgba(16,185,129,0.1); color: #059669; }
+.ev-audience--kelas { background: rgba(245,158,11,0.1); color: #d97706; }
+body[data-mode="dark"] .ev-audience--semua { background: rgba(59,130,246,0.2); color: #93c5fd; }
+body[data-mode="dark"] .ev-audience--guru  { background: rgba(168,85,247,0.2); color: #c4b5fd; }
+body[data-mode="dark"] .ev-audience--siswa { background: rgba(16,185,129,0.2); color: #6ee7b7; }
+body[data-mode="dark"] .ev-audience--kelas { background: rgba(245,158,11,0.2); color: #fde68a; }
+
+/* ── Status Badges ────────────────────────────────────────── */
+.ev-status {
+    display: inline-flex; align-items: center;
+    padding: 4px 10px; border-radius: 7px; font-size: 0.78rem; font-weight: 600;
+}
+.ev-status--success { background: rgba(22,163,74,0.12); color: #15803d; }
+.ev-status--warning { background: rgba(245,158,11,0.12); color: #92400e; }
+.ev-status--muted   { background: rgba(107,114,128,0.1); color: #6b7280; }
+body[data-mode="dark"] .ev-status--success { background: rgba(22,163,74,0.22); color: #4ade80; }
+body[data-mode="dark"] .ev-status--warning { background: rgba(245,158,11,0.22); color: #fde68a; }
+body[data-mode="dark"] .ev-status--muted   { background: rgba(107,114,128,0.2); color: #9ca3af; }
+
+/* ── Action Dropdown ──────────────────────────────────────── */
+.ev-action { position: relative; display: inline-block; }
+.ev-action__btn {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: transparent; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-muted); transition: background 0.15s, color 0.15s;
+}
+.ev-action__btn:hover { background: var(--accent-light); color: var(--accent); }
+.ev-dropdown {
+    position: fixed;
+    background: var(--dropdown-bg); border: 1px solid var(--dropdown-border);
+    border-radius: 10px; box-shadow: var(--dropdown-shadow);
+    min-width: 160px; z-index: 9999;
+    opacity: 0; pointer-events: none; transform: translateY(-6px);
+    transition: opacity 0.15s, transform 0.15s;
+    display: flex; flex-direction: column; padding: 4px;
+}
+.ev-dropdown.open { opacity: 1; pointer-events: all; transform: translateY(0); }
+.ev-dropdown__item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 9px 12px; border-radius: 7px; font-size: 0.845rem;
+    color: var(--dropdown-text); cursor: pointer; text-decoration: none;
+    background: transparent; border: none; width: 100%; text-align: left;
+    transition: background 0.12s;
+}
+.ev-dropdown__item:hover { background: var(--dropdown-item-hover); }
+.ev-dropdown__item--danger { color: var(--dropdown-text-danger); }
+.ev-dropdown__item--danger:hover { background: rgba(220,38,38,0.08); }
+.ev-dropdown__separator { height: 1px; background: var(--card-border); margin: 3px 8px; }
+
+/* ── Target Section (create/edit) ─────────────────────────── */
+.ev-target-section {
+    margin-top: 14px; padding: 16px;
+    background: var(--content-bg); border: 1px solid var(--card-border);
+    border-radius: 10px;
+}
+.ev-target-info {
+    display: flex; align-items: flex-start; gap: 8px;
+    font-size: 0.82rem; color: var(--text-muted); line-height: 1.5;
+}
+.ev-target-info svg { flex-shrink: 0; margin-top: 1px; color: var(--accent); }
+
+/* ── Checkbox Grid ────────────────────────────────────────── */
+.ev-checkbox-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 8px;
+}
+.ev-checkbox-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; border: 1px solid var(--card-border);
+    border-radius: 8px; cursor: pointer; font-size: 0.84rem;
+    color: var(--text-primary); transition: background .15s, border-color .15s;
+}
+.ev-checkbox-item:hover { background: var(--accent-light); border-color: var(--accent); }
+.ev-checkbox-item input[type="checkbox"] {
+    accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer;
+}
+.ev-checkbox-item input[type="checkbox"]:checked + span { font-weight: 600; color: var(--accent); }
+
+/* ── Detail Modal Grid ────────────────────────────────────── */
+.ev-detail-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+}
+.ev-detail-item {
+    padding: 12px 0; border-bottom: 1px solid var(--card-border);
+}
+.ev-detail-item--full { grid-column: 1 / -1; }
+.ev-detail-label {
+    font-size: 0.72rem; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: .05em;
+    margin-bottom: 3px; font-weight: 600;
+}
+.ev-detail-value {
+    font-size: 0.875rem; color: var(--text-primary); font-weight: 500;
+}
+.ev-detail-description {
+    font-size: 0.85rem; color: var(--text-primary); line-height: 1.6;
+    white-space: pre-wrap;
+}
+.ev-target-tag {
+    display: inline-flex; align-items: center;
+    padding: 3px 10px; margin: 3px 4px 3px 0; border-radius: 6px;
+    font-size: 0.78rem; font-weight: 500;
+    background: var(--accent-light); color: var(--accent);
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .ev-toolbar { flex-direction: column; align-items: stretch; }
+    .ev-filter-select { width: 100%; }
+    .ev-detail-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+    .ev-header { flex-direction: column; }
+    .data-table th:nth-child(4),
+    .data-table td:nth-child(4),
+    .data-table th:nth-child(5),
+    .data-table td:nth-child(5) { display: none; }
+    .ev-checkbox-grid { grid-template-columns: 1fr; }
+}
