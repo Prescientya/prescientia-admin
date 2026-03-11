@@ -17,6 +17,12 @@
 @endpush
 
 @section('content')
+@php
+    $todayJkt = now()->timezone('Asia/Jakarta');
+    $isAfterPromotion = ($todayJkt->month > 7) || ($todayJkt->month === 7 && $todayJkt->day >= 19);
+    $graduationFlagExists = file_exists(storage_path('app/graduates_deleted_' . $todayJkt->year . '.flag'));
+    $showDeleteGraduatesBtn = $isAfterPromotion && !$graduationFlagExists;
+@endphp
 <div class="ds-page">
 
     {{-- ── Flash Messages ─────────────────────────────── --}}
@@ -116,6 +122,18 @@
                 </svg>
                 Tambah Siswa
             </button>
+            {{-- Hapus Siswa Lulus (visible from July 19 if not already done) --}}
+            @if($showDeleteGraduatesBtn)
+            <button type="button" class="btn btn--danger" data-open-modal="modalDeleteGraduates">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07"/>
+                    <path d="M11 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h7"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                </svg>
+                Hapus Siswa Lulus
+            </button>
+            @endif
         </div>
     </div>
 
@@ -286,6 +304,53 @@
 @include('Data_Siswa.tambah_siswa_excel')
 @include('Data_Siswa.detail')
 @include('Data_Siswa.delete')
+
+{{-- ═══════════════════════════════════════════════════════════
+     MODAL: HAPUS SISWA LULUS
+     ═══════════════════════════════════════════════════════════ --}}
+@if($showDeleteGraduatesBtn)
+<div class="modal-overlay" id="modalDeleteGraduates">
+    <div class="modal modal--sm">
+        <div class="modal-header">
+            <h2 class="modal-title modal-title--danger">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14H6L5 6"/>
+                    <path d="M10 11v6"/><path d="M14 11v6"/>
+                    <path d="M9 6V4h6v2"/>
+                </svg>
+                Hapus Siswa Lulus
+            </h2>
+            <button type="button" class="modal-close-btn modal-close" aria-label="Tutup">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Apakah Anda yakin ingin menghapus semua siswa yang sudah lulus di angkatan
+                <strong>{{ $todayJkt->year - 1 }}/{{ $todayJkt->year }}</strong>?</p>
+            <p class="text-danger" style="margin-top:.5rem;font-size:.875rem;">
+                Tindakan ini <strong>tidak bisa dibatalkan</strong>. Semua data siswa lulus beserta riwayat absensinya akan terhapus permanen.
+            </p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn--ghost modal-close">Batal</button>
+            <form method="POST" action="{{ route('siswa.delete-graduates') }}" style="display:inline;">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="btn btn--danger">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6l-1 14H6L5 6"/>
+                        <path d="M10 11v6"/><path d="M14 11v6"/>
+                        <path d="M9 6V4h6v2"/>
+                    </svg>
+                    Ya, Hapus Siswa Lulus
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
 
 @endsection
 

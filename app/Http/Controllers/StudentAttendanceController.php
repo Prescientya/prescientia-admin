@@ -252,4 +252,25 @@ class StudentAttendanceController extends Controller
 
         return response()->json($students);
     }
+
+    /* ───────────────────────────────────────────────────────────
+     | DELETE /attendance/siswa/delete-range
+     |──────────────────────────────────────────────────────────*/
+    public function deleteRange(Request $request)
+    {
+        $request->validate([
+            'date_from' => 'required|date',
+            'date_to'   => 'required|date|after_or_equal:date_from',
+        ]);
+
+        $calendarIds = SchoolCalendar::whereBetween('date', [
+            $request->date_from,
+            $request->date_to,
+        ])->pluck('id');
+
+        $deleted = StudentAttendance::whereIn('calendar_id', $calendarIds)->delete();
+
+        return redirect()->route('attendance.student.index')
+            ->with('success', "Berhasil menghapus {$deleted} data absensi siswa.");
+    }
 }

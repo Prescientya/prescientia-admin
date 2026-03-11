@@ -205,4 +205,25 @@ class TeacherAttendanceController extends Controller
 
         return response()->json($teachers);
     }
+
+    /* ───────────────────────────────────────────────────────────
+     | DELETE /attendance/guru/delete-range
+     |──────────────────────────────────────────────────────────*/
+    public function deleteRange(Request $request)
+    {
+        $request->validate([
+            'date_from' => 'required|date',
+            'date_to'   => 'required|date|after_or_equal:date_from',
+        ]);
+
+        $calendarIds = SchoolCalendar::whereBetween('date', [
+            $request->date_from,
+            $request->date_to,
+        ])->pluck('id');
+
+        $deleted = TeacherAttendance::whereIn('calendar_id', $calendarIds)->delete();
+
+        return redirect()->route('attendance.teacher.index')
+            ->with('success', "Berhasil menghapus {$deleted} data absensi guru.");
+    }
 }

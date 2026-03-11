@@ -39,6 +39,7 @@ Route::middleware('auth:admin')->group(function () {
     Route::post('/siswa/import', [StudentController::class, 'importExcel'])->name('siswa.import');
     Route::post('/siswa/check-classes', [StudentController::class, 'checkClasses'])->name('siswa.checkclasses');
     Route::get('/siswa/check-role', [StudentController::class, 'checkRole'])->name('siswa.checkRole');
+    Route::delete('/siswa/delete-graduates', [StudentController::class, 'destroyGraduates'])->name('siswa.delete-graduates');
     Route::resource('/siswa', StudentController::class)->except(['create']);
 
     /* ── Jaringan WiFi ───────────────────────────────── */
@@ -64,12 +65,13 @@ Route::middleware('auth:admin')->group(function () {
     Route::prefix('attendance/siswa')->name('attendance.student.')->group(function () {
         Route::get('/',             [StudentAttendanceController::class, 'index'])->name('index');
         Route::post('/',            [StudentAttendanceController::class, 'store'])->name('store');
+        Route::get('export',        [StudentAttendanceController::class, 'export'])->name('export');
+        Route::get('search',        [StudentAttendanceController::class, 'searchStudents'])->name('search');
+        Route::delete('delete-range', [StudentAttendanceController::class, 'deleteRange'])->name('delete-range');
         Route::patch('{id}',        [StudentAttendanceController::class, 'update'])->name('update');
         Route::delete('{id}',       [StudentAttendanceController::class, 'destroy'])->name('destroy');
         Route::patch('{id}/status', [StudentAttendanceController::class, 'updateStatus'])->name('updateStatus');
         Route::patch('{id}/time',   [StudentAttendanceController::class, 'updateTime'])->name('updateTime');
-        Route::get('export',        [StudentAttendanceController::class, 'export'])->name('export');
-        Route::get('search',        [StudentAttendanceController::class, 'searchStudents'])->name('search');
         Route::get('period',         [PeriodAttendanceController::class, 'studentPeriodIndex'])->name('period');
         Route::post('period/store',  [PeriodAttendanceController::class, 'storeStudentPeriod'])->name('period.store');
         Route::post('period/auto-fill', [PeriodAttendanceController::class, 'autoFillStudentPeriods'])->name('period.autofill');
@@ -113,10 +115,11 @@ Route::middleware('auth:admin')->group(function () {
     Route::prefix('attendance/guru')->name('attendance.teacher.')->group(function () {
         Route::get('/',        [TeacherAttendanceController::class, 'index'])->name('index');
         Route::post('/',       [TeacherAttendanceController::class, 'store'])->name('store');
-        Route::patch('{id}',   [TeacherAttendanceController::class, 'update'])->name('update');
-        Route::delete('{id}',  [TeacherAttendanceController::class, 'destroy'])->name('destroy');
         Route::get('export',   [TeacherAttendanceController::class, 'export'])->name('export');
         Route::get('search',   [TeacherAttendanceController::class, 'searchTeachers'])->name('search');
+        Route::delete('delete-range', [TeacherAttendanceController::class, 'deleteRange'])->name('delete-range');
+        Route::patch('{id}',   [TeacherAttendanceController::class, 'update'])->name('update');
+        Route::delete('{id}',  [TeacherAttendanceController::class, 'destroy'])->name('destroy');
         Route::get('period',         [PeriodAttendanceController::class, 'teacherPeriodIndex'])->name('period');
         Route::post('period/store',  [PeriodAttendanceController::class, 'storeTeacherPeriod'])->name('period.store');
         Route::post('period/auto-fill', [PeriodAttendanceController::class, 'autoFillTeacherPeriods'])->name('period.autofill');

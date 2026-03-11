@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -398,6 +399,56 @@ class StudentController extends Controller
         } catch (\Exception $e) {
             $this->cleanupImportFiles();
             return back()->with('error', 'Gagal import: ' . $e->getMessage());
+        }
+    }
+
+    /* ── DELETE GRADUATES ───────────────────────────── */
+
+    public function destroyGraduates()
+    {
+        $now = now()->timezone('Asia/Jakarta');
+
+        // Only allowed from July 19 onwards
+        $isAfterPromotion = ($now->month > 7) || ($now->month === 7 && $now->day >= 19);
+        if (! $isAfterPromotion) {
+            return back()->with('error', 'Hapus siswa lulus hanya bisa dilakukan mulai 19 Juli.');
+        }
+
+        $flagPath = storage_path('app/graduates_deleted_' . $now->year . '.flag');
+        if (file_exists($flagPath)) {
+            return back()->with('error', 'Siswa lulus untuk tahun ini sudah pernah dihapus.');
+        }
+
+        $graduates = Student::whereNull('class_id')->with('user')->get();
+
+        if ($graduates->isEmpty()) {
+            return back()->with('info', 'Tidak ada siswa lulus yang perlu dihapus.');
+        }
+
+        DB::beginTransaction();
+        try {
+            $count = 0;
+            foreach ($graduates as $student) {
+                if ($student->user) {
+                    $student->user->delete(); // cascades to student record
+                } else {
+                    $student->delete();
+                }
+                $count++;
+            }
+
+            DB::commit();
+
+            file_put_contents($flagPath, $now->toDateTimeString());
+
+            Log::info("[Students] Deleted {$count} graduated students ({$now->year}).");
+            Cache::forget('dashboard.total_siswa');
+
+            return back()->with('success', "Berhasil menghapus {$count} siswa lulus.");
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('[Students] destroyGraduates failed: ' . $e->getMessage());
+            return back()->with('error', 'Gagal menghapus siswa lulus: ' . $e->getMessage());
         }
     }
 
