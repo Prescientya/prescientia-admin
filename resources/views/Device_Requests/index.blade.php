@@ -119,9 +119,6 @@
                         <th style="width:40px;">No</th>
                         <th>Nama</th>
                         <th>NIS / NIP</th>
-                        <th>Device ID Lama</th>
-                        <th>Device ID Baru</th>
-                        <th>Diajukan Oleh</th>
                         <th>Tanggal</th>
                         <th style="width:100px;">Status</th>
                         <th style="width:100px; text-align:center;">Aksi</th>
@@ -138,16 +135,6 @@
                     </td>
 
                     <td class="td-mono">{{ $r->requester_no ?? '—' }}</td>
-
-                    <td>
-                        <div class="device-id">{{ $r->device_id_old }}</div>
-                    </td>
-
-                    <td>
-                        <div class="device-id device-id--new">{{ $r->device_id_new }}</div>
-                    </td>
-
-                    <td class="td-muted">{{ $r->submitted_by ?? '—' }}</td>
 
                     <td class="td-muted" style="white-space:nowrap;">
                         {{ \Carbon\Carbon::parse($r->created_at)->locale('id')->isoFormat('D MMM YYYY') }}
@@ -166,8 +153,9 @@
                         <div class="action-btns">
                             <form method="POST" action="{{ route('device-requests.approve', $r->id) }}" class="form-approve">
                                 @csrf @method('PATCH')
-                                <button type="submit" class="btn-action btn-action--approve"
-                                        title="Setujui">
+                                <button type="button" class="btn-action btn-action--approve btn-confirm"
+                                        title="Setujui" data-action="approve" 
+                                        data-old="{{ $r->device_id_old }}" data-new="{{ $r->device_id_new }}">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
                                          fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                         <polyline points="20 6 9 17 4 12"/>
@@ -177,8 +165,9 @@
                             </form>
                             <form method="POST" action="{{ route('device-requests.reject', $r->id) }}" class="form-reject">
                                 @csrf @method('PATCH')
-                                <button type="submit" class="btn-action btn-action--reject"
-                                        title="Tolak">
+                                <button type="button" class="btn-action btn-action--reject btn-confirm"
+                                        title="Tolak" data-action="reject" 
+                                        data-old="{{ $r->device_id_old }}" data-new="{{ $r->device_id_new }}">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
                                          fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                         <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -196,7 +185,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="9" class="td-empty">
+                    <td colspan="6" class="td-empty">
                         <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24"
                              fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
                              style="color:var(--text-muted)">
@@ -219,6 +208,89 @@
             {{ $requests->links() }}
         </div>
         @endif
+    </div>
+
+    {{-- Modal Konfirmasi --}}
+    <style>
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(2px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal {
+            background-color: var(--card-bg, #1a1e28);
+            border: 1px solid var(--card-border, rgba(255, 255, 255, 0.1));
+            border-radius: 8px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal__header {
+            padding: 1rem 1.2rem;
+            border-bottom: 1px solid var(--card-border, rgba(255, 255, 255, 0.1));
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal__header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: var(--text-color, #e0e6ed);
+        }
+        .btn-close {
+            background: none; border: none;
+            color: var(--text-muted, #94a3b8);
+            cursor: pointer;
+            padding: 0;
+        }
+        .btn-close:hover { color: var(--text-color, #e0e6ed); }
+        .modal__body {
+            padding: 1.2rem;
+        }
+        .modal__footer {
+            padding: 1rem 1.2rem;
+            border-top: 1px solid var(--card-border, rgba(255, 255, 255, 0.1));
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+    </style>
+    <div id="confirmModal" class="modal-overlay" style="display: none;">
+        <div class="modal">
+            <div class="modal__header">
+                <h3 id="modalTitle">Konfirmasi Permintaan</h3>
+                <button type="button" class="btn-close js-modal-close">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal__body">
+                <p id="modalMessage" style="margin-bottom: 1rem; color: var(--text-color);">Apakah Anda yakin?</p>
+                <div style="background-color: var(--sidebar-bg, rgba(0,0,0,0.1)); padding: 1rem; border-radius: 6px; border: 1px solid var(--card-border, rgba(255, 255, 255, 0.1));">
+                    <div style="margin-bottom: 0.5rem;">
+                        <span style="display:block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.2rem;">Device ID Lama</span>
+                        <code id="modalOldId" style="color: var(--text-color); word-break: break-all;">-</code>
+                    </div>
+                    <div>
+                        <span style="display:block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.2rem;">Device ID Baru</span>
+                        <code id="modalNewId" style="color: var(--success-color, #10b981); word-break: break-all;">-</code>
+                    </div>
+                </div>
+            </div>
+            <div class="modal__footer">
+                <button type="button" class="btn btn--outline js-modal-close">Batal</button>
+                <button type="button" class="btn btn--primary" id="btnConfirmAction">Ya, Lanjutkan</button>
+            </div>
+        </div>
     </div>
 
 </div>

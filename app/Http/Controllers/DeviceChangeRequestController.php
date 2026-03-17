@@ -99,7 +99,7 @@ class DeviceChangeRequestController extends Controller
             User::where('id', $dcr->user_id)
                 ->update(['device_id' => $dcr->device_id_new]);
 
-            $dcr->update(['status' => 'approved']);
+            $dcr->update(['status' => 'confirm']);
         });
 
         return back()->with('success', 'Permintaan pergantian device berhasil disetujui.');
@@ -114,7 +114,7 @@ class DeviceChangeRequestController extends Controller
             return back()->with('error', 'Permintaan ini sudah diproses sebelumnya.');
         }
 
-        $dcr->update(['status' => 'rejected']);
+        $dcr->update(['status' => 'denied']);
 
         return back()->with('success', 'Permintaan pergantian device berhasil ditolak.');
     }
