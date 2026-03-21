@@ -142,4 +142,14 @@
         });
     });
 
+
+    // ===================== SIDEBAR FOLDERS (ACCORDION) =====================
+    const folderHeaders = document.querySelectorAll('.nav-section-header');
+    folderHeaders.forEach(header => {
+        header.addEventListener('click', function(e) {
+            e.preventDefault();
+            this.parentElement.classList.toggle('open');
+        });
+    });
 })();
+

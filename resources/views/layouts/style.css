@@ -953,3 +953,181 @@ body {
         max-width: 100vw;
     }
 }
+
+
+/* Sidebar Submenu Styles */
+.nav-section.folder .nav-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.nav-section.folder .nav-section-header:hover {
+    background: var(--sidebar-item-hover);
+}
+
+.nav-section.folder .nav-section-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--sidebar-text, rgba(255,255,255,0.72));
+    margin: 0;
+    padding: 0;
+    text-transform: none;
+    letter-spacing: normal;
+}
+.sidebar-open .nav-section-label, .sidebar-open .nav-item-label { opacity: 1!important; width: auto !important; }
+
+.folder-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    opacity: 0.8;
+}
+
+.folder-chevron {
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0.6;
+}
+
+/* Sidebar Collapsed Handling */
+.sidebar-collapsed .nav-section.folder .folder-chevron {
+    display: none;
+}
+
+.sidebar-collapsed .nav-section.folder .nav-section-label {
+    opacity: 1 !important; /* overrides global collapse text hiding because we need icon */
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    display: flex;
+    justify-content: center;
+    padding: 0;
+}
+
+/* Tooltip hover effect for folder label icon */
+.sidebar-collapsed .nav-section.folder .nav-section-header {
+    justify-content: center;
+    padding: 10px 0;
+    margin: 2px 8px;
+    position: relative;
+}
+
+/* Adjust folder active styles when collapsed */
+.sidebar-collapsed .nav-section.folder .folder-icon {
+    margin: 0;
+    opacity: 1;
+}
+
+/* Force hide word "Data Master", etc */
+.sidebar-collapsed .nav-section.folder .folder-text-hide {
+    display: none;
+}
+
+/* Float sub-menu when sidebar narrowed */
+.sidebar-collapsed .nav-folder-items {
+    position: absolute;
+    left: var(--sidebar-w-collapsed);
+    background: var(--sidebar-bg);
+    width: 220px;
+    box-shadow: 4px 4px 15px rgba(0,0,0,0.4);
+    border: 1px solid var(--sidebar-border);
+    border-radius: 0 8px 8px 0;
+    z-index: 1000;
+    margin-top: -40px;
+}
+
+.sidebar-collapsed .nav-section.folder.open .nav-folder-items {
+    max-height: 400px;
+    padding: 8px 0;
+}
+
+.sidebar-collapsed .nav-folder-items .nav-item {
+    padding-left: 20px !important;
+    justify-content: flex-start !important;
+    margin: 4px 8px !important;
+}
+
+.sidebar-collapsed .nav-folder-items .nav-item::before,
+.sidebar-collapsed .nav-folder-items .nav-item::after {
+    display: none;
+}
+
+.sidebar-collapsed .nav-folder-items .nav-item-label {
+    opacity: 1 !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+    display: block !important;
+    padding-left: 10px !important;
+}
+
+.nav-section.folder.open .nav-section-header, .nav-section.folder.active .nav-section-header {
+    color: var(--sidebar-item-active, #ffffff);
+}
+
+.nav-section.folder.open .nav-section-label {
+    color: var(--sidebar-item-active, #ffffff);
+    font-weight: 600;
+}
+
+.nav-section.folder.open .folder-chevron {
+    transform: rotate(90deg);
+}
+
+.nav-folder-items {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.25s ease-in-out, opacity 0.2s ease-in-out;
+}
+
+.nav-section.folder.open .nav-folder-items {
+    max-height: 400px;
+    opacity: 1;
+}
+
+.nav-folder-items .nav-item {
+    padding-left: 48px;
+    position: relative;
+}
+
+.nav-folder-items .nav-item::before {
+    content: "";
+    position: absolute;
+    left: 26px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--sidebar-border, rgba(255,255,255,0.1));
+}
+
+.nav-folder-items .nav-item::after {
+    content: "";
+    position: absolute;
+    left: 26px;
+    top: 50%;
+    width: 10px;
+    height: 1px;
+    background: var(--sidebar-border, rgba(255,255,255,0.1));
+}
+
+.nav-folder-items .nav-item svg {
+    width: 16px;
+    height: 16px;
+    opacity: 0.8;
+}
+
+.nav-folder-items .nav-item:hover svg, .nav-folder-items .nav-item.active svg {
+    opacity: 1;
+}
+
+/* Base sections with NO folder (like Menu Utama) label styles */
+.nav-section:not(.folder) .nav-section-label {
+    padding: 0 16px 8px;
+}

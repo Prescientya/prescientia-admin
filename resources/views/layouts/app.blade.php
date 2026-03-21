@@ -8,14 +8,7 @@
     <title>@yield('title', 'Dashboard') &mdash; Prescientia Admin</title>
 
     {{-- Anti-flash: apply theme BEFORE render --}}
-    <script>
-        (function(){
-            var m = localStorage.getItem('prescentia-theme-mode') || 'light';
-            var c = localStorage.getItem('prescentia-theme-color') || 'blue';
-            document.documentElement.setAttribute('data-pre-mode', m);
-            document.documentElement.setAttribute('data-pre-color', c);
-        })();
-    </script>
+    <script>{!! file_get_contents(resource_path('views/layouts/theme-head.js')) !!}</script>
 
     <style>{!! file_get_contents(resource_path('views/layouts/style.css')) !!}</style>
     <style>{!! file_get_contents(resource_path('views/components/global.css')) !!}</style>
@@ -24,14 +17,7 @@
 <body>
 
 {{-- Apply theme immediately on body (prevents flash) --}}
-<script>
-    (function(){
-        var m = localStorage.getItem('prescentia-theme-mode') || 'light';
-        var c = localStorage.getItem('prescentia-theme-color') || 'blue';
-        document.body.dataset.mode  = m;
-        document.body.dataset.color = c;
-    })();
-</script>
+<script>{!! file_get_contents(resource_path('views/layouts/theme-body.js')) !!}</script>
 
 @php
     $authUser  = Auth::guard('admin')->user();
@@ -59,17 +45,15 @@
         </a>
 
         {{-- Navigation --}}
-        <nav class="sidebar-nav">
+                <nav class="sidebar-nav">
+
 
             {{-- Menu Utama --}}
             <div class="nav-section">
                 <span class="nav-section-label">Menu Utama</span>
 
-                <a href="{{ route('Dashboard') }}"
-                   title="Dashboard"
-                   class="nav-item {{ request()->routeIs('Dashboard') ? 'active' : '' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <a href="{{ route('Dashboard') }}" title="Dashboard" class="nav-item {{ request()->routeIs('Dashboard') ? 'active' : '' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
                         <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
                     </svg>
@@ -78,182 +62,113 @@
             </div>
 
             {{-- Data Master --}}
-            <div class="nav-section">
-                <span class="nav-section-label">Data Master</span>
-
-                <a href="{{ route('siswa.index') }}" title="Data Siswa" class="nav-item {{ request()->routeIs('siswa*') ? 'active' : '' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                        <circle cx="9" cy="7" r="4"/>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                    </svg>
-                    <span class="nav-item-label">Data Siswa</span>
-                </a>
-
-                <a href="{{ route('guru.index') }}" title="Data Guru" class="nav-item {{ request()->routeIs('guru*') ? 'active' : '' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                        <circle cx="12" cy="7" r="4"/>
-                        <polyline points="16 11 18 13 22 9"/>
-                    </svg>
-                    <span class="nav-item-label">Data Guru</span>
-                </a>
-
-                <a href="{{ route('kelas.index') }}" title="Data Kelas" class="nav-item {{ request()->routeIs('kelas*') ? 'active' : '' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-                    </svg>
-                    <span class="nav-item-label">Data Kelas</span>
-                </a>
+            <div class="nav-section folder {{ request()->routeIs('siswa*', 'guru*', 'kelas*') ? 'open active' : '' }}">
+                <div class="nav-section-header" title="Click to open">
+                    <span class="nav-section-label">
+                        <svg class="folder-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                        <span class="folder-text-hide">Data Master</span>
+                    </span>
+                    <svg class="folder-chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+                <div class="nav-folder-items">
+                    <a href="{{ route('siswa.index') }}" title="Data Siswa" class="nav-item {{ request()->routeIs('siswa*') ? 'active' : '' }}">
+                        <span class="nav-item-label">Data Siswa</span>
+                    </a>
+                    <a href="{{ route('guru.index') }}" title="Data Guru" class="nav-item {{ request()->routeIs('guru*') ? 'active' : '' }}">
+                        <span class="nav-item-label">Data Guru</span>
+                    </a>
+                    <a href="{{ route('kelas.index') }}" title="Data Kelas" class="nav-item {{ request()->routeIs('kelas*') ? 'active' : '' }}">
+                        <span class="nav-item-label">Data Kelas</span>
+                    </a>
+                </div>
             </div>
 
             {{-- Kehadiran --}}
-            <div class="nav-section">
-                <span class="nav-section-label">Kehadiran</span>
-
-                <a href="{{ route('attendance.student.index') }}" title="Kehadiran Siswa" class="nav-item {{ request()->routeIs('attendance.student*') ? 'active' : '' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                        <line x1="16" y1="2" x2="16" y2="6"/>
-                        <line x1="8" y1="2" x2="8" y2="6"/>
-                        <line x1="3" y1="10" x2="21" y2="10"/>
-                        <polyline points="9 16 11 18 15 14"/>
-                    </svg>
-                    <span class="nav-item-label">Kehadiran Siswa</span>
-                </a>
-
-                <a href="{{ route('attendance.teacher.index') }}" title="Kehadiran Guru" class="nav-item {{ request()->routeIs('attendance.teacher*') ? 'active' : '' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                        <polyline points="9 15 11 17 15 13"/>
-                    </svg>
-                    <span class="nav-item-label">Kehadiran Guru</span>
-                </a>
-
-                <a href="{{ route('absence-letters.index') }}" title="Surat Izin" class="nav-item {{ request()->routeIs('absence-letters*') ? 'active' : '' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                        <polyline points="22,6 12,13 2,6"/>
-                    </svg>
-                    <span class="nav-item-label">Surat Izin</span>
-                </a>
+            <div class="nav-section folder {{ request()->routeIs('attendance.student*', 'attendance.teacher*', 'absence-letters*') ? 'open active' : '' }}">
+                <div class="nav-section-header" title="Click to open">
+                    <span class="nav-section-label">
+                        <svg class="folder-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        <span class="folder-text-hide">Kehadiran</span>
+                    </span>
+                    <svg class="folder-chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+                <div class="nav-folder-items">
+                    <a href="{{ route('attendance.student.index') }}" title="Kehadiran Siswa" class="nav-item {{ request()->routeIs('attendance.student*') ? 'active' : '' }}">
+                        <span class="nav-item-label">Kehadiran Siswa</span>
+                    </a>
+                    <a href="{{ route('attendance.teacher.index') }}" title="Kehadiran Guru" class="nav-item {{ request()->routeIs('attendance.teacher*') ? 'active' : '' }}">
+                        <span class="nav-item-label">Kehadiran Guru</span>
+                    </a>
+                    <a href="{{ route('absence-letters.index') }}" title="Surat Izin" class="nav-item {{ request()->routeIs('absence-letters*') ? 'active' : '' }}">
+                        <span class="nav-item-label">Surat Izin</span>
+                    </a>
+                </div>
             </div>
 
             {{-- Akademik --}}
-            <div class="nav-section">
-                <span class="nav-section-label">Akademik</span>
-
-                <a href="{{ route('jadwal-mengajar.index') }}" title="Jadwal Mengajar" class="nav-item {{ request()->routeIs('jadwal-mengajar*') ? 'active' : '' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                        <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-                        <line x1="3" y1="10" x2="21" y2="10"/>
-                        <line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/>
-                        <line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/>
-                    </svg>
-                    <span class="nav-item-label">Jadwal Mengajar</span>
-                </a>
-
-                <a href="{{ route('mapel.index') }}" title="Mata Pelajaran" class="nav-item {{ request()->routeIs('mapel*') ? 'active' : '' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-                    </svg>
-                    <span class="nav-item-label">Mata Pelajaran</span>
-                </a>
-
-                <a href="{{ route('jam-pelajaran.index') }}" title="Jam Pelajaran" class="nav-item {{ request()->routeIs('jam-pelajaran*') ? 'active' : '' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"/>
-                        <polyline points="12 6 12 12 16 14"/>
-                    </svg>
-                    <span class="nav-item-label">Jam Pelajaran</span>
-                </a>
-
-                <a href="#" title="Laporan" class="nav-item {{ request()->routeIs('reports*') ? 'active' : '' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="20" x2="18" y2="10"/>
-                        <line x1="12" y1="20" x2="12" y2="4"/>
-                        <line x1="6" y1="20" x2="6" y2="14"/>
-                    </svg>
-                    <span class="nav-item-label">Laporan</span>
-                </a>
+            <div class="nav-section folder {{ request()->routeIs('jadwal-mengajar*', 'mapel*', 'jam-pelajaran*', 'reports*') ? 'open active' : '' }}">
+                <div class="nav-section-header" title="Click to open">
+                    <span class="nav-section-label">
+                        <svg class="folder-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                        <span class="folder-text-hide">Akademik</span>
+                    </span>
+                    <svg class="folder-chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+                <div class="nav-folder-items">
+                    <a href="{{ route('jadwal-mengajar.index') }}" title="Jadwal Mengajar" class="nav-item {{ request()->routeIs('jadwal-mengajar*') ? 'active' : '' }}">
+                        <span class="nav-item-label">Jadwal Mengajar</span>
+                    </a>
+                    <a href="{{ route('mapel.index') }}" title="Mata Pelajaran" class="nav-item {{ request()->routeIs('mapel*') ? 'active' : '' }}">
+                        <span class="nav-item-label">Mata Pelajaran</span>
+                    </a>
+                    <a href="{{ route('jam-pelajaran.index') }}" title="Jam Pelajaran" class="nav-item {{ request()->routeIs('jam-pelajaran*') ? 'active' : '' }}">
+                        <span class="nav-item-label">Jam Pelajaran</span>
+                    </a>
+                    <a href="#" title="Laporan" class="nav-item {{ request()->routeIs('reports*') ? 'active' : '' }}">
+                        <span class="nav-item-label">Laporan</span>
+                    </a>
+                </div>
             </div>
 
             {{-- Informasi --}}
-            <div class="nav-section">
-                <span class="nav-section-label">Informasi</span>
-
-                <a href="{{ route('events.index') }}" title="Event / Acara"
-                   class="nav-item {{ request()->routeIs('events*') ? 'active' : '' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                        <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-                        <line x1="3" y1="10" x2="21" y2="10"/>
-                        <line x1="9" y1="14" x2="15" y2="14"/><line x1="9" y1="18" x2="13" y2="18"/>
-                    </svg>
-                    <span class="nav-item-label">Event / Acara</span>
-                </a>
+            <div class="nav-section folder {{ request()->routeIs('events*') ? 'open active' : '' }}">
+                <div class="nav-section-header" title="Click to open">
+                    <span class="nav-section-label">
+                        <svg class="folder-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                        <span class="folder-text-hide">Informasi</span>
+                    </span>
+                    <svg class="folder-chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+                <div class="nav-folder-items">
+                    <a href="{{ route('events.index') }}" title="Event / Acara" class="nav-item {{ request()->routeIs('events*') ? 'active' : '' }}">
+                        <span class="nav-item-label">Event / Acara</span>
+                    </a>
+                </div>
             </div>
 
             {{-- Sistem --}}
-            <div class="nav-section">
-                <span class="nav-section-label">Sistem</span>
-
-                <a href="{{ route('school-calendar.index') }}" title="Kalender Sekolah"
-                   class="nav-item {{ request()->routeIs('school-calendar*') ? 'active' : '' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                        <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-                        <line x1="3" y1="10" x2="21" y2="10"/>
-                    </svg>
-                    <span class="nav-item-label">Kalender Sekolah</span>
-                </a>
-
-                <a href="{{ route('wifi-networks.index') }}" title="Jaringan WiFi"
-                   class="nav-item {{ request()->routeIs('wifi-networks*') ? 'active' : '' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
-                        <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
-                        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
-                        <line x1="12" y1="20" x2="12.01" y2="20"/>
-                    </svg>
-                    <span class="nav-item-label">Jaringan WiFi</span>
-                </a>
-
-                <a href="{{ route('device-requests.index') }}" title="Permintaan Device"
-                   class="nav-item {{ request()->routeIs('device-requests*') ? 'active' : '' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                        <line x1="12" y1="18" x2="12.01" y2="18"/>
-                    </svg>
-                    <span class="nav-item-label">Permintaan Device</span>
-                </a>
-
-                <a href="#" title="Pengaturan" class="nav-item {{ request()->routeIs('settings*') ? 'active' : '' }}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="3"/>
-                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M16.24 7.76a6 6 0 0 1 0 8.49M4.93 4.93a10 10 0 0 0 0 14.14M7.76 7.76a6 6 0 0 0 0 8.49"/>
-                    </svg>
-                    <span class="nav-item-label">Pengaturan</span>
-                </a>
+            <div class="nav-section folder {{ request()->routeIs('school-calendar*', 'wifi-networks*', 'device-requests*', 'settings*') ? 'open active' : '' }}">
+                <div class="nav-section-header" title="Click to open">
+                    <span class="nav-section-label">
+                        <svg class="folder-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+                        <span class="folder-text-hide">Sistem</span>
+                    </span>
+                    <svg class="folder-chevron" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+                <div class="nav-folder-items">
+                    <a href="{{ route('school-calendar.index') }}" title="Kalender Sekolah" class="nav-item {{ request()->routeIs('school-calendar*') ? 'active' : '' }}">
+                        <span class="nav-item-label">Kalender Sekolah</span>
+                    </a>
+                    <a href="{{ route('wifi-networks.index') }}" title="Jaringan WiFi" class="nav-item {{ request()->routeIs('wifi-networks*') ? 'active' : '' }}">
+                        <span class="nav-item-label">Jaringan WiFi</span>
+                    </a>
+                    <a href="{{ route('device-requests.index') }}" title="Permintaan Device" class="nav-item {{ request()->routeIs('device-requests*') ? 'active' : '' }}">
+                        <span class="nav-item-label">Permintaan Device</span>
+                    </a>
+                    <a href="#" title="Pengaturan" class="nav-item {{ request()->routeIs('settings*') ? 'active' : '' }}">
+                        <span class="nav-item-label">Pengaturan</span>
+                    </a>
+                </div>
             </div>
 
         </nav>
@@ -443,3 +358,12 @@
 
 </body>
 </html>
+
+
+
+
+
+
+
+
+

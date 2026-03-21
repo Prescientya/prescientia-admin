@@ -13,6 +13,8 @@ use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
 class StudentsImport implements ToCollection, WithHeadingRow
+    private array $headerErrors = [];
+    private array $headerInfo = [];
 {
     private int   $imported       = 0;
     private array $failedRows     = [];
@@ -23,6 +25,47 @@ class StudentsImport implements ToCollection, WithHeadingRow
     public function collection(Collection $rows): void
     {
         $now = now();
+
+        // Kolom template yang diharapkan
+        $expectedColumns = [
+            'nis', 'nama', 'email', 'tingkat', 'jurusan', 'gender', 'tanggal_lahir', 'no_hp', 'alamat'
+        ];
+
+        // Ambil header dari file
+        $fileColumns = $rows->first() ? array_keys($rows->first()->toArray()) : [];
+        $this->headerInfo = [
+            'expected' => $expectedColumns,
+            'found' => $fileColumns,
+        ];
+
+        // Cek kolom yang kurang, lebih, dan tidak sesuai
+        $missing = array_diff($expectedColumns, $fileColumns);
+        $extra   = array_diff($fileColumns, $expectedColumns);
+        $wrong   = [];
+        foreach ($fileColumns as $col) {
+            if (!in_array($col, $expectedColumns)) {
+                $wrong[] = $col;
+            }
+        }
+        if ($missing || $extra) {
+            $this->headerErrors = [
+                'missing' => $missing,
+                'extra' => $extra,
+                'wrong' => $wrong,
+            ];
+            $this->failedRows[] = [
+                'rowNumber' => 0,
+                'messages' => [
+                    'Kolom pada file tidak sesuai template.',
+                    'Kolom yang diharapkan: ' . implode(', ', $expectedColumns),
+                    'Kolom yang ditemukan: ' . implode(', ', $fileColumns),
+                    $missing ? ('Kolom kurang: ' . implode(', ', $missing)) : null,
+                    $extra ? ('Kolom berlebih/tidak dikenal: ' . implode(', ', $extra)) : null,
+                ],
+            ];
+            // Tidak lanjut proses jika header salah
+            return;
+        }
 
         $existingNis    = Student::pluck('nis')->flip()->all();
         $existingEmails = User::pluck('email')->flip()->all();
@@ -143,4 +186,6 @@ class StudentsImport implements ToCollection, WithHeadingRow
     public function getImportedCount(): int    { return $this->imported; }
     public function getFailedRows(): array     { return $this->failedRows; }
     public function getCreatedClasses(): array { return $this->createdClasses; }
+    public function getHeaderErrors(): array   { return $this->headerErrors; }
+    public function getHeaderInfo(): array     { return $this->headerInfo; }
 }
