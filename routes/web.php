@@ -40,6 +40,9 @@ Route::middleware('auth:admin')->group(function () {
     Route::post('/siswa/check-classes', [StudentController::class, 'checkClasses'])->name('siswa.checkclasses');
     Route::get('/siswa/check-role', [StudentController::class, 'checkRole'])->name('siswa.checkRole');
     Route::delete('/siswa/delete-graduates', [StudentController::class, 'destroyGraduates'])->name('siswa.delete-graduates');
+    Route::post('/siswa/bulk-deactivate', [StudentController::class, 'bulkDeactivate'])->name('siswa.bulk-deactivate');
+    Route::post('/siswa/bulk-activate', [StudentController::class, 'bulkActivate'])->name('siswa.bulk-activate');
+    Route::get('/siswa/preview-bulk', [StudentController::class, 'previewBulk'])->name('siswa.preview-bulk');
     Route::resource('/siswa', StudentController::class)->except(['create']);
 
     /* ── Jaringan WiFi ───────────────────────────────── */

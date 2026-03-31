@@ -285,27 +285,38 @@
                                 </button>
                             </div>
 
-                            {{-- Color Palette --}}
+                            {{-- Color Picker --}}
                             <div class="theme-panel-subtitle">Warna Tema</div>
-                            <div class="color-palette">
-                                @foreach([
-                                    'blue'   => ['label'=>'Biru',  'bg'=>'#1e3a5f'],
-                                    'black'  => ['label'=>'Hitam', 'bg'=>'#111827'],
-                                    'white'  => ['label'=>'Putih', 'bg'=>'#d1d5db'],
-                                    'purple' => ['label'=>'Ungu',  'bg'=>'#4c1d95'],
-                                    'green'  => ['label'=>'Hijau', 'bg'=>'#064e3b'],
-                                ] as $colorKey => $colorData)
-                                <div class="color-swatch-wrapper">
-                                    <button
-                                        class="color-swatch"
-                                        data-color-swatch="{{ $colorKey }}"
-                                        style="background:{{ $colorData['bg'] }}"
-                                        title="{{ $colorData['label'] }}"
-                                        aria-label="Tema {{ $colorData['label'] }}"
-                                    ></button>
-                                    <span class="color-swatch-label">{{ $colorData['label'] }}</span>
+                            <div class="color-picker-section open" id="colorPickerSection">
+                                <div class="color-picker-container">
+                                    {{-- Saturation/Brightness Picker --}}
+                                    <div class="color-picker-satval" id="colorPickerSatVal">
+                                        <div class="color-picker-satval-cursor" id="satValCursor"></div>
+                                    </div>
+                                    {{-- Hue Slider --}}
+                                    <div class="color-picker-hue" id="colorPickerHue">
+                                        <div class="color-picker-hue-cursor" id="hueCursor"></div>
+                                    </div>
                                 </div>
-                                @endforeach
+                                
+                                {{-- Current Color with Favorite Button --}}
+                                <div class="color-picker-current">
+                                    <div class="color-current-swatch" id="colorCurrentSwatch"></div>
+                                    <input type="text" class="color-picker-hex" id="colorPickerHex" maxlength="7" placeholder="#1e3a5f">
+                                    <button type="button" class="color-favorite-btn" id="colorFavoriteBtn" title="Tambah ke Favorit">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                {{-- Favorite Colors --}}
+                                <div class="color-favorites" id="colorFavorites">
+                                    <div class="color-favorites-label">Favorit</div>
+                                    <div class="color-favorites-list" id="colorFavoritesList">
+                                        {{-- Favorites will be rendered here by JS --}}
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

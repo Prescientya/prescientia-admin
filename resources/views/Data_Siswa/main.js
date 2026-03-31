@@ -448,6 +448,142 @@
         });
     }
 
+    /* ── 7. BULK DEACTIVATE MODAL ─────────────────────────── */
+    function initBulkDeactivate() {
+        const modal     = $('#modalBulkDeactivate');
+        const form      = $('#formBulkDeactivate');
+        const preview   = $('#bulkPreview');
+        const countEl   = $('#bulkPreviewCount');
+        const listEl    = $('#bulkPreviewList');
+        const submitBtn = $('#btnSubmitDeactivate');
+
+        if (!modal || !form) return;
+
+        const modeRadios = $$('input[name="mode"]', modal);
+
+        // Show/hide mode contents on tab change
+        modeRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                $$('.bulk-mode-content', modal).forEach(el => {
+                    el.style.display = el.dataset.mode === radio.value ? '' : 'none';
+                });
+                resetPreview();
+            });
+        });
+
+        // Listen to select changes for preview
+        const selects = ['bulkClassSelect', 'bulkGradeSelect', 'bulkMajorSelect', 'bulkGradeCombo', 'bulkMajorCombo'];
+        selects.forEach(id => {
+            const el = $('#' + id);
+            if (el) el.addEventListener('change', debounce(fetchPreview, 300));
+        });
+
+        function getSelectedMode() {
+            const checked = $('input[name="mode"]:checked', modal);
+            return checked ? checked.value : 'class';
+        }
+
+        function resetPreview() {
+            preview.style.display = 'none';
+            submitBtn.disabled = true;
+            listEl.innerHTML = '';
+        }
+
+        async function fetchPreview() {
+            const mode = getSelectedMode();
+            const params = new URLSearchParams();
+
+            if (mode === 'class') {
+                const classId = $('#bulkClassSelect')?.value;
+                if (!classId) return resetPreview();
+                params.set('class_id', classId);
+            } else if (mode === 'grade') {
+                const grade = $('#bulkGradeSelect')?.value;
+                if (!grade) return resetPreview();
+                params.set('grade', grade);
+            } else if (mode === 'major') {
+                const major = $('#bulkMajorSelect')?.value;
+                if (!major) return resetPreview();
+                params.set('major', major);
+            } else if (mode === 'grade_major') {
+                const grade = $('#bulkGradeCombo')?.value;
+                const major = $('#bulkMajorCombo')?.value;
+                if (!grade || !major) return resetPreview();
+                params.set('grade', grade);
+                params.set('major', major);
+            }
+
+            try {
+                const res = await fetch('/siswa/preview-bulk?' + params.toString(), {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                if (!res.ok) throw new Error('Server error');
+                const data = await res.json();
+
+                if (data.count === 0) {
+                    preview.style.display = 'block';
+                    countEl.textContent = '0';
+                    listEl.innerHTML = '<div class="bulk-preview__more">Tidak ada siswa aktif yang cocok.</div>';
+                    submitBtn.disabled = true;
+                    return;
+                }
+
+                countEl.textContent = data.count;
+                listEl.innerHTML = data.students.map(s => `
+                    <div class="bulk-preview__item">
+                        <span class="bulk-preview__item-name">${escHtml(s.name)}</span>
+                        <span class="bulk-preview__item-nis">${escHtml(s.nis)}</span>
+                        <span class="bulk-preview__item-kelas">${escHtml(s.kelas)}</span>
+                    </div>
+                `).join('');
+
+                if (data.hasMore) {
+                    listEl.innerHTML += `<div class="bulk-preview__more">...dan ${data.count - 10} siswa lainnya</div>`;
+                }
+
+                preview.style.display = 'block';
+                submitBtn.disabled = false;
+
+                // Sync hidden inputs for form submission
+                syncFormInputs(mode);
+
+            } catch (err) {
+                console.error('Preview error:', err);
+                resetPreview();
+            }
+        }
+
+        function syncFormInputs(mode) {
+            // Remove old hidden inputs
+            $$('input[data-bulk-sync]', form).forEach(el => el.remove());
+
+            // Add correct hidden inputs based on mode
+            if (mode === 'grade_major') {
+                const gradeInput = document.createElement('input');
+                gradeInput.type = 'hidden';
+                gradeInput.name = 'grade';
+                gradeInput.value = $('#bulkGradeCombo')?.value || '';
+                gradeInput.dataset.bulkSync = '1';
+                form.appendChild(gradeInput);
+
+                const majorInput = document.createElement('input');
+                majorInput.type = 'hidden';
+                majorInput.name = 'major';
+                majorInput.value = $('#bulkMajorCombo')?.value || '';
+                majorInput.dataset.bulkSync = '1';
+                form.appendChild(majorInput);
+            }
+        }
+
+        function debounce(fn, delay) {
+            let timer;
+            return function(...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn.apply(this, args), delay);
+            };
+        }
+    }
+
     /* ── INIT ALL ─────────────────────────────────────────── */
     document.addEventListener('DOMContentLoaded', () => {
         PSC.initActionDropdowns('.ds-action__btn', '.ds-dropdown');
@@ -460,6 +596,7 @@
         initDeleteButtons();
         initExcelDropzone();
         initRoleCheck();
+        initBulkDeactivate();
         PSC.initFormSpinner();
         PSC.initAlerts();
     });

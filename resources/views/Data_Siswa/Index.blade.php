@@ -105,6 +105,24 @@
             <p class="ds-subtitle">Total <strong>{{ $students->total() }}</strong> siswa terdaftar</p>
         </div>
         <div class="ds-header__actions">
+            {{-- Nonaktifkan Siswa (Bulk) --}}
+            <button class="btn btn--warning" data-open-modal="modalBulkDeactivate">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                </svg>
+                Nonaktifkan
+            </button>
+            {{-- Aktifkan Semua (enabled only if inactiveCount > 0) --}}
+            <button class="btn btn--success" data-open-modal="modalBulkActivate" {{ $inactiveCount < 1 ? 'disabled' : '' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                Aktifkan Semua ({{ $inactiveCount }})
+            </button>
             {{-- Import Excel --}}
             <button class="btn btn--secondary" data-open-modal="modalTambahExcel">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
@@ -157,6 +175,11 @@
                     </option>
                 @endforeach
             </select>
+            <select name="status" class="ds-filter-select">
+                <option value="">Semua Status</option>
+                <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Aktif</option>
+                <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Nonaktif</option>
+            </select>
             <button type="submit" class="btn btn--primary btn--sm">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
                      fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -164,7 +187,7 @@
                 </svg>
                 Cari
             </button>
-            @if(request('search') || request('class_id'))
+            @if(request('search') || request('class_id') || request('status'))
             <a href="{{ route('siswa.index') }}" class="btn btn--ghost btn--sm">Reset</a>
             @endif
         </form>
@@ -304,6 +327,7 @@
 @include('Data_Siswa.tambah_siswa_excel')
 @include('Data_Siswa.detail')
 @include('Data_Siswa.delete')
+@include('Data_Siswa.bulk_status')
 
 {{-- ═══════════════════════════════════════════════════════════
      MODAL: HAPUS SISWA LULUS
