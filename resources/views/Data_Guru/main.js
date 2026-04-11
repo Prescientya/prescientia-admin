@@ -252,8 +252,33 @@
         function showSection(id) { const el = $('#' + id); if (el) el.style.display = ''; }
         function hideSection(id) { const el = $('#' + id); if (el) el.style.display = 'none'; }
 
+    function initResetPasswordButtons() {
+        $$('[data-action="reset-password"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.id;
+                const name = btn.dataset.name || '–';
+                const nip = btn.dataset.nip || '–';
+
+                btn.closest('.dg-dropdown')?.classList.remove('open');
+
+                const nameEl = $('#resetGuruName');
+                const nipEl = $('#resetGuruNip');
+                const initEl = $('#resetGuruInitial');
+                const formEl = $('#resetGuruForm');
+
+                if (nameEl) nameEl.textContent = name;
+                if (nipEl) nipEl.textContent = 'NIP: ' + nip;
+                if (initEl) initEl.textContent = name ? name.charAt(0).toUpperCase() : '?';
+                if (formEl) formEl.action = `/guru/${id}/reset-password`;
+
+                openModal('modalResetPasswordGuru');
+            });
+        });
+    }
+
         function setProgress(pct, label) {
             const fill = $('#dg-importProgressFill');
+    initResetPasswordButtons();
             const lbl  = $('#dg-importProgressLabel');
             if (fill) fill.style.width = pct + '%';
             if (lbl)  lbl.textContent  = label;

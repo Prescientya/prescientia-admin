@@ -144,32 +144,105 @@
         
         const hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
         
-        const lightSidebarBg = baseHex;
-        const lightAccent = baseHex;
-        const lightAccentLight = `rgba(${rgb.r},${rgb.g},${rgb.b},0.1)`;
+        // Calculate luminance to determine if color is light or dark
+        const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
+        const isLightColor = luminance > 0.5;
+        const isVeryLight = luminance > 0.7;
+        const isLowSaturation = hsv.s < 20;
         
-        const darkSidebarBgHsv = { h: hsv.h, s: Math.min(hsv.s * 0.9, 70), v: Math.max(hsv.v * 0.35, 10) };
-        const darkSidebarBgRgb = hsvToRgb(darkSidebarBgHsv.h, darkSidebarBgHsv.s, darkSidebarBgHsv.v);
-        const darkSidebarBg = rgbToHex(darkSidebarBgRgb.r, darkSidebarBgRgb.g, darkSidebarBgRgb.b);
+        // ========== LIGHT MODE ==========
+        let lightSidebarBg, lightAccent, lightAccentRgb;
         
-        const darkHeaderBgHsv = { h: hsv.h, s: Math.min(hsv.s * 0.7, 50), v: Math.max(hsv.v * 0.5, 15) };
-        const darkHeaderBgRgb = hsvToRgb(darkHeaderBgHsv.h, darkHeaderBgHsv.s, darkHeaderBgHsv.v);
-        const darkHeaderBg = rgbToHex(darkHeaderBgRgb.r, darkHeaderBgRgb.g, darkHeaderBgRgb.b);
+        if (isVeryLight || isLowSaturation) {
+            // For very light or low saturation colors, darken sidebar for contrast
+            const sidebarHsv = { 
+                h: hsv.h || 220, // Default to blue if no hue
+                s: Math.max(hsv.s, 15), 
+                v: Math.min(hsv.v, 22) 
+            };
+            const sidebarRgb = hsvToRgb(sidebarHsv.h, sidebarHsv.s, sidebarHsv.v);
+            lightSidebarBg = rgbToHex(sidebarRgb.r, sidebarRgb.g, sidebarRgb.b);
+            
+            // Accent color: use a more saturated/darker version
+            const accentHsv = { 
+                h: hsv.h || 220, 
+                s: Math.max(hsv.s, 45), 
+                v: Math.min(hsv.v, 45) 
+            };
+            const accentRgb = hsvToRgb(accentHsv.h, accentHsv.s, accentHsv.v);
+            lightAccent = rgbToHex(accentRgb.r, accentRgb.g, accentRgb.b);
+            lightAccentRgb = accentRgb;
+        } else if (isLightColor) {
+            // Light but saturated colors - darken slightly for sidebar
+            const sidebarHsv = { 
+                h: hsv.h, 
+                s: Math.min(hsv.s * 1.1, 85), 
+                v: Math.max(hsv.v * 0.5, 28) 
+            };
+            const sidebarRgb = hsvToRgb(sidebarHsv.h, sidebarHsv.s, sidebarHsv.v);
+            lightSidebarBg = rgbToHex(sidebarRgb.r, sidebarRgb.g, sidebarRgb.b);
+            lightAccent = baseHex;
+            lightAccentRgb = rgb;
+        } else {
+            // Normal/dark saturated colors - use as is
+            lightSidebarBg = baseHex;
+            lightAccent = baseHex;
+            lightAccentRgb = rgb;
+        }
         
-        const darkContentBgHsv = { h: hsv.h, s: Math.min(hsv.s * 0.6, 40), v: Math.max(hsv.v * 0.25, 5) };
-        const darkContentBgRgb = hsvToRgb(darkContentBgHsv.h, darkContentBgHsv.s, darkContentBgHsv.v);
-        const darkContentBg = rgbToHex(darkContentBgRgb.r, darkContentBgRgb.g, darkContentBgRgb.b);
+        const lightAccentLight = `rgba(${Math.round(lightAccentRgb.r)},${Math.round(lightAccentRgb.g)},${Math.round(lightAccentRgb.b)},0.1)`;
         
-        const darkAccentHsv = { h: hsv.h, s: Math.min(hsv.s, 70), v: Math.min(hsv.v * 1.5, 85) };
+        // ========== DARK MODE ==========
+        // Dark mode should ALWAYS have dark backgrounds regardless of selected color
+        let darkSidebarBg, darkHeaderBg, darkContentBg, darkAccent;
+        
+        // Use the hue from the selected color, but force dark values
+        const baseHue = hsv.h || 220; // Default to blue if grayscale
+        const baseSat = Math.max(hsv.s, 20); // Minimum saturation for some color
+        
+        // Sidebar: Very dark with slight color tint
+        const darkSidebarHsv = { 
+            h: baseHue, 
+            s: Math.min(baseSat * 0.7, 50), 
+            v: 12 // Fixed dark value
+        };
+        const darkSidebarRgb = hsvToRgb(darkSidebarHsv.h, darkSidebarHsv.s, darkSidebarHsv.v);
+        darkSidebarBg = rgbToHex(darkSidebarRgb.r, darkSidebarRgb.g, darkSidebarRgb.b);
+        
+        // Header: Slightly lighter than sidebar
+        const darkHeaderHsv = { 
+            h: baseHue, 
+            s: Math.min(baseSat * 0.5, 40), 
+            v: 18 // Fixed dark value
+        };
+        const darkHeaderRgb = hsvToRgb(darkHeaderHsv.h, darkHeaderHsv.s, darkHeaderHsv.v);
+        darkHeaderBg = rgbToHex(darkHeaderRgb.r, darkHeaderRgb.g, darkHeaderRgb.b);
+        
+        // Content: Darkest
+        const darkContentHsv = { 
+            h: baseHue, 
+            s: Math.min(baseSat * 0.4, 30), 
+            v: 8 // Fixed very dark value
+        };
+        const darkContentRgb = hsvToRgb(darkContentHsv.h, darkContentHsv.s, darkContentHsv.v);
+        darkContentBg = rgbToHex(darkContentRgb.r, darkContentRgb.g, darkContentRgb.b);
+        
+        // Dark mode accent: bright version of the color for visibility on dark bg
+        const darkAccentHsv = { 
+            h: baseHue, 
+            s: Math.min(Math.max(baseSat, 55), 70), 
+            v: 70 // Bright enough to be visible
+        };
         const darkAccentRgb = hsvToRgb(darkAccentHsv.h, darkAccentHsv.s, darkAccentHsv.v);
-        const darkAccent = rgbToHex(darkAccentRgb.r, darkAccentRgb.g, darkAccentRgb.b);
+        darkAccent = rgbToHex(darkAccentRgb.r, darkAccentRgb.g, darkAccentRgb.b);
+        
         const darkAccentRgbParsed = hexToRgb(darkAccent);
         
         return {
             sidebarBg: lightSidebarBg,
             accent: lightAccent,
             accentLight: lightAccentLight,
-            accentRgb: `${rgb.r},${rgb.g},${rgb.b}`,
+            accentRgb: `${lightAccentRgb.r},${lightAccentRgb.g},${lightAccentRgb.b}`,
             sidebarBgDark: darkSidebarBg,
             headerBgDark: darkHeaderBg,
             contentBgDark: darkContentBg,
@@ -257,15 +330,29 @@
         colorFavoriteBtn.classList.toggle('favorited', isFavorite(hex));
     }
 
+    const DEFAULT_COLOR = '#1E3A5F';
+    
     function renderFavorites() {
         if (!colorFavoritesList || !colorFavorites) return;
         
         const favorites = getFavorites();
         const currentHex = getCurrentHex().toUpperCase();
         
-        colorFavorites.classList.toggle('has-favorites', favorites.length > 0);
+        // Always show container since we have default color
+        colorFavorites.classList.add('has-favorites');
         
-        colorFavoritesList.innerHTML = favorites.map(hex => `
+        // Start with default color (always first, no remove button)
+        let html = `
+            <div class="color-favorite-item">
+                <button class="color-favorite-swatch color-default-swatch ${DEFAULT_COLOR === currentHex ? 'active' : ''}" 
+                        style="background:${DEFAULT_COLOR}" 
+                        data-favorite-hex="${DEFAULT_COLOR}"
+                        title="Default Blue"></button>
+            </div>
+        `;
+        
+        // Add user favorites (with remove button)
+        html += favorites.filter(hex => hex !== DEFAULT_COLOR).map(hex => `
             <div class="color-favorite-item">
                 <button class="color-favorite-swatch ${hex === currentHex ? 'active' : ''}" 
                         style="background:${hex}" 
@@ -274,6 +361,8 @@
                 <button class="color-favorite-remove" data-remove-hex="${hex}" title="Hapus">×</button>
             </div>
         `).join('');
+        
+        colorFavoritesList.innerHTML = html;
         
         // Add click handlers
         colorFavoritesList.querySelectorAll('.color-favorite-swatch').forEach(swatch => {

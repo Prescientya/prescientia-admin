@@ -310,11 +310,18 @@
                                     </button>
                                 </div>
 
-                                {{-- Favorite Colors --}}
-                                <div class="color-favorites" id="colorFavorites">
-                                    <div class="color-favorites-label">Favorit</div>
+                                {{-- Default & Favorite Colors --}}
+                                <div class="color-favorites has-favorites" id="colorFavorites">
+                                    <div class="color-favorites-label">Your Default</div>
                                     <div class="color-favorites-list" id="colorFavoritesList">
-                                        {{-- Favorites will be rendered here by JS --}}
+                                        {{-- Default color always shown --}}
+                                        <div class="color-favorite-item">
+                                            <button class="color-favorite-swatch color-default-swatch" 
+                                                style="background-color: #1e3a5f;" 
+                                                data-favorite-hex="#1E3A5F"
+                                                title="Default Blue"></button>
+                                        </div>
+                                        {{-- User favorites will be rendered here by JS --}}
                                     </div>
                                 </div>
                             </div>

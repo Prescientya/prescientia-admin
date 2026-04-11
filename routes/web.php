@@ -16,6 +16,9 @@ use App\Http\Controllers\EventController;
 use App\Http\Controllers\PeriodAttendanceController;
 use App\Http\Controllers\AbsenceLetterController;
 
+// Public page for Play Store privacy policy (student app)
+Route::view('/privacy-policy/siswa', 'public.privacy-policy-siswa')->name('privacy-policy.siswa');
+
 // Login
 Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'Login'])->name('login.post')->middleware('throttle:5,1');

@@ -1,12 +1,10 @@
 (function(){
     var m = localStorage.getItem('prescentia-theme-mode') || 'light';
-    // Always use custom color mode now
     var customHex = localStorage.getItem('prescentia-custom-color') || '#1e3a5f';
     
     document.documentElement.setAttribute('data-pre-mode', m);
     document.documentElement.setAttribute('data-pre-color', 'custom');
     
-    // Pre-apply custom color CSS variables to prevent flash
     var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(customHex);
     if (result) {
         var r = parseInt(result[1], 16);
@@ -29,7 +27,12 @@
         }
         h *= 360; s *= 100; v *= 100;
         
-        // HSV to RGB helper
+        // Calculate luminance
+        var luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        var isLightColor = luminance > 0.5;
+        var isVeryLight = luminance > 0.7;
+        var isLowSaturation = s < 20;
+        
         function hsvToRgb(hh, ss, vv) {
             hh /= 360; ss /= 100; vv /= 100;
             var rr, gg, bb, i = Math.floor(hh * 6), f = hh * 6 - i;
@@ -52,22 +55,63 @@
             }).join('');
         }
         
-        // Generate dark variants
-        var darkSidebarBgRgb = hsvToRgb(h, Math.min(s * 0.9, 70), Math.max(v * 0.35, 10));
-        var darkHeaderBgRgb = hsvToRgb(h, Math.min(s * 0.7, 50), Math.max(v * 0.5, 15));
-        var darkContentBgRgb = hsvToRgb(h, Math.min(s * 0.6, 40), Math.max(v * 0.25, 5));
-        var darkAccentRgb = hsvToRgb(h, Math.min(s, 70), Math.min(v * 1.5, 85));
-        
         var style = document.documentElement.style;
-        style.setProperty('--custom-sidebar-bg', customHex);
-        style.setProperty('--custom-accent', customHex);
-        style.setProperty('--custom-accent-light', 'rgba('+r+','+g+','+b+',0.1)');
-        style.setProperty('--custom-accent-rgb', r+','+g+','+b);
-        style.setProperty('--custom-sidebar-bg-dark', rgbToHex(darkSidebarBgRgb.r, darkSidebarBgRgb.g, darkSidebarBgRgb.b));
-        style.setProperty('--custom-header-bg-dark', rgbToHex(darkHeaderBgRgb.r, darkHeaderBgRgb.g, darkHeaderBgRgb.b));
-        style.setProperty('--custom-content-bg-dark', rgbToHex(darkContentBgRgb.r, darkContentBgRgb.g, darkContentBgRgb.b));
-        style.setProperty('--custom-accent-dark', rgbToHex(darkAccentRgb.r, darkAccentRgb.g, darkAccentRgb.b));
-        var dar = Math.round(darkAccentRgb.r), dag = Math.round(darkAccentRgb.g), dab = Math.round(darkAccentRgb.b);
+        var lightSidebarBg, lightAccent, lightAccentR, lightAccentG, lightAccentB;
+        
+        // Light mode colors
+        if (isVeryLight || isLowSaturation) {
+            var baseHue = h || 220;
+            var sidebarRgb = hsvToRgb(baseHue, Math.max(s, 15), Math.min(v, 22));
+            lightSidebarBg = rgbToHex(sidebarRgb.r, sidebarRgb.g, sidebarRgb.b);
+            var accentRgb = hsvToRgb(baseHue, Math.max(s, 45), Math.min(v, 45));
+            lightAccent = rgbToHex(accentRgb.r, accentRgb.g, accentRgb.b);
+            lightAccentR = Math.round(accentRgb.r);
+            lightAccentG = Math.round(accentRgb.g);
+            lightAccentB = Math.round(accentRgb.b);
+        } else if (isLightColor) {
+            var sidebarRgb = hsvToRgb(h, Math.min(s * 1.1, 85), Math.max(v * 0.5, 28));
+            lightSidebarBg = rgbToHex(sidebarRgb.r, sidebarRgb.g, sidebarRgb.b);
+            lightAccent = customHex;
+            lightAccentR = r; lightAccentG = g; lightAccentB = b;
+        } else {
+            lightSidebarBg = customHex;
+            lightAccent = customHex;
+            lightAccentR = r; lightAccentG = g; lightAccentB = b;
+        }
+        
+        // Dark mode colors - ALWAYS dark backgrounds regardless of selected color
+        var baseHue = h || 220;
+        var baseSat = Math.max(s, 20);
+        
+        // Sidebar: Very dark with slight color tint
+        var dsbRgb = hsvToRgb(baseHue, Math.min(baseSat * 0.7, 50), 12);
+        var darkSidebarBg = rgbToHex(dsbRgb.r, dsbRgb.g, dsbRgb.b);
+        
+        // Header: Slightly lighter than sidebar
+        var dhbRgb = hsvToRgb(baseHue, Math.min(baseSat * 0.5, 40), 18);
+        var darkHeaderBg = rgbToHex(dhbRgb.r, dhbRgb.g, dhbRgb.b);
+        
+        // Content: Darkest
+        var dcbRgb = hsvToRgb(baseHue, Math.min(baseSat * 0.4, 30), 8);
+        var darkContentBg = rgbToHex(dcbRgb.r, dcbRgb.g, dcbRgb.b);
+        
+        // Dark mode accent: bright version of the color for visibility
+        var daRgb = hsvToRgb(baseHue, Math.min(Math.max(baseSat, 55), 70), 70);
+        var darkAccent = rgbToHex(daRgb.r, daRgb.g, daRgb.b);
+        
+        var darkAccentParsed = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(darkAccent);
+        var dar = parseInt(darkAccentParsed[1], 16);
+        var dag = parseInt(darkAccentParsed[2], 16);
+        var dab = parseInt(darkAccentParsed[3], 16);
+        
+        style.setProperty('--custom-sidebar-bg', lightSidebarBg);
+        style.setProperty('--custom-accent', lightAccent);
+        style.setProperty('--custom-accent-light', 'rgba('+lightAccentR+','+lightAccentG+','+lightAccentB+',0.1)');
+        style.setProperty('--custom-accent-rgb', lightAccentR+','+lightAccentG+','+lightAccentB);
+        style.setProperty('--custom-sidebar-bg-dark', darkSidebarBg);
+        style.setProperty('--custom-header-bg-dark', darkHeaderBg);
+        style.setProperty('--custom-content-bg-dark', darkContentBg);
+        style.setProperty('--custom-accent-dark', darkAccent);
         style.setProperty('--custom-accent-light-dark', 'rgba('+dar+','+dag+','+dab+',0.12)');
         style.setProperty('--custom-accent-rgb-dark', dar+','+dag+','+dab);
     }
