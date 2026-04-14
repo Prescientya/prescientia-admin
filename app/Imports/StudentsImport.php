@@ -9,22 +9,31 @@ use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Maatwebsite\Excel\Concerns\ToCollection;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
-class StudentsImport implements ToCollection, WithHeadingRow
-    private array $headerErrors = [];
-    private array $headerInfo = [];
+class StudentsImport
 {
     private int   $imported       = 0;
     private array $failedRows     = [];
     private array $createdClasses = [];
+    private array $headerErrors   = [];
+    private array $headerInfo     = [];
 
     public function __construct(private bool $autoCreateClasses = false) {}
 
     public function collection(Collection $rows): void
     {
+        $this->importSheet($rows);
+    }
+
+    public function importSheet(Collection $rows, ?string $sheetName = null): void
+    {
+        $this->importRows($rows, $sheetName);
+    }
+
+    private function importRows(Collection $rows, ?string $sheetName = null): void
+    {
         $now = now();
+        $sheetLabel = $sheetName ? "[{$sheetName}] " : '';
 
         // Kolom template yang diharapkan
         $expectedColumns = [
@@ -49,19 +58,22 @@ class StudentsImport implements ToCollection, WithHeadingRow
         }
         if ($missing || $extra) {
             $this->headerErrors = [
+                'sheet' => $sheetName,
                 'missing' => $missing,
                 'extra' => $extra,
                 'wrong' => $wrong,
             ];
             $this->failedRows[] = [
                 'rowNumber' => 0,
-                'messages' => [
+                'sheet'     => $sheetName,
+                'reason'    => $sheetLabel . 'Kolom pada sheet ini tidak sesuai template. Kolom yang diharapkan: ' . implode(', ', $expectedColumns) . '. Kolom yang ditemukan: ' . implode(', ', $fileColumns) . '.',
+                'messages'  => array_values(array_filter([
                     'Kolom pada file tidak sesuai template.',
                     'Kolom yang diharapkan: ' . implode(', ', $expectedColumns),
                     'Kolom yang ditemukan: ' . implode(', ', $fileColumns),
                     $missing ? ('Kolom kurang: ' . implode(', ', $missing)) : null,
                     $extra ? ('Kolom berlebih/tidak dikenal: ' . implode(', ', $extra)) : null,
-                ],
+                ])),
             ];
             // Tidak lanjut proses jika header salah
             return;
@@ -92,12 +104,12 @@ class StudentsImport implements ToCollection, WithHeadingRow
             }
 
             if (isset($existingNis[$nis])) {
-                $this->failedRows[] = ['nis' => $nis, 'nama' => $nama, 'reason' => "NIS {$nis} sudah terdaftar di sistem."];
+                $this->failedRows[] = ['sheet' => $sheetName, 'nis' => $nis, 'nama' => $nama, 'reason' => "NIS {$nis} sudah terdaftar di sistem."];
                 continue;
             }
 
             if (isset($existingEmails[$email])) {
-                $this->failedRows[] = ['nis' => $nis, 'nama' => $nama, 'reason' => "Email {$email} sudah digunakan akun lain."];
+                $this->failedRows[] = ['sheet' => $sheetName, 'nis' => $nis, 'nama' => $nama, 'reason' => "Email {$email} sudah digunakan akun lain."];
                 continue;
             }
 
@@ -117,7 +129,7 @@ class StudentsImport implements ToCollection, WithHeadingRow
                     $this->createdClasses[$label] = $cls->id;
                 } else {
                     $label = "{$tingkat}" . ($jurusan ? " - {$jurusan}" : '');
-                    $this->failedRows[] = ['nis' => $nis, 'nama' => $nama, 'reason' => "Kelas {$label} tidak ditemukan. Pastikan data kelas sudah tersedia di menu Data Kelas."];
+                    $this->failedRows[] = ['sheet' => $sheetName, 'nis' => $nis, 'nama' => $nama, 'reason' => "Kelas {$label} tidak ditemukan. Pastikan data kelas sudah tersedia di menu Data Kelas."];
                     continue;
                 }
             }
@@ -179,7 +191,7 @@ class StudentsImport implements ToCollection, WithHeadingRow
                 DB::table('students')->insert($chunk);
             }
 
-            $this->imported = count($studentsClean);
+            $this->imported += count($studentsClean);
         });
     }
 

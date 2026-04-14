@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
 class TeacherController extends Controller
 {
@@ -364,7 +365,18 @@ class TeacherController extends Controller
             }
 
             $import = new TeachersImport;
-            Excel::import($import, $request->file('file'));
+            $sheets = Excel::toCollection(
+                new class implements WithHeadingRow {},
+                $request->file('file')
+            );
+
+            foreach ($sheets as $sheetName => $rows) {
+                if ($rows->isEmpty()) {
+                    continue;
+                }
+
+                $import->collection($rows);
+            }
 
             // Hapus file sisa import (chunk reading menyimpan temp di imports/)
             $this->cleanupImportFiles();
