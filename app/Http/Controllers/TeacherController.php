@@ -8,11 +8,14 @@ use App\Models\ClassModel;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use Throwable;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
@@ -47,7 +50,7 @@ class TeacherController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'name'          => 'required|string|max:100',
             'nip'           => 'required|string|max:20|unique:teachers,nip',
             'email'         => 'required|email|max:100|unique:users,email',
@@ -62,13 +65,21 @@ class TeacherController extends Controller
             'email.unique' => 'Email sudah digunakan.',
         ]);
 
+        if ($validator->fails()) {
+            return back()->withInput()
+                ->with('teacher_store_failed', true)
+                ->with('error', 'Guru gagal ditambahkan. Periksa alasan kegagalan pada form di bawah.')
+                ->withErrors($validator);
+        }
+
         // Validate mapel names against subjects table BEFORE touching the DB
         $resolved = $this->resolveSubjectIds($request->mapel_text ?? '');
         if (!empty($resolved['notFound'])) {
             $list = collect($resolved['notFound'])->map(fn($n) => "\"$n\"")->implode(', ');
             return back()->withInput()->withErrors([
-                'mapel_text' => "Mapel {$list} tidak ditemukan di sistem sekolah ini.",
-            ]);
+                'mapel_text' => "Mapel {$list} tidak ditemukan di sistem sekolah ini. Tambahkan mapel tersebut di menu Mata Pelajaran atau hapus mapel yang belum tersedia.",
+            ])->with('teacher_store_failed', true)
+              ->with('error', 'Guru gagal ditambahkan karena ada mapel yang belum tersedia.');
         }
 
         DB::beginTransaction();
@@ -104,11 +115,14 @@ class TeacherController extends Controller
             DB::commit();
             Cache::forget('dashboard.total_guru');
             return redirect()->route('guru.index')
-                ->with('success', "Guru {$request->name} berhasil ditambahkan.");
-        } catch (\Exception $e) {
+                ->with('success', "Guru {$request->name} berhasil ditambahkan. Akun login: {$request->email} (password awal: NIP).");
+        } catch (Throwable $e) {
             DB::rollback();
+            $reason = $this->resolveStoreFailureReason($e);
             return back()->withInput()
-                ->with('error', 'Gagal menambahkan guru: ' . $e->getMessage());
+                ->with('teacher_store_failed', true)
+                ->withErrors(['teacher_store' => $reason])
+                ->with('error', "Guru gagal ditambahkan. {$reason}");
         }
     }
 
@@ -426,6 +440,37 @@ class TeacherController extends Controller
     }
 
     /* ── PRIVATE HELPER ─────────────────────────────── */
+
+    /**
+     * Translate low-level exceptions into actionable messages for admin users.
+     */
+    private function resolveStoreFailureReason(Throwable $e): string
+    {
+        if ($e instanceof QueryException) {
+            $sqlState   = (string) ($e->errorInfo[0] ?? $e->getCode());
+            $rawMessage = strtolower($e->getMessage());
+
+            if ($sqlState === '23000') {
+                if (str_contains($rawMessage, 'teachers_nip_unique') || str_contains($rawMessage, 'teachers.nip')) {
+                    return 'NIP sudah dipakai akun guru lain.';
+                }
+
+                if (str_contains($rawMessage, 'users_email_unique') || str_contains($rawMessage, 'users.email')) {
+                    return 'Email sudah dipakai akun lain.';
+                }
+
+                if (str_contains($rawMessage, 'foreign key')) {
+                    return 'Data relasi tidak valid. Pastikan data referensi (mis. akun atau mapel) masih tersedia.';
+                }
+
+                return 'Terjadi konflik data saat menyimpan guru. Coba periksa NIP, email, dan mapel.';
+            }
+
+            return 'Database sedang bermasalah saat menyimpan data. Silakan coba lagi beberapa saat.';
+        }
+
+        return 'Terjadi gangguan sistem yang tidak terduga. Silakan coba lagi atau hubungi tim teknis.';
+    }
 
     /**
      * Lookup subjects by name (case-insensitive). Does NOT create new subjects.
