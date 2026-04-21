@@ -330,7 +330,7 @@
         colorFavoriteBtn.classList.toggle('favorited', isFavorite(hex));
     }
 
-    const DEFAULT_COLOR = '#1E3A5F';
+    const DEFAULT_COLOR = '#2F6FD6';
     
     function renderFavorites() {
         if (!colorFavoritesList || !colorFavorites) return;
@@ -474,17 +474,19 @@
 
     // Initialize
     function initialize() {
-        const savedColor = localStorage.getItem('prescentia-custom-color') || '#1e3a5f';
         const savedMode = localStorage.getItem('prescentia-theme-mode') || 'light';
+        const lockedColor = DEFAULT_COLOR;
         
-        // Set initial color from saved
-        setColorFromHex(savedColor);
+        // Color customization is disabled in UI; keep a single default color.
+        setColorFromHex(lockedColor);
+        localStorage.setItem('prescentia-custom-color', lockedColor);
+        localStorage.setItem('prescentia-theme-color', 'custom');
         
         // Apply theme
         document.body.dataset.mode = savedMode;
         document.body.dataset.color = 'custom';
         
-        const colors = generateThemeColors(savedColor);
+        const colors = generateThemeColors(lockedColor);
         if (colors) {
             applyCustomColorVariables(colors);
         }

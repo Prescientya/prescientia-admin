@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Facades\Excel;
 
 class StudentController extends Controller
@@ -382,22 +381,7 @@ class StudentController extends Controller
             // autoCreate: true only when old checkbox used & no specific classes sent
             $autoCreate = $request->boolean('auto_create_classes') && empty($classesToCreate);
             $import = new StudentsImport($autoCreate);
-
-            $sheets = Excel::toCollection(
-                new class implements WithHeadingRow {},
-                $request->file('file')
-            );
-
-            foreach ($sheets as $sheetName => $rows) {
-                if ($rows->isEmpty()) {
-                    continue;
-                }
-
-                $import->importSheet(
-                    $rows,
-                    is_string($sheetName) ? $sheetName : 'Sheet ' . ((int) $sheetName + 1)
-                );
-            }
+            Excel::import($import, $request->file('file'));
 
             // Hapus file sisa import (chunk reading menyimpan temp di imports/)
             $this->cleanupImportFiles();

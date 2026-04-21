@@ -9,6 +9,7 @@ use App\Models\TeacherAttendance;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 
 class TeacherAttendanceController extends Controller
@@ -20,7 +21,7 @@ class TeacherAttendanceController extends Controller
     {
         $dateFrom = $request->get('date_from', today()->startOfMonth()->toDateString());
         $dateTo   = $request->get('date_to',   today()->toDateString());
-        $status   = $request->get('status');
+        $status   = $this->normalizeStatus($request->get('status'));
         $search   = $request->get('search');
 
         $calendarIds = SchoolCalendar::whereBetween('date', [$dateFrom, $dateTo])
@@ -72,7 +73,7 @@ class TeacherAttendanceController extends Controller
     {
         $dateFrom = $request->get('date_from', today()->startOfMonth()->toDateString());
         $dateTo   = $request->get('date_to',   today()->toDateString());
-        $status   = $request->get('status') ?: null;
+        $status   = $this->normalizeStatus($request->get('status')) ?: null;
 
         $from = Carbon::parse($dateFrom)->format('d-m-Y');
         $to   = Carbon::parse($dateTo)->format('d-m-Y');
@@ -92,13 +93,21 @@ class TeacherAttendanceController extends Controller
         $validated = $request->validate([
             'teacher_id'     => 'required|exists:teachers,id',
             'date'           => 'required|date',
-            'status'         => 'required|in:hadir,sakit,izin,dinas,alpa,terlambat',
+            'status'         => 'required|in:hadir,sakit,izin,dinas,alpa,alpha,terlambat',
             'check_in_time'  => 'nullable|date_format:H:i',
             'check_out_time' => 'nullable|date_format:H:i',
         ]);
 
         $calendar = SchoolCalendar::forDate($validated['date']);
-        $teacher  = Teacher::findOrFail($validated['teacher_id']);
+        $teacher  = Teacher::with('user')->findOrFail($validated['teacher_id']);
+
+        if (!optional($teacher->user)->is_active) {
+            throw ValidationException::withMessages([
+                'teacher_id' => 'Guru tidak aktif dan tidak dapat diisi absensinya.',
+            ]);
+        }
+
+        $normalizedStatus = $this->normalizeStatus($validated['status']);
 
         $checkIn  = $validated['check_in_time']
             ? Carbon::parse($validated['date'] . ' ' . $validated['check_in_time'])
@@ -110,7 +119,7 @@ class TeacherAttendanceController extends Controller
         TeacherAttendance::updateOrCreate(
             ['teacher_id' => $teacher->id, 'calendar_id' => $calendar->id],
             [
-                'status'         => $validated['status'],
+                'status'         => $normalizedStatus,
                 'check_in_time'  => $checkIn,
                 'check_out_time' => $checkOut,
                 'source'         => 'manual',
@@ -128,7 +137,7 @@ class TeacherAttendanceController extends Controller
     public function update(Request $request, int $id)
     {
         $request->validate([
-            'status'         => 'nullable|in:hadir,sakit,izin,dinas,alpa,terlambat',
+            'status'         => 'nullable|in:hadir,sakit,izin,dinas,alpa,alpha,terlambat',
             'check_in_time'  => 'nullable|date_format:H:i',
             'check_out_time' => 'nullable|date_format:H:i',
         ]);
@@ -139,7 +148,7 @@ class TeacherAttendanceController extends Controller
         $data = ['source' => 'manual'];
 
         if ($request->filled('status')) {
-            $data['status'] = $request->status;
+            $data['status'] = $this->normalizeStatus($request->status);
         }
 
         if ($request->has('check_in_time')) {
@@ -193,6 +202,7 @@ class TeacherAttendanceController extends Controller
         }
 
         $teachers = Teacher::where('name', 'like', "%{$q}%")
+            ->whereHas('user', fn($uq) => $uq->where('is_active', true))
             ->orderBy('name')
             ->limit(10)
             ->get()
@@ -225,5 +235,14 @@ class TeacherAttendanceController extends Controller
 
         return redirect()->route('attendance.teacher.index')
             ->with('success', "Berhasil menghapus {$deleted} data absensi guru.");
+    }
+
+    private function normalizeStatus(?string $status): ?string
+    {
+        if ($status === null) {
+            return null;
+        }
+
+        return strtolower($status) === 'alpha' ? 'alpa' : $status;
     }
 }

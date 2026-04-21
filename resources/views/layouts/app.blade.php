@@ -284,47 +284,6 @@
                                     Gelap
                                 </button>
                             </div>
-
-                            {{-- Color Picker --}}
-                            <div class="theme-panel-subtitle">Warna Tema</div>
-                            <div class="color-picker-section open" id="colorPickerSection">
-                                <div class="color-picker-container">
-                                    {{-- Saturation/Brightness Picker --}}
-                                    <div class="color-picker-satval" id="colorPickerSatVal">
-                                        <div class="color-picker-satval-cursor" id="satValCursor"></div>
-                                    </div>
-                                    {{-- Hue Slider --}}
-                                    <div class="color-picker-hue" id="colorPickerHue">
-                                        <div class="color-picker-hue-cursor" id="hueCursor"></div>
-                                    </div>
-                                </div>
-                                
-                                {{-- Current Color with Favorite Button --}}
-                                <div class="color-picker-current">
-                                    <div class="color-current-swatch" id="colorCurrentSwatch"></div>
-                                    <input type="text" class="color-picker-hex" id="colorPickerHex" maxlength="7" placeholder="#1e3a5f">
-                                    <button type="button" class="color-favorite-btn" id="colorFavoriteBtn" title="Tambah ke Favorit">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                                        </svg>
-                                    </button>
-                                </div>
-
-                                {{-- Default & Favorite Colors --}}
-                                <div class="color-favorites has-favorites" id="colorFavorites">
-                                    <div class="color-favorites-label">Your Default</div>
-                                    <div class="color-favorites-list" id="colorFavoritesList">
-                                        {{-- Default color always shown --}}
-                                        <div class="color-favorite-item">
-                                            <button class="color-favorite-swatch color-default-swatch" 
-                                                style="background-color: #1e3a5f;" 
-                                                data-favorite-hex="#1E3A5F"
-                                                title="Default Blue"></button>
-                                        </div>
-                                        {{-- User favorites will be rendered here by JS --}}
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
                         <div class="dropdown-divider"></div>

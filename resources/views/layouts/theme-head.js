@@ -1,6 +1,6 @@
 (function(){
     var m = localStorage.getItem('prescentia-theme-mode') || 'light';
-    var customHex = localStorage.getItem('prescentia-custom-color') || '#1e3a5f';
+    var customHex = '#2f6fd6';
     
     document.documentElement.setAttribute('data-pre-mode', m);
     document.documentElement.setAttribute('data-pre-color', 'custom');

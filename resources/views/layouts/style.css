@@ -339,6 +339,28 @@ body[data-color="custom"][data-mode="light"] {
     --accent:             var(--custom-accent, #1e3a5f);
     --accent-light:       var(--custom-accent-light, rgba(30,58,95,0.1));
     --accent-rgb:         var(--custom-accent-rgb, 30,58,95);
+    --header-bg:          #f3f8ff;
+    --header-text:        #0f172a;
+    --header-subtext:     #475569;
+    --header-border:      #d6e5fb;
+    --header-icon:        #334155;
+    --header-icon-hover:  #0f172a;
+    --header-icon-hover-bg: rgba(51,65,85,0.08);
+    --content-bg:         #eaf2ff;
+    --card-bg:            #ffffff;
+    --card-border:        #d6e5fb;
+    --text-primary:       #0f172a;
+    --text-secondary:     #475569;
+    --text-muted:         #64748b;
+    --footer-bg:          #f3f8ff;
+    --footer-border:      #d6e5fb;
+    --footer-text:        #64748b;
+    --dropdown-bg:        #ffffff;
+    --dropdown-border:    #d6e5fb;
+    --dropdown-item-hover:#eef4ff;
+    --dropdown-text:      #334155;
+    --scrollbar-track:    #eaf2ff;
+    --scrollbar-thumb:    #bfd3f2;
     --swatch-active-ring: var(--custom-sidebar-bg, #1e3a5f);
 }
 
@@ -351,15 +373,15 @@ body[data-color="custom"][data-mode="dark"] {
     --sidebar-item-hover: rgba(255,255,255,0.07);
     --sidebar-active-bg:  rgba(255,255,255,0.13);
     --sidebar-border:     rgba(255,255,255,0.07);
-    --header-bg:          var(--custom-header-bg-dark, #1a2942);
+    --header-bg:          var(--custom-header-bg-dark, #142640);
     --header-text:        #e5e7eb;
     --header-subtext:     #9ca3af;
     --header-border:      var(--custom-sidebar-bg-dark, #0f1f3d);
-    --header-icon:        #9ca3af;
+    --header-icon:        #cbd5e1;
     --header-icon-hover:  #e5e7eb;
     --header-icon-hover-bg: rgba(255,255,255,0.07);
-    --content-bg:         var(--custom-content-bg-dark, #0d1b2a);
-    --card-bg:            var(--custom-header-bg-dark, #1a2942);
+    --content-bg:         var(--custom-content-bg-dark, #0b1b33);
+    --card-bg:            var(--custom-header-bg-dark, #142640);
     --card-border:        var(--custom-sidebar-bg-dark, #0f1f3d);
     --card-shadow:        0 1px 4px rgba(0,0,0,0.3);
     --text-primary:       #e5e7eb;
@@ -1230,10 +1252,12 @@ body {
     cursor: pointer;
     border-radius: 6px;
     transition: all 0.2s ease;
+    color: var(--sidebar-text, rgba(255,255,255,0.72));
 }
 
 .nav-section.folder .nav-section-header:hover {
     background: var(--sidebar-item-hover);
+    color: var(--sidebar-text-hover, #ffffff);
 }
 
 .nav-section.folder .nav-section-label {
@@ -1260,6 +1284,7 @@ body {
 .folder-chevron {
     transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
     opacity: 0.6;
+    color: currentColor;
 }
 
 /* Sidebar Collapsed Handling */

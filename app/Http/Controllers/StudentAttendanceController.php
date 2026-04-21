@@ -10,6 +10,7 @@ use App\Models\StudentAttendance;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 
 class StudentAttendanceController extends Controller
@@ -23,7 +24,7 @@ class StudentAttendanceController extends Controller
         $dateFrom = $request->get('date_from', today()->startOfMonth()->toDateString());
         $dateTo   = $request->get('date_to',   today()->toDateString());
         $classId  = $request->get('class_id');
-        $status   = $request->get('status');
+        $status   = $this->normalizeStatus($request->get('status'));
         $search   = $request->get('search');
 
         // Get all calendar IDs in range
@@ -82,7 +83,7 @@ class StudentAttendanceController extends Controller
         $dateFrom = $request->get('date_from', today()->startOfMonth()->toDateString());
         $dateTo   = $request->get('date_to',   today()->toDateString());
         $classId  = $request->get('class_id') ?: null;
-        $status   = $request->get('status')   ?: null;
+        $status   = $this->normalizeStatus($request->get('status')) ?: null;
 
         $from = Carbon::parse($dateFrom)->format('d-m-Y');
         $to   = Carbon::parse($dateTo)->format('d-m-Y');
@@ -102,13 +103,21 @@ class StudentAttendanceController extends Controller
         $validated = $request->validate([
             'student_id'     => 'required|exists:students,id',
             'date'           => 'required|date',
-            'status'         => 'required|in:hadir,sakit,izin,alpa,terlambat',
+            'status'         => 'required|in:hadir,sakit,izin,alpa,alpha,terlambat',
             'check_in_time'  => 'nullable|date_format:H:i',
             'check_out_time' => 'nullable|date_format:H:i',
         ]);
 
         $calendar = SchoolCalendar::forDate($validated['date']);
-        $student  = Student::findOrFail($validated['student_id']);
+        $student  = Student::with('user')->findOrFail($validated['student_id']);
+
+        if (!optional($student->user)->is_active) {
+            throw ValidationException::withMessages([
+                'student_id' => 'Siswa tidak aktif dan tidak dapat diisi absensinya.',
+            ]);
+        }
+
+        $normalizedStatus = $this->normalizeStatus($validated['status']);
 
         // Parse times with the chosen date
         $checkIn  = $validated['check_in_time']
@@ -122,7 +131,7 @@ class StudentAttendanceController extends Controller
             ['student_id' => $student->id, 'calendar_id' => $calendar->id],
             [
                 'class_id'       => $student->class_id,
-                'status'         => $validated['status'],
+                'status'         => $normalizedStatus,
                 'check_in_time'  => $checkIn,
                 'check_out_time' => $checkOut,
                 'source'         => 'manual',
@@ -140,7 +149,7 @@ class StudentAttendanceController extends Controller
     public function update(Request $request, int $id)
     {
         $request->validate([
-            'status'         => 'nullable|in:hadir,sakit,izin,alpa,terlambat',
+            'status'         => 'nullable|in:hadir,sakit,izin,alpa,alpha,terlambat',
             'check_in_time'  => 'nullable|date_format:H:i',
             'check_out_time' => 'nullable|date_format:H:i',
         ]);
@@ -151,7 +160,7 @@ class StudentAttendanceController extends Controller
         $data = ['source' => 'manual'];
 
         if ($request->filled('status')) {
-            $data['status'] = $request->status;
+            $data['status'] = $this->normalizeStatus($request->status);
         }
 
         // check_in_time: key present means update (null = clear)
@@ -199,9 +208,9 @@ class StudentAttendanceController extends Controller
      |──────────────────────────────────────────────────────────*/
     public function updateStatus(Request $request, int $id)
     {
-        $request->validate(['status' => 'required|in:hadir,sakit,izin,alpa,terlambat']);
+        $request->validate(['status' => 'required|in:hadir,sakit,izin,alpa,alpha,terlambat']);
         $att = StudentAttendance::findOrFail($id);
-        $att->update(['status' => $request->status]);
+        $att->update(['status' => $this->normalizeStatus($request->status)]);
         return $request->expectsJson()
             ? response()->json(['ok' => true, 'status' => $att->status])
             : back()->with('success', 'Status diperbarui.');
@@ -236,6 +245,7 @@ class StudentAttendanceController extends Controller
         }
 
         $students = Student::with('schoolClass')
+            ->whereHas('user', fn($q) => $q->where('is_active', true))
             ->where('name', 'like', "%{$q}%")
             ->orderBy('name')
             ->limit(10)
@@ -272,5 +282,14 @@ class StudentAttendanceController extends Controller
 
         return redirect()->route('attendance.student.index')
             ->with('success', "Berhasil menghapus {$deleted} data absensi siswa.");
+    }
+
+    private function normalizeStatus(?string $status): ?string
+    {
+        if ($status === null) {
+            return null;
+        }
+
+        return strtolower($status) === 'alpha' ? 'alpa' : $status;
     }
 }
