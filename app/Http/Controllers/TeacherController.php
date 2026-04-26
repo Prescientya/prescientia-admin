@@ -118,7 +118,7 @@ class TeacherController extends Controller
                 ->with('success', "Guru {$request->name} berhasil ditambahkan. Akun login: {$request->email} (password awal: NIP).");
         } catch (Throwable $e) {
             DB::rollback();
-            $reason = $this->resolveStoreFailureReason($e);
+            $reason = $this->resolveTeacherFailureReason($e);
             return back()->withInput()
                 ->with('teacher_store_failed', true)
                 ->withErrors(['teacher_store' => $reason])
@@ -199,7 +199,7 @@ class TeacherController extends Controller
         if (!empty($resolved['notFound'])) {
             $list = collect($resolved['notFound'])->map(fn($n) => "\"$n\"")->implode(', ');
             return back()->withInput()->withErrors([
-                'mapel_text' => "Mapel {$list} tidak ditemukan di sistem sekolah ini.",
+                'mapel_text' => "Mapel {$list} tidak ditemukan di sistem sekolah ini. Tambahkan mapel tersebut di menu Mata Pelajaran atau hapus mapel yang belum tersedia.",
             ]);
         }
 
@@ -266,10 +266,11 @@ class TeacherController extends Controller
             DB::commit();
             return redirect()->route('guru.index')
                 ->with('success', "Data guru {$guru->name} berhasil diperbarui.");
-        } catch (\Exception $e) {
+        } catch (Throwable $e) {
             DB::rollback();
+            $reason = $this->resolveTeacherFailureReason($e);
             return back()->withInput()
-                ->with('error', 'Gagal memperbarui data guru: ' . $e->getMessage());
+                ->with('error', "Data guru gagal diperbarui. {$reason}");
         }
     }
 
@@ -302,9 +303,10 @@ class TeacherController extends Controller
             Cache::forget('dashboard.total_guru');
             return redirect()->route('guru.index')
                 ->with('success', "Data guru {$name} berhasil dihapus.");
-        } catch (\Exception $e) {
+        } catch (Throwable $e) {
             DB::rollback();
-            return back()->with('error', 'Gagal menghapus data guru: ' . $e->getMessage());
+            $reason = $this->resolveTeacherFailureReason($e);
+            return back()->with('error', "Data guru gagal dihapus. {$reason}");
         }
     }
 
@@ -321,8 +323,9 @@ class TeacherController extends Controller
 
             return redirect()->route('guru.index')
                 ->with('success', "Password guru {$guru->name} berhasil direset ke NIP.");
-        } catch (\Exception $e) {
-            return back()->with('error', 'Gagal mereset password guru: ' . $e->getMessage());
+        } catch (Throwable $e) {
+            $reason = $this->resolveTeacherFailureReason($e);
+            return back()->with('error', "Password guru gagal direset. {$reason}");
         }
     }
 
@@ -444,7 +447,7 @@ class TeacherController extends Controller
     /**
      * Translate low-level exceptions into actionable messages for admin users.
      */
-    private function resolveStoreFailureReason(Throwable $e): string
+    private function resolveTeacherFailureReason(Throwable $e): string
     {
         if ($e instanceof QueryException) {
             $sqlState   = (string) ($e->errorInfo[0] ?? $e->getCode());
@@ -463,13 +466,13 @@ class TeacherController extends Controller
                     return 'Data relasi tidak valid. Pastikan data referensi (mis. akun atau mapel) masih tersedia.';
                 }
 
-                return 'Terjadi konflik data saat menyimpan guru. Coba periksa NIP, email, dan mapel.';
+                return 'Terjadi konflik data guru. Periksa kembali NIP, email, dan mapel yang dipilih.';
             }
 
-            return 'Database sedang bermasalah saat menyimpan data. Silakan coba lagi beberapa saat.';
+            return 'Database sedang bermasalah saat memproses data guru. Silakan coba lagi beberapa saat.';
         }
 
-        return 'Terjadi gangguan sistem yang tidak terduga. Silakan coba lagi atau hubungi tim teknis.';
+        return 'Terjadi gangguan sistem yang tidak terduga. Silakan coba lagi atau hubungi tim teknis jika masalah berlanjut.';
     }
 
     /**

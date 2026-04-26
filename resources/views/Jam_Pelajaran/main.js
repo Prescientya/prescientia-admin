@@ -98,10 +98,10 @@
                     headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
                 });
                 const data = await res.json();
-                if (!res.ok) throw new Error(data.message || 'Gagal menghapus');
+                if (!res.ok) throw new Error(data.message || 'Jam pelajaran gagal dihapus.');
                 closeModal('modalHapusJam');
                 await refreshDay(data.day);
-                PSC.toast('Jam pelajaran berhasil dihapus.', 'success');
+                PSC.toast(data.message || 'Jam pelajaran berhasil dihapus.', 'success');
             } catch (err) {
                 PSC.toast(err.message, 'error');
             } finally {
@@ -132,12 +132,12 @@
                 });
                 const data = await res.json();
                 if (!res.ok) {
-                    showErrors(data.errors || { _: [data.message || 'Terjadi kesalahan'] });
+                    showErrors(data.errors || { _: [data.message || (method === 'PATCH' ? 'Jam pelajaran gagal diperbarui.' : 'Jam pelajaran gagal ditambahkan.')] });
                     return;
                 }
                 closeModal('modalJam');
                 await refreshDay(data.day);
-                PSC.toast(method === 'PATCH' ? 'Jam berhasil diperbarui.' : 'Jam berhasil ditambahkan.', 'success');
+                PSC.toast(data.message || (method === 'PATCH' ? 'Jam pelajaran berhasil diperbarui.' : 'Jam pelajaran berhasil ditambahkan.'), 'success');
             } catch (err) {
                 showErrors({ _: [err.message] });
             } finally {
@@ -164,7 +164,7 @@
                     const data = await res.json();
                     if (!res.ok) throw new Error(data.message || 'Reset gagal');
                     await refreshDay(data.day);
-                    PSC.toast('Jadwal berhasil direset.', 'success');
+                    PSC.toast(data.message || 'Jadwal jam pelajaran berhasil direset.', 'success');
                 } catch (err) {
                     PSC.toast(err.message, 'error');
                 } finally {

@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('storage/prescientia-logo-square.png') }}">
+    <link rel="shortcut icon" href="{{ asset('storage/prescientia-logo-square.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('storage/prescientia-logo-square.png') }}">
     <title>@yield('title', 'Dashboard') &mdash; Prescientia Admin</title>
 
     {{-- Anti-flash: apply theme BEFORE render --}}
@@ -35,11 +38,7 @@
         {{-- Brand --}}
         <a href="{{ route('Dashboard') }}" class="sidebar-brand">
             <div class="sidebar-brand-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                    fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-                    <path d="M6 12v5c3 3 9 3 12 0v-5"/>
-                </svg>
+                <img src="{{ asset('storage/prescientia-logo-square.png') }}" alt="Logo Prescientia" onerror="this.src='{{ asset('favicon.ico') }}'">
             </div>
             <span class="sidebar-brand-text">Prescientia</span>
         </a>

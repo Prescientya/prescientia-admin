@@ -44,7 +44,8 @@ class Subject extends Model
 
     /**
      * Efficiently compute jumlah_kelas for a collection of subjects
-     * using only 2 aggregate queries instead of 2N.
+     * based on real teaching schedules (teacher_schedules),
+     * counting distinct classes per subject.
      */
     public static function loadJumlahKelas($subjects): void
     {
@@ -52,25 +53,20 @@ class Subject extends Model
 
         $ids = $subjects->pluck('id');
 
-        // 1) From subject_classes pivot
-        $fromPivot = DB::table('subject_classes')
-            ->whereIn('subject_id', $ids)
-            ->select('subject_id', 'class_id')
-            ->get();
-
-        // 2) From teacher_schedules
-        $fromSchedules = DB::table('teacher_schedules')
-            ->whereIn('subject_id', $ids)
-            ->select('subject_id', 'class_id')
-            ->get();
-
-        // Merge & count unique class_id per subject
-        $merged = $fromPivot->concat($fromSchedules)
-            ->groupBy('subject_id')
-            ->map(fn($rows) => $rows->pluck('class_id')->unique()->count());
+        // Count distinct class_id from actual schedules only.
+        // This avoids inflated counts from broad assignment rules in subject_classes.
+        $counts = DB::table('teacher_schedules as ts')
+            ->join('teacher_subject as tsub', function ($join) {
+                $join->on('ts.teacher_id', '=', 'tsub.teacher_id')
+                     ->on('ts.subject_id', '=', 'tsub.subject_id');
+            })
+            ->whereIn('ts.subject_id', $ids)
+            ->groupBy('ts.subject_id')
+            ->select('ts.subject_id', DB::raw('COUNT(DISTINCT ts.class_id) as jumlah'))
+            ->pluck('jumlah', 'ts.subject_id');
 
         foreach ($subjects as $subject) {
-            $subject->jumlah_kelas = $merged->get($subject->id, 0);
+            $subject->jumlah_kelas = (int) $counts->get($subject->id, 0);
         }
     }
 }

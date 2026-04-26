@@ -183,25 +183,101 @@
 /* ── Modal tabs ──────────────────────────────────────────── */
 .mp-tab-bar {
     display: flex;
-    gap: 4px;
-    padding: 12px 22px 0;
+    gap: 10px;
+    padding: 12px 22px;
     border-bottom: 1px solid var(--card-border);
+    background: color-mix(in srgb, var(--hover-bg) 55%, transparent);
 }
 .mp-tab-btn {
-    padding: 7px 16px;
-    border: none;
-    background: none;
-    border-bottom: 2px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 10px;
     cursor: pointer;
     font-size: .875rem;
-    font-weight: 500;
     color: var(--text-muted);
-    transition: color .15s;
-    margin-bottom: -1px;
+    transition: color .15s, background .15s, border-color .15s, box-shadow .15s;
 }
 .mp-tab-btn.active {
     color: var(--accent);
-    border-bottom-color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--card-border));
+    background: color-mix(in srgb, var(--accent-light) 65%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.mp-tab-btn__step {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .75rem;
+    font-weight: 700;
+    background: color-mix(in srgb, var(--text-muted) 20%, transparent);
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.mp-tab-btn__copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.2;
+    text-align: left;
+}
+
+.mp-tab-btn__copy strong {
+    font-size: .86rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.mp-tab-btn__copy small {
+    font-size: .73rem;
+    color: var(--text-muted);
+}
+
+.mp-tab-btn.active .mp-tab-btn__step {
+    background: var(--accent);
+    color: #fff;
+}
+
+.mp-tab-btn.active .mp-tab-btn__copy strong,
+.mp-tab-btn.active .mp-tab-btn__copy small {
+    color: var(--accent);
+}
+
+.mp-tab-btn__warn {
+    display: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    align-items: center;
+    justify-content: center;
+    background: #dc2626;
+    color: #fff;
+    font-size: .72rem;
+    font-weight: 800;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.mp-tab-btn.has-warning .mp-tab-btn__warn {
+    display: inline-flex;
+}
+
+@media (max-width: 640px) {
+    .mp-tab-bar {
+        flex-direction: column;
+        gap: 8px;
+    }
+    .mp-tab-btn {
+        width: 100%;
+    }
 }
 
 .mp-tab-panel { display: none; padding: 20px 22px; }

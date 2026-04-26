@@ -157,11 +157,17 @@
         if (currentId) {
             if (currentMode === 'teacher') {
                 $('#jfTeacher').value = currentId;
-                filterSubjectsByTeacher(currentId);
             } else {
                 $('#jfClass').value = currentId;
             }
         }
+
+        // Keep dropdowns in sync: teacher -> subject, subject -> class map
+        filterSubjectsByTeacher(
+            $('#jfTeacher').value || null,
+            null,
+            $('#jfClass').value || null
+        );
 
         // Immediately pre-fill Hari + Jam from the clicked row (no API needed)
         if (_pendingPreselect.day && _pendingPreselect.periodId) {
@@ -218,8 +224,7 @@
         $('#jfId').value          = d.id;
         $('#jfMethod').value      = 'PATCH';
         $('#jfTeacher').value = d.teacher;
-        filterSubjectsByTeacher(d.teacher, d.subject);
-        $('#jfClass').value  = d.class;
+        filterSubjectsByTeacher(d.teacher, d.subject, d.class);
 
         clearDayPeriodPickers();
 
@@ -233,7 +238,7 @@
     function initFormWatchers() {
         // Teacher change → filter subject dropdown then reload available slots
         $('#jfTeacher')?.addEventListener('change', function () {
-            filterSubjectsByTeacher(this.value);
+            filterSubjectsByTeacher(this.value, null, $('#jfClass').value || null);
             const c = $('#jfClass').value;
             // Preserve currently visible day/period (or pending preselect)
             const pid = _pendingPreselect.periodId || $('#jfPeriod').value || null;
@@ -241,6 +246,23 @@
             _pendingPreselect = { periodId: null, day: null };
             if (this.value || c) {
                 loadAvailablePeriods(this.value || null, c || null, $('#jfId').value || null, pid, d);
+            } else {
+                clearDayPeriodPickers();
+            }
+        });
+
+        // Subject change → filter allowed classes by Mapel Penugasan Kelas
+        $('#jfSubject')?.addEventListener('change', function () {
+            filterClassesBySubject(this.value, $('#jfClass').value || null);
+
+            const t = $('#jfTeacher').value;
+            const c = $('#jfClass').value;
+            const pid = _pendingPreselect.periodId || $('#jfPeriod').value || null;
+            const d   = _pendingPreselect.day      || $('#jfDay').value    || null;
+            _pendingPreselect = { periodId: null, day: null };
+
+            if (t || c) {
+                loadAvailablePeriods(t || null, c || null, $('#jfId').value || null, pid, d);
             } else {
                 clearDayPeriodPickers();
             }
@@ -274,7 +296,7 @@
      * @param {string|number|null} teacherId
      * @param {string|number|null} preselectId  – force-select this subject id (used in edit modal)
      */
-    function filterSubjectsByTeacher(teacherId, preselectId = null) {
+    function filterSubjectsByTeacher(teacherId, preselectId = null, preselectClassId = null) {
         const el   = $('#jfSubject');
         const all  = window.JM_ALL_SUBJECTS || [];
         const subs = teacherId ? (window.JM_TEACHER_SUBJECTS?.[teacherId] || []) : [];
@@ -298,6 +320,60 @@
             }
         } else if (subs.length === 1) {
             el.value = String(subs[0].id);
+        }
+
+        filterClassesBySubject(el.value || null, preselectClassId ?? ($('#jfClass')?.value || null));
+    }
+
+    function getSubjectClassIds(subjectId) {
+        if (!subjectId) return null;
+        const map = window.JM_SUBJECT_CLASSES || {};
+        const raw = map[String(subjectId)] || [];
+        return Array.isArray(raw) ? raw.map(Number) : [];
+    }
+
+    function filterClassesBySubject(subjectId, preselectClassId = null) {
+        const classEl = $('#jfClass');
+        const hintEl  = $('#jfClassHint');
+        if (!classEl) return;
+
+        const allClasses = window.JM_CLASSES || [];
+        const selectedValue = (preselectClassId ?? classEl.value ?? '') ? String(preselectClassId ?? classEl.value) : '';
+
+        classEl.innerHTML = '<option value="">— Pilih Kelas —</option>';
+        classEl.disabled = false;
+
+        let options = allClasses;
+        if (subjectId) {
+            const allowedIds = getSubjectClassIds(subjectId) || [];
+            options = allClasses.filter(c => allowedIds.includes(Number(c.id)));
+
+            if (!options.length) {
+                classEl.innerHTML = '<option value="">— Belum ada kelas untuk mapel ini —</option>';
+                classEl.value = '';
+                classEl.disabled = true;
+                if (hintEl) {
+                    hintEl.style.display = '';
+                    hintEl.textContent = 'Mapel ini belum memiliki Penugasan Kelas. Atur dulu di menu Mata Pelajaran.';
+                }
+                return;
+            }
+
+            if (hintEl) {
+                hintEl.style.display = '';
+                hintEl.textContent = 'Menampilkan kelas yang sudah dipetakan di Penugasan Kelas mapel ini.';
+            }
+        } else if (hintEl) {
+            hintEl.style.display = '';
+            hintEl.textContent = 'Pilih mapel agar kelas difilter sesuai Penugasan Kelas mapel tersebut.';
+        }
+
+        options.forEach(c => classEl.add(new Option(c.label, c.id)));
+
+        if (selectedValue && options.some(c => String(c.id) === selectedValue)) {
+            classEl.value = selectedValue;
+        } else {
+            classEl.value = '';
         }
     }
 
@@ -383,12 +459,14 @@
                 if (!res.ok) {
                     const msgs = data.errors
                         ? Object.values(data.errors).flat()
-                        : [data.message || 'Terjadi kesalahan'];
+                        : [data.message || (method === 'PATCH'
+                            ? 'Jadwal mengajar gagal diperbarui.'
+                            : 'Jadwal mengajar gagal ditambahkan.')];
                     showFormError(msgs);
                     return;
                 }
                 closeModal('modalJadwal');
-                toast(method === 'PATCH' ? 'Jadwal berhasil diperbarui.' : 'Jadwal berhasil ditambahkan.', 'success');
+                toast(data.message || (method === 'PATCH' ? 'Jadwal mengajar berhasil diperbarui.' : 'Jadwal mengajar berhasil ditambahkan.'), 'success');
                 loadGrid();
             } catch (err) {
                 showFormError([err.message]);
@@ -409,9 +487,10 @@
                     method: 'DELETE',
                     headers: { 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                 });
-                if (!res.ok) throw new Error((await res.json()).message || 'Gagal menghapus');
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Jadwal mengajar gagal dihapus.');
                 closeModal('modalHapusJadwal');
-                toast('Jadwal berhasil dihapus.', 'success');
+                toast(data.message || 'Jadwal mengajar berhasil dihapus.', 'success');
                 loadGrid();
             } catch (err) {
                 toast(err.message, 'error');
@@ -427,7 +506,7 @@
         $('#formJadwal').reset();
         $('#jfId').value = '';
         _pendingPreselect = { periodId: null, day: null };
-        filterSubjectsByTeacher(null); // restore full subject list
+        filterSubjectsByTeacher(null); // restore full subject + class list
         hideFormError();
     }
     function showFormError(msgs) {

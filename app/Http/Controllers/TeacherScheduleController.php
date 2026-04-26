@@ -7,11 +7,15 @@ use App\Imports\TeacherScheduleImport;
 use App\Models\ClassModel;
 use App\Models\ClassPeriod;
 use App\Models\Subject;
+use App\Models\SubjectClass;
 use App\Models\Teacher;
 use App\Models\TeacherSchedule;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
+use Throwable;
 
 class TeacherScheduleController extends Controller
 {
@@ -21,7 +25,10 @@ class TeacherScheduleController extends Controller
     {
         $teachers = Teacher::with('subjects:id,name')->orderBy('name')->get(['id', 'name', 'department']);
         $classes  = ClassModel::orderBy('class')->orderBy('major')->get(['id', 'class', 'major']);
-        $subjects = Subject::where('is_active', true)->orderBy('name')->get(['id', 'name']);
+        $subjects = Subject::where('is_active', true)
+            ->with(['classes:id'])
+            ->orderBy('name')
+            ->get(['id', 'name']);
         $periods  = ClassPeriod::where('activity_type', 'lesson')
                         ->orderBy('day')->orderBy('sequence')
                         ->get(['id', 'day', 'sequence', 'start_time', 'end_time']);
@@ -79,51 +86,83 @@ class TeacherScheduleController extends Controller
 
     public function store(Request $request)
     {
-        $data = $this->validateSchedule($request);
+        try {
+            $data = $this->validateSchedule($request);
 
-        $conflict = $this->checkConflict($data['teacher_id'], $data['class_id'], $data['class_period_id']);
-        if ($conflict) {
-            return response()->json(['message' => $conflict], 422);
+            $conflict = $this->checkConflict($data['teacher_id'], $data['class_id'], $data['class_period_id']);
+            if ($conflict) {
+                return response()->json(['message' => $conflict], 422);
+            }
+
+            $schedule = TeacherSchedule::create($data);
+            $schedule->load(['teacher', 'subject', 'schoolClass', 'classPeriod']);
+
+            return response()->json([
+                'success'  => true,
+                'message'  => 'Jadwal mengajar berhasil ditambahkan.',
+                'schedule' => $this->formatSchedule($schedule),
+            ], 201);
+        } catch (Throwable $e) {
+            if ($e instanceof ValidationException) {
+                return response()->json([
+                    'message' => 'Jadwal mengajar gagal ditambahkan. Periksa input yang wajib diisi.',
+                    'errors'  => $e->errors(),
+                ], 422);
+            }
+            [$message, $status] = $this->resolveScheduleFailureReason($e, 'menambahkan');
+            return response()->json(['message' => $message], $status);
         }
-
-        $schedule = TeacherSchedule::create($data);
-        $schedule->load(['teacher', 'subject', 'schoolClass', 'classPeriod']);
-
-        return response()->json([
-            'success'  => true,
-            'schedule' => $this->formatSchedule($schedule),
-        ], 201);
     }
 
     /* ── UPDATE ─────────────────────────────────────────────── */
 
     public function update(Request $request, TeacherSchedule $jadwalMengajar)
     {
-        $data = $this->validateSchedule($request, $jadwalMengajar->id);
+        try {
+            $data = $this->validateSchedule($request, $jadwalMengajar->id);
 
-        $conflict = $this->checkConflict(
-            $data['teacher_id'], $data['class_id'], $data['class_period_id'],
-            $jadwalMengajar->id
-        );
-        if ($conflict) {
-            return response()->json(['message' => $conflict], 422);
+            $conflict = $this->checkConflict(
+                $data['teacher_id'], $data['class_id'], $data['class_period_id'],
+                $jadwalMengajar->id
+            );
+            if ($conflict) {
+                return response()->json(['message' => $conflict], 422);
+            }
+
+            $jadwalMengajar->update($data);
+            $jadwalMengajar->load(['teacher', 'subject', 'schoolClass', 'classPeriod']);
+
+            return response()->json([
+                'success'  => true,
+                'message'  => 'Jadwal mengajar berhasil diperbarui.',
+                'schedule' => $this->formatSchedule($jadwalMengajar),
+            ]);
+        } catch (Throwable $e) {
+            if ($e instanceof ValidationException) {
+                return response()->json([
+                    'message' => 'Jadwal mengajar gagal diperbarui. Periksa input yang wajib diisi.',
+                    'errors'  => $e->errors(),
+                ], 422);
+            }
+            [$message, $status] = $this->resolveScheduleFailureReason($e, 'memperbarui');
+            return response()->json(['message' => $message], $status);
         }
-
-        $jadwalMengajar->update($data);
-        $jadwalMengajar->load(['teacher', 'subject', 'schoolClass', 'classPeriod']);
-
-        return response()->json([
-            'success'  => true,
-            'schedule' => $this->formatSchedule($jadwalMengajar),
-        ]);
     }
 
     /* ── DESTROY ────────────────────────────────────────────── */
 
     public function destroy(TeacherSchedule $jadwalMengajar)
     {
-        $jadwalMengajar->delete();
-        return response()->json(['success' => true]);
+        try {
+            $jadwalMengajar->delete();
+            return response()->json([
+                'success' => true,
+                'message' => 'Jadwal mengajar berhasil dihapus.',
+            ]);
+        } catch (Throwable $e) {
+            [$message, $status] = $this->resolveScheduleFailureReason($e, 'menghapus');
+            return response()->json(['message' => $message], $status);
+        }
     }
 
     /* ── AVAILABLE PERIODS (AJAX) ───────────────────────────── */
@@ -178,7 +217,7 @@ class TeacherScheduleController extends Controller
 
     private function validateSchedule(Request $request, ?int $ignoreId = null): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'teacher_id'      => 'required|exists:teachers,id',
             'subject_id'      => 'required|exists:subjects,id',
             'class_id'        => 'required|exists:classes,id',
@@ -191,6 +230,28 @@ class TeacherScheduleController extends Controller
         ], [
             'class_period_id.unique' => 'Kelas ini sudah memiliki pelajaran di slot jam tersebut.',
         ]);
+
+        $teacherHasSubject = Teacher::whereKey($data['teacher_id'])
+            ->whereHas('subjects', fn ($q) => $q->where('subjects.id', $data['subject_id']))
+            ->exists();
+
+        if (!$teacherHasSubject) {
+            throw ValidationException::withMessages([
+                'subject_id' => 'Guru yang dipilih belum ditugaskan untuk mata pelajaran ini. Atur mapel guru terlebih dahulu di menu Data Guru.',
+            ]);
+        }
+
+        $subjectHasClass = SubjectClass::where('subject_id', $data['subject_id'])
+            ->where('class_id', $data['class_id'])
+            ->exists();
+
+        if (!$subjectHasClass) {
+            throw ValidationException::withMessages([
+                'class_id' => 'Mata pelajaran ini belum dipetakan ke kelas yang dipilih. Atur dulu di menu Mata Pelajaran > Penugasan Kelas.',
+            ]);
+        }
+
+        return $data;
     }
 
     private function checkConflict(int $teacherId, int $classId, int $periodId, ?int $ignoreId = null): ?string
@@ -208,6 +269,33 @@ class TeacherScheduleController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * Convert low-level schedule exceptions into user-facing messages.
+     *
+     * @return array{0:string,1:int}
+     */
+    private function resolveScheduleFailureReason(Throwable $e, string $action): array
+    {
+        if ($e instanceof QueryException) {
+            $sqlState   = (string) ($e->errorInfo[0] ?? $e->getCode());
+            $rawMessage = strtolower($e->getMessage());
+
+            if ($sqlState === '23000') {
+                if (str_contains($rawMessage, 'unique') || str_contains($rawMessage, 'constraint')) {
+                    return ['Gagal ' . $action . ' jadwal mengajar: terjadi bentrok data atau duplikasi slot jam.', 422];
+                }
+
+                if (str_contains($rawMessage, 'foreign key')) {
+                    return ['Gagal ' . $action . ' jadwal mengajar: data guru/mapel/kelas/jam tidak valid.', 422];
+                }
+            }
+
+            return ['Gagal ' . $action . ' jadwal mengajar: database sedang bermasalah, silakan coba lagi.', 500];
+        }
+
+        return ['Gagal ' . $action . ' jadwal mengajar karena gangguan sistem.', 500];
     }
 
     private function formatSchedule(TeacherSchedule $s): array

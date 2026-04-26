@@ -139,9 +139,23 @@
         </div>
 
         {{-- Tab bar --}}
-        <div class="mp-tab-bar">
-            <button class="mp-tab-btn active" data-tab="info">Info Dasar</button>
-            <button class="mp-tab-btn" data-tab="kelas">Penugasan Kelas</button>
+        <div class="mp-tab-bar" role="tablist" aria-label="Langkah pengisian mata pelajaran">
+            <button class="mp-tab-btn active" data-tab="info" type="button" role="tab" aria-selected="true">
+                <span class="mp-tab-btn__step">1</span>
+                <span class="mp-tab-btn__copy">
+                    <strong>Info Dasar</strong>
+                    <small>Nama, deskripsi, status</small>
+                </span>
+                <span class="mp-tab-btn__warn" aria-hidden="true" title="Bagian wajib belum lengkap">!</span>
+            </button>
+            <button class="mp-tab-btn" data-tab="kelas" type="button" role="tab" aria-selected="false">
+                <span class="mp-tab-btn__step">2</span>
+                <span class="mp-tab-btn__copy">
+                    <strong>Penugasan Kelas</strong>
+                    <small>Aturan kelas mapel</small>
+                </span>
+                <span class="mp-tab-btn__warn" aria-hidden="true" title="Bagian wajib belum lengkap">!</span>
+            </button>
         </div>
 
         <form id="mp-form" novalidate>
@@ -181,16 +195,16 @@
 
                 {{-- Rule-type pills --}}
                 <div class="mp-rule-pills">
-                    <button type="button" class="mp-rule-pill active" data-rule="semua">Semua Kelas</button>
+                    <button type="button" class="mp-rule-pill" data-rule="semua">Semua Kelas</button>
                     <button type="button" class="mp-rule-pill" data-rule="tingkat">Per Tingkat</button>
                     <button type="button" class="mp-rule-pill" data-rule="jurusan">Per Jurusan</button>
                     <button type="button" class="mp-rule-pill" data-rule="tingkat_jurusan">Tingkat + Jurusan</button>
-                    <button type="button" class="mp-rule-pill" data-rule="manual">Kelas Manual</button>
+                    <button type="button" class="mp-rule-pill active" data-rule="manual">Kelas Manual</button>
                 </div>
-                <input type="hidden" id="mp-rule-type" name="rule_type" value="semua">
+                <input type="hidden" id="mp-rule-type" name="rule_type" value="manual">
 
                 {{-- Panel: semua --}}
-                <div class="mp-rule-panel active" data-rulepanel="semua">
+                <div class="mp-rule-panel" data-rulepanel="semua">
                     <div style="color:var(--text-muted);font-size:.85rem;padding:10px 0;">
                         Mata pelajaran akan diajarkan di <strong>semua 48 kelas</strong>.
                     </div>
@@ -253,7 +267,7 @@
                 </div>
 
                 {{-- Panel: manual --}}
-                <div class="mp-rule-panel" data-rulepanel="manual">
+                <div class="mp-rule-panel active" data-rulepanel="manual">
                     @foreach($grouped as $grade => $classes)
                     <div class="mp-cb-group">
                         <div class="mp-cb-group-title">Kelas {{ $grade }}</div>
@@ -271,7 +285,7 @@
 
                 {{-- Preview --}}
                 <div class="mp-preview" id="mp-preview">
-                    Akan diterapkan ke <strong>semua kelas</strong>.
+                    <em>Pilih setidaknya satu kelas.</em>
                 </div>
             </div>
 
