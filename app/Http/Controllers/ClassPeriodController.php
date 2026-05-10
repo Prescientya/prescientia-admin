@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Exports\ClassPeriodTemplateExport;
 use App\Models\ClassPeriod;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Throwable;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -30,18 +32,27 @@ class ClassPeriodController extends Controller
     {
         $data = $this->validatePeriod($request);
 
-        // Auto-calculate duration
-        $data['duration_minutes'] = $this->calcDuration($data['start_time'], $data['end_time']);
+        try {
+            // Auto-calculate duration
+            $data['duration_minutes'] = $this->calcDuration($data['start_time'], $data['end_time']);
 
-        // Shift sequences down to make room for insertion
-        $this->shiftSequences($data['day'], $data['sequence'], 1);
+            // Shift sequences down to make room for insertion
+            $this->shiftSequences($data['day'], $data['sequence'], 1);
 
-        ClassPeriod::create($data);
+            ClassPeriod::create($data);
 
-        if ($request->expectsJson()) {
-            return $this->jsonDayResponse($data['day']);
+            $successMessage = 'Jam pelajaran berhasil ditambahkan.';
+            if ($request->expectsJson()) {
+                return $this->jsonDayResponse($data['day'], $successMessage);
+            }
+            return back()->with('success', $successMessage);
+        } catch (Throwable $e) {
+            [$message, $status] = $this->resolvePeriodFailureReason($e, 'menambahkan');
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], $status);
+            }
+            return back()->withInput()->with('error', $message);
         }
-        return back()->with('success', 'Jam pelajaran berhasil ditambahkan.');
     }
 
     /* ── UPDATE ─────────────────────────────────────────── */
@@ -49,30 +60,49 @@ class ClassPeriodController extends Controller
     public function update(Request $request, ClassPeriod $jamPelajaran)
     {
         $data = $this->validatePeriod($request, $jamPelajaran->id);
-        $data['duration_minutes'] = $this->calcDuration($data['start_time'], $data['end_time']);
 
-        $jamPelajaran->update($data);
+        try {
+            $data['duration_minutes'] = $this->calcDuration($data['start_time'], $data['end_time']);
 
-        if ($request->expectsJson()) {
-            return $this->jsonDayResponse($data['day']);
+            $jamPelajaran->update($data);
+
+            $successMessage = 'Jam pelajaran berhasil diperbarui.';
+            if ($request->expectsJson()) {
+                return $this->jsonDayResponse($data['day'], $successMessage);
+            }
+            return back()->with('success', $successMessage);
+        } catch (Throwable $e) {
+            [$message, $status] = $this->resolvePeriodFailureReason($e, 'memperbarui');
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], $status);
+            }
+            return back()->withInput()->with('error', $message);
         }
-        return back()->with('success', 'Jam pelajaran berhasil diperbarui.');
     }
 
     /* ── DESTROY ────────────────────────────────────────── */
 
     public function destroy(Request $request, ClassPeriod $jamPelajaran)
     {
-        $day = $jamPelajaran->day;
-        $jamPelajaran->delete();
+        try {
+            $day = $jamPelajaran->day;
+            $jamPelajaran->delete();
 
-        // Re-sequence remaining rows
-        $this->resequence($day);
+            // Re-sequence remaining rows
+            $this->resequence($day);
 
-        if ($request->expectsJson()) {
-            return $this->jsonDayResponse($day);
+            $successMessage = 'Jam pelajaran berhasil dihapus.';
+            if ($request->expectsJson()) {
+                return $this->jsonDayResponse($day, $successMessage);
+            }
+            return back()->with('success', $successMessage);
+        } catch (Throwable $e) {
+            [$message, $status] = $this->resolvePeriodFailureReason($e, 'menghapus');
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], $status);
+            }
+            return back()->with('error', $message);
         }
-        return back()->with('success', 'Jam pelajaran berhasil dihapus.');
     }
 
     /* ── DOWNLOAD TEMPLATE ──────────────────────────────── */
@@ -249,18 +279,27 @@ class ClassPeriodController extends Controller
         $request->validate(['day' => ['required', Rule::in(ClassPeriod::DAYS)]]);
         $day = $request->day;
 
-        DB::transaction(function () use ($day) {
-            ClassPeriod::where('day', $day)->delete();
-            $seeder = new \Database\Seeders\ClassPeriodSeeder;
-            // Re-insert only one day using the seeder map
-            $rows = $seeder->rowsForDay($day);
-            ClassPeriod::insert($rows);
-        });
+        try {
+            DB::transaction(function () use ($day) {
+                ClassPeriod::where('day', $day)->delete();
+                $seeder = new \Database\Seeders\ClassPeriodSeeder;
+                // Re-insert only one day using the seeder map
+                $rows = $seeder->rowsForDay($day);
+                ClassPeriod::insert($rows);
+            });
 
-        if ($request->expectsJson()) {
-            return $this->jsonDayResponse($day);
+            $successMessage = 'Jadwal hari ' . ClassPeriod::DAY_LABELS[$day] . ' berhasil direset.';
+            if ($request->expectsJson()) {
+                return $this->jsonDayResponse($day, $successMessage);
+            }
+            return back()->with('success', $successMessage);
+        } catch (Throwable $e) {
+            [$message, $status] = $this->resolvePeriodFailureReason($e, 'mereset');
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], $status);
+            }
+            return back()->with('error', $message);
         }
-        return back()->with('success', 'Jadwal hari ' . ClassPeriod::DAY_LABELS[$day] . ' berhasil direset.');
     }
 
     /* ── DAY TABLE (AJAX partial HTML) ─────────────────── */
@@ -333,7 +372,7 @@ class ClassPeriodController extends Controller
             ->each(fn($p, $i) => $p->sequence !== $i ? $p->update(['sequence' => $i]) : null);
     }
 
-    private function jsonDayResponse(string $day): \Illuminate\Http\JsonResponse
+    private function jsonDayResponse(string $day, string $message = 'Operasi jam pelajaran berhasil.'): \Illuminate\Http\JsonResponse
     {
         $periods = ClassPeriod::forDay($day)->get()->map(fn($p) => [
             'id'             => $p->id,
@@ -351,9 +390,39 @@ class ClassPeriodController extends Controller
 
         return response()->json([
             'success' => true,
+            'message' => $message,
             'day'     => $day,
             'periods' => $periods,
             'lesson_count' => $lessonCount,
         ]);
+    }
+
+    /**
+     * Convert low-level DB/system errors into clear user-facing messages.
+     *
+     * @return array{0:string,1:int}
+     */
+    private function resolvePeriodFailureReason(Throwable $e, string $action): array
+    {
+        if ($e instanceof QueryException) {
+            $sqlState   = (string) ($e->errorInfo[0] ?? $e->getCode());
+            $rawMessage = strtolower($e->getMessage());
+
+            if ($sqlState === '23000') {
+                if (str_contains($rawMessage, 'class_periods_day_sequence_unique') || str_contains($rawMessage, 'unique')) {
+                    return ['Gagal ' . $action . ' jam pelajaran: urutan jam pada hari tersebut sudah dipakai.', 422];
+                }
+
+                if (str_contains($rawMessage, 'foreign key') || str_contains($rawMessage, 'teacher_schedules')) {
+                    return ['Gagal ' . $action . ' jam pelajaran: slot ini masih dipakai pada jadwal mengajar.', 422];
+                }
+
+                return ['Gagal ' . $action . ' jam pelajaran: terjadi konflik data.', 422];
+            }
+
+            return ['Gagal ' . $action . ' jam pelajaran: database sedang bermasalah, silakan coba lagi.', 500];
+        }
+
+        return ['Gagal ' . $action . ' jam pelajaran karena gangguan sistem.', 500];
     }
 }

@@ -4,9 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\ClassModel;
 use App\Models\Subject;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class SubjectController extends Controller
 {
@@ -48,27 +52,46 @@ class SubjectController extends Controller
             'rule_params' => 'nullable|array',
             'class_ids'   => 'nullable|array',
             'class_ids.*' => 'exists:classes,id',
+        ], [
+            'name.required'   => 'Nama mata pelajaran wajib diisi.',
+            'name.unique'     => 'Nama mata pelajaran sudah terdaftar.',
+            'class_ids.*.exists' => 'Ada kelas yang dipilih tetapi tidak ditemukan di sistem.',
         ]);
 
-        $subject = Subject::create([
-            'name'        => $data['name'],
-            'description' => $data['description'] ?? null,
-            'is_active'   => $data['is_active'] ?? true,
-        ]);
+        try {
+            $classIds = $this->resolveClasses(
+                $data['rule_type'] ?? 'manual',
+                $data['rule_params'] ?? [],
+                $data['class_ids'] ?? []
+            );
+            $this->ensureAtLeastOneClassAssigned($classIds);
 
-        $classIds = $this->resolveClasses(
-            $data['rule_type'] ?? 'manual',
-            $data['rule_params'] ?? [],
-            $data['class_ids'] ?? []
-        );
+            $subject = DB::transaction(function () use ($data, $classIds) {
+                $subject = Subject::create([
+                    'name'        => $data['name'],
+                    'description' => $data['description'] ?? null,
+                    'is_active'   => $data['is_active'] ?? true,
+                ]);
 
-        $subject->classes()->sync($classIds);
+                $subject->classes()->sync($classIds);
+                return $subject;
+            });
 
-        return response()->json([
-            'ok'      => true,
-            'message' => 'Mata pelajaran berhasil ditambahkan.',
-            'subject' => $subject->load('classes'),
-        ]);
+            return response()->json([
+                'ok'      => true,
+                'message' => 'Mata pelajaran berhasil ditambahkan.',
+                'subject' => $subject->load('classes'),
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Mata pelajaran gagal ditambahkan. Minimal 1 kelas harus ditugaskan.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (Throwable $e) {
+            [$message, $status] = $this->resolveSubjectFailureReason($e, 'menambahkan');
+            return response()->json(['ok' => false, 'message' => $message], $status);
+        }
     }
 
     // ─── update ───────────────────────────────────────────────────────────────
@@ -83,37 +106,62 @@ class SubjectController extends Controller
             'rule_params' => 'nullable|array',
             'class_ids'   => 'nullable|array',
             'class_ids.*' => 'exists:classes,id',
+        ], [
+            'name.required'   => 'Nama mata pelajaran wajib diisi.',
+            'name.unique'     => 'Nama mata pelajaran sudah terdaftar.',
+            'class_ids.*.exists' => 'Ada kelas yang dipilih tetapi tidak ditemukan di sistem.',
         ]);
 
-        $subject->update([
-            'name'        => $data['name'],
-            'description' => $data['description'] ?? null,
-            'is_active'   => $data['is_active'] ?? $subject->is_active,
-        ]);
+        try {
+            $classIds = $this->resolveClasses(
+                $data['rule_type'] ?? 'manual',
+                $data['rule_params'] ?? [],
+                $data['class_ids'] ?? []
+            );
+            $this->ensureAtLeastOneClassAssigned($classIds);
 
-        $classIds = $this->resolveClasses(
-            $data['rule_type'] ?? 'manual',
-            $data['rule_params'] ?? [],
-            $data['class_ids'] ?? []
-        );
+            DB::transaction(function () use ($data, $subject, $classIds) {
+                $subject->update([
+                    'name'        => $data['name'],
+                    'description' => $data['description'] ?? null,
+                    'is_active'   => $data['is_active'] ?? $subject->is_active,
+                ]);
 
-        $subject->classes()->sync($classIds);
+                $subject->classes()->sync($classIds);
+            });
 
-        return response()->json([
-            'ok'      => true,
-            'message' => 'Mata pelajaran berhasil diperbarui.',
-            'subject' => $subject->fresh()->load('classes'),
-        ]);
+            return response()->json([
+                'ok'      => true,
+                'message' => 'Mata pelajaran berhasil diperbarui.',
+                'subject' => $subject->fresh()->load('classes'),
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Mata pelajaran gagal diperbarui. Minimal 1 kelas harus ditugaskan.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (Throwable $e) {
+            [$message, $status] = $this->resolveSubjectFailureReason($e, 'memperbarui');
+            return response()->json(['ok' => false, 'message' => $message], $status);
+        }
     }
 
     // ─── destroy ──────────────────────────────────────────────────────────────
 
     public function destroy(Subject $subject): JsonResponse
     {
-        $subject->classes()->detach();
-        $subject->delete();
+        try {
+            DB::transaction(function () use ($subject) {
+                $subject->classes()->detach();
+                $subject->delete();
+            });
 
-        return response()->json(['ok' => true, 'message' => 'Mata pelajaran berhasil dihapus.']);
+            return response()->json(['ok' => true, 'message' => 'Mata pelajaran berhasil dihapus.']);
+        } catch (Throwable $e) {
+            [$message, $status] = $this->resolveSubjectFailureReason($e, 'menghapus');
+            return response()->json(['ok' => false, 'message' => $message], $status);
+        }
     }
 
     // ─── classOptions (for edit modal pre-load) ───────────────────────────────
@@ -178,5 +226,45 @@ class SubjectController extends Controller
             default:
                 return array_map('intval', $manualIds);
         }
+    }
+
+    private function ensureAtLeastOneClassAssigned(array $classIds): void
+    {
+        $normalized = array_values(array_unique(array_filter(array_map('intval', $classIds), fn ($id) => $id > 0)));
+
+        if (count($normalized) < 1) {
+            throw ValidationException::withMessages([
+                'class_ids' => 'Minimal 1 kelas harus ditugaskan pada mata pelajaran.',
+            ]);
+        }
+    }
+
+    /**
+     * Convert low-level errors into clear CRUD messages for mapel operations.
+     *
+     * @return array{0:string,1:int}
+     */
+    private function resolveSubjectFailureReason(Throwable $e, string $action): array
+    {
+        if ($e instanceof QueryException) {
+            $sqlState   = (string) ($e->errorInfo[0] ?? $e->getCode());
+            $rawMessage = strtolower($e->getMessage());
+
+            if ($sqlState === '23000') {
+                if (str_contains($rawMessage, 'subjects_name_unique') || str_contains($rawMessage, 'subjects.name')) {
+                    return ['Gagal ' . $action . ' mata pelajaran: nama mapel sudah terdaftar.', 422];
+                }
+
+                if (str_contains($rawMessage, 'foreign key') || str_contains($rawMessage, 'constraint')) {
+                    return ['Gagal ' . $action . ' mata pelajaran: data ini masih dipakai pada relasi lain (mis. jadwal mengajar). Lepaskan relasi terlebih dahulu.', 422];
+                }
+
+                return ['Gagal ' . $action . ' mata pelajaran: terjadi konflik data.', 422];
+            }
+
+            return ['Gagal ' . $action . ' mata pelajaran: database sedang bermasalah, silakan coba lagi.', 500];
+        }
+
+        return ['Gagal ' . $action . ' mata pelajaran: terjadi gangguan sistem.', 500];
     }
 }

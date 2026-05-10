@@ -17,6 +17,12 @@
 @endpush
 
 @section('content')
+@php
+    $todayJkt = now()->timezone('Asia/Jakarta');
+    $isAfterPromotion = ($todayJkt->month > 7) || ($todayJkt->month === 7 && $todayJkt->day >= 19);
+    $graduationFlagExists = file_exists(storage_path('app/graduates_deleted_' . $todayJkt->year . '.flag'));
+    $showDeleteGraduatesBtn = $isAfterPromotion && !$graduationFlagExists;
+@endphp
 <div class="ds-page">
 
     {{-- ── Flash Messages ─────────────────────────────── --}}
@@ -99,6 +105,24 @@
             <p class="ds-subtitle">Total <strong>{{ $students->total() }}</strong> siswa terdaftar</p>
         </div>
         <div class="ds-header__actions">
+            {{-- Nonaktifkan Siswa (Bulk) --}}
+            <button class="btn btn--warning" data-open-modal="modalBulkDeactivate">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                </svg>
+                Nonaktifkan
+            </button>
+            {{-- Aktifkan Semua (enabled only if inactiveCount > 0) --}}
+            <button class="btn btn--success" data-open-modal="modalBulkActivate" {{ $inactiveCount < 1 ? 'disabled' : '' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                Aktifkan Semua ({{ $inactiveCount }})
+            </button>
             {{-- Import Excel --}}
             <button class="btn btn--secondary" data-open-modal="modalTambahExcel">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
@@ -116,6 +140,18 @@
                 </svg>
                 Tambah Siswa
             </button>
+            {{-- Hapus Siswa Lulus (visible from July 19 if not already done) --}}
+            @if($showDeleteGraduatesBtn)
+            <button type="button" class="btn btn--danger" data-open-modal="modalDeleteGraduates">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07"/>
+                    <path d="M11 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h7"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                </svg>
+                Hapus Siswa Lulus
+            </button>
+            @endif
         </div>
     </div>
 
@@ -139,6 +175,11 @@
                     </option>
                 @endforeach
             </select>
+            <select name="status" class="ds-filter-select">
+                <option value="">Semua Status</option>
+                <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Aktif</option>
+                <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Nonaktif</option>
+            </select>
             <button type="submit" class="btn btn--primary btn--sm">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
                      fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -146,7 +187,7 @@
                 </svg>
                 Cari
             </button>
-            @if(request('search') || request('class_id'))
+            @if(request('search') || request('class_id') || request('status'))
             <a href="{{ route('siswa.index') }}" class="btn btn--ghost btn--sm">Reset</a>
             @endif
         </form>
@@ -229,6 +270,20 @@
                                         </svg>
                                         Edit Siswa
                                     </a>
+                                    <button type="button" class="ds-dropdown__item"
+                                            data-action="reset-password"
+                                            data-id="{{ $siswa->id }}"
+                                            data-name="{{ $siswa->name }}"
+                                            data-nis="{{ $siswa->nis }}">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
+                                             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M4 7h16"/>
+                                            <path d="M7 7V5a5 5 0 0 1 10 0v2"/>
+                                            <rect x="5" y="7" width="14" height="14" rx="2"/>
+                                            <path d="M12 11v4"/>
+                                        </svg>
+                                        Reset Password
+                                    </button>
                                     <div class="ds-dropdown__separator"></div>
                                     {{-- Hapus --}}
                                     <button type="button" class="ds-dropdown__item ds-dropdown__item--danger"
@@ -285,7 +340,56 @@
 @include('Data_Siswa.tambah_siswa')
 @include('Data_Siswa.tambah_siswa_excel')
 @include('Data_Siswa.detail')
+@include('Data_Siswa.reset_password')
 @include('Data_Siswa.delete')
+@include('Data_Siswa.bulk_status')
+
+{{-- ═══════════════════════════════════════════════════════════
+     MODAL: HAPUS SISWA LULUS
+     ═══════════════════════════════════════════════════════════ --}}
+@if($showDeleteGraduatesBtn)
+<div class="modal-overlay" id="modalDeleteGraduates">
+    <div class="modal modal--sm">
+        <div class="modal-header">
+            <h2 class="modal-title modal-title--danger">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14H6L5 6"/>
+                    <path d="M10 11v6"/><path d="M14 11v6"/>
+                    <path d="M9 6V4h6v2"/>
+                </svg>
+                Hapus Siswa Lulus
+            </h2>
+            <button type="button" class="modal-close-btn modal-close" aria-label="Tutup">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Apakah Anda yakin ingin menghapus semua siswa yang sudah lulus di angkatan
+                <strong>{{ $todayJkt->year - 1 }}/{{ $todayJkt->year }}</strong>?</p>
+            <p class="text-danger" style="margin-top:.5rem;font-size:.875rem;">
+                Tindakan ini <strong>tidak bisa dibatalkan</strong>. Semua data siswa lulus beserta riwayat absensinya akan terhapus permanen.
+            </p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn--ghost modal-close">Batal</button>
+            <form method="POST" action="{{ route('siswa.delete-graduates') }}" style="display:inline;">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="btn btn--danger">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6l-1 14H6L5 6"/>
+                        <path d="M10 11v6"/><path d="M14 11v6"/>
+                        <path d="M9 6V4h6v2"/>
+                    </svg>
+                    Ya, Hapus Siswa Lulus
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
 
 @endsection
 

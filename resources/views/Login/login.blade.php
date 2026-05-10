@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('storage/prescientia-logo-square.png') }}">
+    <link rel="shortcut icon" href="{{ asset('storage/prescientia-logo-square.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('storage/prescientia-logo-square.png') }}">
     <title>Login &mdash; Prescientia Admin</title>
 
     {{-- Anti-flash theme apply --}}

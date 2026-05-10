@@ -221,7 +221,7 @@ class TeachersImport implements ToCollection, WithHeadingRow
                 }
             }
 
-            $this->imported = count($toInsertTeachers);
+            $this->imported += count($toInsertTeachers);
         });
     }
 

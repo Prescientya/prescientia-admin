@@ -373,6 +373,48 @@
 </div>{{-- /ka-page --}}
 
 {{-- ═══════════════════════════════════════════════════════════
+     DANGER AREA: HAPUS ABSENSI RENTANG TANGGAL
+     ═══════════════════════════════════════════════════════════ --}}
+<div class="ka-page" style="margin-top:1.5rem;border:2px solid #dc2626;border-radius:.5rem;padding:1.25rem;">
+    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+             fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <h3 style="color:#dc2626;font-size:1rem;font-weight:700;margin:0;">Danger Area — Hapus Data Absensi Siswa</h3>
+    </div>
+    <p style="font-size:.875rem;color:#6b7280;margin-bottom:1rem;">
+        Hapus <strong>semua</strong> data absensi siswa dalam rentang tanggal tertentu. Tindakan ini tidak bisa dibatalkan.
+    </p>
+    <form method="POST" action="{{ route('attendance.student.delete-range') }}"
+          onsubmit="return confirm('PERHATIAN: Semua data absensi siswa dalam rentang ini akan dihapus permanen. Lanjutkan?')">
+        @csrf
+        @method('DELETE')
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end;">
+            <div>
+                <label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:.25rem;">Dari Tanggal</label>
+                <input type="date" name="date_from" id="dangerDateFrom" class="form-control" required style="min-width:160px;">
+            </div>
+            <div>
+                <label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:.25rem;">Sampai Tanggal</label>
+                <input type="date" name="date_to" id="dangerDateTo" class="form-control" required style="min-width:160px;">
+            </div>
+            <button type="submit" class="btn btn--danger">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14H6L5 6"/>
+                    <path d="M10 11v6"/><path d="M14 11v6"/>
+                    <path d="M9 6V4h6v2"/>
+                </svg>
+                Hapus Data Absensi
+            </button>
+        </div>
+    </form>
+</div>
+
+{{-- ═══════════════════════════════════════════════════════════
      MODAL: INPUT MANUAL
      ═══════════════════════════════════════════════════════════ --}}
 <div class="modal-overlay" id="modalManualInput">
@@ -656,4 +698,28 @@
 
 @push('scripts')
 <script>{!! file_get_contents(resource_path('views/Kehadiran_Siswa/main.js')) !!}</script>
+@endpush
+
+@push('scripts')
+<script>
+(function () {
+    function linkDateRange(fromId, toId) {
+        var from = document.getElementById(fromId);
+        var to   = document.getElementById(toId);
+        if (!from || !to) return;
+        from.addEventListener('change', function () {
+            to.min = from.value;
+            if (to.value && to.value < from.value) to.value = from.value;
+        });
+        to.addEventListener('change', function () {
+            from.max = to.value;
+            if (from.value && from.value > to.value) from.value = to.value;
+        });
+        if (from.value) to.min  = from.value;
+        if (to.value)   from.max = to.value;
+    }
+    linkDateRange('filterDateFrom', 'filterDateTo');
+    linkDateRange('dangerDateFrom',  'dangerDateTo');
+})();
+</script>
 @endpush

@@ -149,3 +149,76 @@
 }
 .import-autocreate-label:hover { border-color: var(--accent); }
 
+/* ─── BULK STATUS – Mode Tabs ───────────────────────────── */
+.bulk-mode-tabs {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;
+}
+.bulk-mode-tab {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 0.84rem; font-weight: 600;
+    background: var(--content-bg); border: 1px solid var(--card-border);
+    color: var(--text-secondary); transition: all 0.15s;
+}
+.bulk-mode-tab:hover { border-color: var(--accent); color: var(--text-primary); }
+.bulk-mode-tab input[type="radio"] { display: none; }
+.bulk-mode-tab:has(input:checked) {
+    background: var(--accent-light); border-color: var(--accent);
+    color: var(--accent);
+}
+
+.bulk-mode-content { margin-top: 12px; }
+
+/* ─── BULK STATUS – Preview Box ─────────────────────────── */
+.bulk-preview {
+    margin-top: 16px; padding: 12px 14px;
+    background: var(--content-bg); border: 1px solid var(--card-border);
+    border-radius: 10px;
+}
+.bulk-preview__header {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 0.9rem; font-weight: 600; color: var(--text-primary);
+    margin-bottom: 10px;
+}
+.bulk-preview__header svg { color: var(--accent); }
+.bulk-preview__list {
+    display: flex; flex-direction: column; gap: 6px;
+    max-height: 180px; overflow-y: auto;
+}
+.bulk-preview__item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; background: var(--card-bg); border-radius: 6px;
+    font-size: 0.84rem;
+}
+.bulk-preview__item-name { font-weight: 600; flex: 1; color: var(--text-primary); }
+.bulk-preview__item-nis { font-family: monospace; font-size: 0.8rem; color: var(--text-muted); }
+.bulk-preview__item-kelas { font-size: 0.78rem; color: var(--text-secondary); }
+.bulk-preview__more {
+    padding: 8px 10px; text-align: center;
+    font-size: 0.82rem; color: var(--text-muted); font-style: italic;
+}
+
+/* ─── BULK STATUS – Form Row ────────────────────────────── */
+.form-row {
+    display: flex; gap: 12px;
+}
+.form-row .form-group { flex: 1; }
+
+/* ─── Success Button Style ─────────────────────────────── */
+.btn--success {
+    background: #059669; color: #fff; border-color: #059669;
+}
+.btn--success:hover:not(:disabled) { background: #047857; border-color: #047857; }
+.btn--success:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ─── Warning Button Style ─────────────────────────────── */
+.btn--warning {
+    background: #d97706; color: #fff; border-color: #d97706;
+}
+.btn--warning:hover:not(:disabled) { background: #b45309; border-color: #b45309; }
+
+/* ─── Modal Title Variants ──────────────────────────────── */
+.modal-title--success { color: #059669; }
+.modal-title--success svg { color: #059669; }
+
+

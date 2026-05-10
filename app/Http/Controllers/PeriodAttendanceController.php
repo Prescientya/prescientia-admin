@@ -14,6 +14,7 @@ use App\Models\TeacherAttendancePeriod;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class PeriodAttendanceController extends Controller
 {
@@ -62,6 +63,7 @@ class PeriodAttendanceController extends Controller
         if ($classId && $periods->isNotEmpty()) {
             // Ambil semua siswa di kelas ini
             $students = Student::where('class_id', $classId)
+                ->whereHas('user', fn($q) => $q->where('is_active', true))
                 ->orderBy('name')
                 ->get();
 
@@ -114,18 +116,25 @@ class PeriodAttendanceController extends Controller
             'student_id'      => 'required|exists:students,id',
             'class_period_id' => 'required|exists:class_periods,id',
             'date'            => 'required|date',
-            'status'          => 'required|in:hadir,sakit,izin,alpa,terlambat,dispen',
+            'status'          => 'required|in:hadir,sakit,izin,alpa,alpha,terlambat,dispen',
         ]);
 
-        $student  = Student::findOrFail($request->student_id);
+        $student  = Student::with('user')->findOrFail($request->student_id);
         $calendar = SchoolCalendar::forDate($request->date);
+        $normalizedStatus = $this->normalizeStatus($request->status);
+
+        if (!optional($student->user)->is_active) {
+            throw ValidationException::withMessages([
+                'student_id' => 'Siswa tidak aktif dan tidak dapat diisi absensinya.',
+            ]);
+        }
 
         // Pastikan ada record kehadiran harian
         $attendance = StudentAttendance::firstOrCreate(
             ['student_id' => $student->id, 'calendar_id' => $calendar->id],
             [
                 'class_id' => $student->class_id,
-                'status'   => $request->status, // default ke status jam ini
+                'status'   => $normalizedStatus, // default ke status jam ini
                 'source'   => 'manual',
             ]
         );
@@ -137,13 +146,13 @@ class PeriodAttendanceController extends Controller
                 'class_period_id' => $request->class_period_id,
             ],
             [
-                'status' => $request->status,
+                'status' => $normalizedStatus,
             ]
         );
 
         return response()->json([
             'ok'     => true,
-            'status' => $request->status,
+            'status' => $normalizedStatus,
         ]);
     }
 
@@ -196,6 +205,7 @@ class PeriodAttendanceController extends Controller
         // Ambil semua kehadiran harian siswa di kelas ini
         $attendances = StudentAttendance::where('class_id', $classId)
             ->where('calendar_id', $calendar->id)
+            ->whereHas('student.user', fn($q) => $q->where('is_active', true))
             ->get();
 
         if ($attendances->isEmpty()) {
@@ -316,7 +326,9 @@ class PeriodAttendanceController extends Controller
 
         if ($periods->isNotEmpty()) {
             // Ambil semua guru yang aktif
-            $teachers = Teacher::orderBy('name')->get();
+            $teachers = Teacher::whereHas('user', fn($q) => $q->where('is_active', true))
+                ->orderBy('name')
+                ->get();
 
             $calendar = SchoolCalendar::where('date', $date)->first();
 
@@ -361,16 +373,23 @@ class PeriodAttendanceController extends Controller
             'teacher_id'      => 'required|exists:teachers,id',
             'class_period_id' => 'required|exists:class_periods,id',
             'date'            => 'required|date',
-            'status'          => 'required|in:hadir,sakit,izin,dinas,alpa,terlambat',
+            'status'          => 'required|in:hadir,sakit,izin,dinas,alpa,alpha,terlambat',
         ]);
 
-        $teacher  = Teacher::findOrFail($request->teacher_id);
+        $teacher  = Teacher::with('user')->findOrFail($request->teacher_id);
         $calendar = SchoolCalendar::forDate($request->date);
+        $normalizedStatus = $this->normalizeStatus($request->status);
+
+        if (!optional($teacher->user)->is_active) {
+            throw ValidationException::withMessages([
+                'teacher_id' => 'Guru tidak aktif dan tidak dapat diisi absensinya.',
+            ]);
+        }
 
         $attendance = TeacherAttendance::firstOrCreate(
             ['teacher_id' => $teacher->id, 'calendar_id' => $calendar->id],
             [
-                'status' => $request->status,
+                'status' => $normalizedStatus,
                 'source' => 'manual',
             ]
         );
@@ -381,13 +400,13 @@ class PeriodAttendanceController extends Controller
                 'class_period_id'       => $request->class_period_id,
             ],
             [
-                'status' => $request->status,
+                'status' => $normalizedStatus,
             ]
         );
 
         return response()->json([
             'ok'     => true,
-            'status' => $request->status,
+            'status' => $normalizedStatus,
         ]);
     }
 
@@ -428,7 +447,9 @@ class PeriodAttendanceController extends Controller
             return response()->json(['ok' => false, 'message' => 'Tanggal tidak ditemukan di kalender sekolah'], 400);
         }
 
-        $attendances = TeacherAttendance::where('calendar_id', $calendar->id)->get();
+        $attendances = TeacherAttendance::where('calendar_id', $calendar->id)
+            ->whereHas('teacher.user', fn($q) => $q->where('is_active', true))
+            ->get();
 
         if ($attendances->isEmpty()) {
             return response()->json(['ok' => false, 'message' => 'Tidak ada data kehadiran harian guru pada tanggal tersebut'], 400);
@@ -450,5 +471,14 @@ class PeriodAttendanceController extends Controller
             'message' => "Berhasil mengisi {$filled} data kehadiran guru per jam",
             'filled'  => $filled,
         ]);
+    }
+
+    private function normalizeStatus(?string $status): ?string
+    {
+        if ($status === null) {
+            return null;
+        }
+
+        return strtolower($status) === 'alpha' ? 'alpa' : $status;
     }
 }

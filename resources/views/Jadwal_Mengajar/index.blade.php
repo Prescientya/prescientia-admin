@@ -178,6 +178,7 @@
                             <option value="{{ $c->id }}">{{ $c->class }} {{ $c->major }}</option>
                             @endforeach
                         </select>
+                        <span class="form-hint" id="jfClassHint">Pilih mapel agar kelas difilter sesuai Penugasan Kelas mapel tersebut.</span>
                     </div>
 
                     {{-- Day + Period pickers — populated via AJAX --}}
@@ -348,6 +349,11 @@ window.JM_TEACHERS         = @json($teachers->map(fn($t) => ['id'=>$t->id,'label
 window.JM_CLASSES          = @json($classes->map(fn($c) => ['id'=>$c->id,'label'=>$c->class.' '.$c->major])->values());
 window.JM_ALL_SUBJECTS     = @json($subjects->map(fn($s) => ['id'=>$s->id,'name'=>$s->name])->values());
 window.JM_TEACHER_SUBJECTS = @json($teachers->keyBy('id')->map(fn($t) => $t->subjects->map(fn($s) => ['id'=>$s->id,'name'=>$s->name])->values())->all());
+window.JM_SUBJECT_CLASSES  = @json(
+    $subjects->mapWithKeys(fn($s) => [
+        (string) $s->id => $s->classes->pluck('id')->map(fn($id) => (int) $id)->values(),
+    ])->all()
+);
 window.JM_ALL_PERIODS      = {!! json_encode(
     $periodsByDay->map(fn($g) => $g->map(fn($p) => [
         'id'       => $p->id,

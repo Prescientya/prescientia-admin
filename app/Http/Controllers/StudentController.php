@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -36,10 +37,26 @@ class StudentController extends Controller
             $query->where('students.class_id', $request->class_id);
         }
 
+        // Filter by account status
+        if ($request->filled('status')) {
+            $isActive = $request->status === 'active';
+            $query->whereHas('user', fn($q) => $q->where('is_active', $isActive));
+        }
+
         $students = $query->orderBy('students.name')->paginate(10)->withQueryString();
         $classes  = ClassModel::orderBy('class')->orderBy('major')->get();
 
-        return view('Data_Siswa.Index', compact('students', 'classes'));
+        // Count inactive students for "Aktifkan Semua" button
+        $inactiveCount = Student::whereHas('user', fn($q) => $q->where('is_active', false))->count();
+
+        // Get unique majors for filter
+        $majors = ClassModel::whereNotNull('major')
+            ->where('major', '!=', '')
+            ->distinct()
+            ->orderBy('major')
+            ->pluck('major');
+
+        return view('Data_Siswa.Index', compact('students', 'classes', 'inactiveCount', 'majors'));
     }
 
     /* ── STORE (manual add) ─────────────────────────── */
@@ -289,6 +306,24 @@ class StudentController extends Controller
             return back()->with('error', 'Gagal menghapus data siswa: ' . $e->getMessage());
         }
     }
+
+    public function resetPassword(Student $siswa)
+    {
+        try {
+            DB::table('users')
+                ->where('id', $siswa->user_id)
+                ->update([
+                    'password' => Hash::make($siswa->nis),
+                    'first_login' => true,
+                    'updated_at' => now(),
+                ]);
+
+            return redirect()->route('siswa.index')
+                ->with('success', "Password siswa {$siswa->name} berhasil direset ke NIS.");
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal mereset password siswa: ' . $e->getMessage());
+        }
+    }
     /* ── CHECK CLASSES (AJAX) ──────────────────────────────────── */
 
     public function checkClasses(Request $request): \Illuminate\Http\JsonResponse
@@ -398,6 +433,204 @@ class StudentController extends Controller
         } catch (\Exception $e) {
             $this->cleanupImportFiles();
             return back()->with('error', 'Gagal import: ' . $e->getMessage());
+        }
+    }
+
+    /* ── DELETE GRADUATES ───────────────────────────── */
+
+    public function destroyGraduates()
+    {
+        $now = now()->timezone('Asia/Jakarta');
+
+        // Only allowed from July 19 onwards
+        $isAfterPromotion = ($now->month > 7) || ($now->month === 7 && $now->day >= 19);
+        if (! $isAfterPromotion) {
+            return back()->with('error', 'Hapus siswa lulus hanya bisa dilakukan mulai 19 Juli.');
+        }
+
+        $flagPath = storage_path('app/graduates_deleted_' . $now->year . '.flag');
+        if (file_exists($flagPath)) {
+            return back()->with('error', 'Siswa lulus untuk tahun ini sudah pernah dihapus.');
+        }
+
+        $graduates = Student::whereNull('class_id')->with('user')->get();
+
+        if ($graduates->isEmpty()) {
+            return back()->with('info', 'Tidak ada siswa lulus yang perlu dihapus.');
+        }
+
+        DB::beginTransaction();
+        try {
+            $count = 0;
+            foreach ($graduates as $student) {
+                if ($student->user) {
+                    $student->user->delete(); // cascades to student record
+                } else {
+                    $student->delete();
+                }
+                $count++;
+            }
+
+            DB::commit();
+
+            file_put_contents($flagPath, $now->toDateTimeString());
+
+            Log::info("[Students] Deleted {$count} graduated students ({$now->year}).");
+            Cache::forget('dashboard.total_siswa');
+
+            return back()->with('success', "Berhasil menghapus {$count} siswa lulus.");
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('[Students] destroyGraduates failed: ' . $e->getMessage());
+            return back()->with('error', 'Gagal menghapus siswa lulus: ' . $e->getMessage());
+        }
+    }
+
+    /* ── PREVIEW BULK (AJAX) ────────────────────────── */
+
+    public function previewBulk(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $query = Student::whereNotNull('class_id')
+            ->whereHas('user', fn($q) => $q->where('is_active', true));
+
+        // Filter by class
+        if ($request->filled('class_id')) {
+            $query->where('class_id', $request->class_id);
+        }
+
+        // Filter by grade level (tingkat)
+        if ($request->filled('grade')) {
+            $query->whereHas('schoolClass', fn($q) => $q->where('class', $request->grade));
+        }
+
+        // Filter by major (jurusan)
+        if ($request->filled('major')) {
+            $query->whereHas('schoolClass', fn($q) => $q->where('major', $request->major));
+        }
+
+        // Filter by individual IDs
+        if ($request->filled('student_ids')) {
+            $ids = is_array($request->student_ids) ? $request->student_ids : explode(',', $request->student_ids);
+            $query->whereIn('id', $ids);
+        }
+
+        $count = $query->count();
+        $students = $query->with('schoolClass')
+            ->select('id', 'name', 'nis', 'class_id')
+            ->orderBy('name')
+            ->limit(10)
+            ->get()
+            ->map(fn($s) => [
+                'id'    => $s->id,
+                'name'  => $s->name,
+                'nis'   => $s->nis,
+                'kelas' => $s->schoolClass?->full_name ?? '-',
+            ]);
+
+        return response()->json([
+            'count'    => $count,
+            'students' => $students,
+            'hasMore'  => $count > 10,
+        ]);
+    }
+
+    /* ── BULK DEACTIVATE ────────────────────────────── */
+
+    public function bulkDeactivate(Request $request)
+    {
+        $request->validate([
+            'mode'        => 'required|in:class,grade,major,grade_major,individual',
+            'class_id'    => 'required_if:mode,class|nullable|exists:classes,id',
+            'grade'       => 'required_if:mode,grade,grade_major|nullable|in:10,11,12',
+            'major'       => 'required_if:mode,major,grade_major|nullable|string',
+            'student_ids' => 'required_if:mode,individual|nullable|array',
+            'student_ids.*' => 'exists:students,id',
+        ]);
+
+        $query = Student::whereNotNull('class_id')
+            ->whereHas('user', fn($q) => $q->where('is_active', true));
+
+        switch ($request->mode) {
+            case 'class':
+                $query->where('class_id', $request->class_id);
+                break;
+
+            case 'grade':
+                $query->whereHas('schoolClass', fn($q) => $q->where('class', $request->grade));
+                break;
+
+            case 'major':
+                $query->whereHas('schoolClass', fn($q) => $q->where('major', $request->major));
+                break;
+
+            case 'grade_major':
+                $query->whereHas('schoolClass', fn($q) => 
+                    $q->where('class', $request->grade)->where('major', $request->major)
+                );
+                break;
+
+            case 'individual':
+                $query->whereIn('id', $request->student_ids);
+                break;
+        }
+
+        $students = $query->with('user')->get();
+
+        if ($students->isEmpty()) {
+            return back()->with('error', 'Tidak ada siswa yang dapat di-nonaktifkan.');
+        }
+
+        DB::beginTransaction();
+        try {
+            $count = 0;
+            foreach ($students as $student) {
+                if ($student->user) {
+                    $student->user->update(['is_active' => false]);
+                    $count++;
+                }
+            }
+
+            DB::commit();
+            Log::info("[Students] Bulk deactivated {$count} students. Mode: {$request->mode}");
+
+            return back()->with('success', "Berhasil menonaktifkan {$count} akun siswa.");
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('[Students] bulkDeactivate failed: ' . $e->getMessage());
+            return back()->with('error', 'Gagal menonaktifkan siswa: ' . $e->getMessage());
+        }
+    }
+
+    /* ── BULK ACTIVATE ALL ──────────────────────────── */
+
+    public function bulkActivate(Request $request)
+    {
+        $students = Student::whereHas('user', fn($q) => $q->where('is_active', false))
+            ->with('user')
+            ->get();
+
+        if ($students->isEmpty()) {
+            return back()->with('info', 'Tidak ada siswa nonaktif yang perlu diaktifkan.');
+        }
+
+        DB::beginTransaction();
+        try {
+            $count = 0;
+            foreach ($students as $student) {
+                if ($student->user) {
+                    $student->user->update(['is_active' => true]);
+                    $count++;
+                }
+            }
+
+            DB::commit();
+            Log::info("[Students] Bulk activated {$count} students.");
+
+            return back()->with('success', "Berhasil mengaktifkan {$count} akun siswa.");
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('[Students] bulkActivate failed: ' . $e->getMessage());
+            return back()->with('error', 'Gagal mengaktifkan siswa: ' . $e->getMessage());
         }
     }
 

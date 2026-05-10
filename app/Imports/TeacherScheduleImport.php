@@ -8,6 +8,7 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeacherSchedule;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
@@ -36,6 +37,8 @@ class TeacherScheduleImport implements ToModel, WithHeadingRow, WithChunkReading
     private array $existingTSCP      = [];   // "t-s-c-p" → true
     private array $teacherPeriodMap  = [];   // "teacherId:periodId" → ['class_id','class_label','subject_name']
     private array $classPeriodMap    = [];   // "classId:periodId"   → ['teacher_id','teacher_name']
+    private array $teacherSubjectSet = [];   // "teacherId:subjectId" → true
+    private array $subjectClassSet   = [];   // "subjectId:classId"   → true
 
     public function __construct()
     {
@@ -69,6 +72,16 @@ class TeacherScheduleImport implements ToModel, WithHeadingRow, WithChunkReading
                 'teacher_id'   => $s->teacher_id,
                 'teacher_name' => $s->teacher->name ?? 'guru lain',
             ];
+        }
+
+        // 6. Teacher ↔ subject eligibility set (1 query)
+        foreach (DB::table('teacher_subject')->select('teacher_id', 'subject_id')->get() as $row) {
+            $this->teacherSubjectSet["{$row->teacher_id}:{$row->subject_id}"] = true;
+        }
+
+        // 7. Subject ↔ class assignment set (1 query)
+        foreach (DB::table('subject_classes')->select('subject_id', 'class_id')->get() as $row) {
+            $this->subjectClassSet["{$row->subject_id}:{$row->class_id}"] = true;
         }
     }
 
@@ -134,6 +147,24 @@ class TeacherScheduleImport implements ToModel, WithHeadingRow, WithChunkReading
             $this->failedRows[] = [
                 'row'    => "{$teacher->name} — {$kelas}",
                 'reason' => "Kelas \"{$kelas}\" tidak ditemukan. Pastikan data kelas sudah tersedia di menu Data Kelas.",
+            ];
+            return null;
+        }
+
+        // 3b. Teacher must be assigned to this subject
+        if (!isset($this->teacherSubjectSet["{$teacher->id}:{$subject->id}"])) {
+            $this->failedRows[] = [
+                'row'    => "{$teacher->name} — {$mapel}",
+                'reason' => "{$teacher->name} belum ditugaskan untuk mapel {$subject->name}. Atur mapel guru dulu di menu Data Guru.",
+            ];
+            return null;
+        }
+
+        // 3c. Subject must be assigned to this class in Mapel > Penugasan Kelas
+        if (!isset($this->subjectClassSet["{$subject->id}:{$class->id}"])) {
+            $this->failedRows[] = [
+                'row'    => "{$subject->name} — {$kelas}",
+                'reason' => "Mapel {$subject->name} belum dipetakan ke kelas {$kelas}. Atur dulu di menu Mata Pelajaran > Penugasan Kelas.",
             ];
             return null;
         }

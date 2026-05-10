@@ -22,12 +22,19 @@
     const ruleInput  = document.getElementById('mp-rule-type');
     const toast      = document.getElementById('mp-toast');
 
+    const infoTabBtn  = document.querySelector('[data-tab="info"]');
+    const kelasTabBtn = document.querySelector('[data-tab="kelas"]');
+
     // ─── Tabs (modal) ─────────────────────────────────────────────
     document.querySelectorAll('.mp-tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            document.querySelectorAll('.mp-tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.mp-tab-btn').forEach(b => {
+                b.classList.remove('active');
+                b.setAttribute('aria-selected', 'false');
+            });
             document.querySelectorAll('.mp-tab-panel').forEach(p => p.classList.remove('active'));
             btn.classList.add('active');
+            btn.setAttribute('aria-selected', 'true');
             document.querySelector(`[data-panel="${btn.dataset.tab}"]`).classList.add('active');
         });
     });
@@ -87,7 +94,52 @@
         }
 
         previewEl.innerHTML = text;
+        updateTabWarnings();
     }
+
+    function setTabWarning(tabBtn, showWarning) {
+        if (!tabBtn) return;
+        tabBtn.classList.toggle('has-warning', Boolean(showWarning));
+    }
+
+    function isInfoSectionComplete() {
+        return Boolean(nameEl.value.trim());
+    }
+
+    function isClassSectionComplete() {
+        const rule = ruleInput.value;
+
+        if (rule === 'semua') {
+            return Number(D.totalClasses || 0) > 0;
+        }
+
+        if (rule === 'tingkat') {
+            return document.querySelectorAll('.mp-grade-cb:checked').length > 0;
+        }
+
+        if (rule === 'jurusan') {
+            return document.querySelectorAll('.mp-major-cb:checked').length > 0;
+        }
+
+        if (rule === 'tingkat_jurusan') {
+            const hasGrade = document.querySelectorAll('.mp-tj-grade-cb:checked').length > 0;
+            const hasMajor = document.querySelectorAll('.mp-tj-major-cb:checked').length > 0;
+            return hasGrade && hasMajor;
+        }
+
+        if (rule === 'manual') {
+            return document.querySelectorAll('.mp-manual-cb:checked').length > 0;
+        }
+
+        return false;
+    }
+
+    function updateTabWarnings() {
+        setTabWarning(infoTabBtn, !isInfoSectionComplete());
+        setTabWarning(kelasTabBtn, !isClassSectionComplete());
+    }
+
+    nameEl.addEventListener('input', updateTabWarnings);
 
     // ─── Open modal (add) ─────────────────────────────────────────
     document.getElementById('mp-add-btn').addEventListener('click', () => openModal());
@@ -125,11 +177,19 @@
     // ─── Form submit ──────────────────────────────────────────────
     form.addEventListener('submit', async e => {
         e.preventDefault();
-        if (!nameEl.value.trim()) {
+        updateTabWarnings();
+
+        if (!isInfoSectionComplete()) {
             showToast('Nama mata pelajaran wajib diisi.', 'error');
             // switch to info tab
             document.querySelector('[data-tab="info"]').click();
             nameEl.focus();
+            return;
+        }
+
+        if (!isClassSectionComplete()) {
+            showToast('Penugasan kelas wajib diisi. Minimal 1 kelas harus ditugaskan.', 'error');
+            document.querySelector('[data-tab="kelas"]').click();
             return;
         }
 
@@ -162,7 +222,7 @@
             if (!res.ok) {
                 const msg = data.errors
                     ? Object.values(data.errors).flat().join(' ')
-                    : (data.message || 'Terjadi kesalahan.');
+                    : (data.message || (sid ? 'Mata pelajaran gagal diperbarui.' : 'Mata pelajaran gagal ditambahkan.'));
                 showToast(msg, 'error');
                 return;
             }
@@ -211,8 +271,8 @@
                 body: '_method=DELETE&_token=' + D.csrfToken,
             });
             const data = await res.json();
-            if (!res.ok) { showToast(data.message || 'Gagal menghapus.', 'error'); return; }
-            showToast(data.message || 'Berhasil dihapus.', 'success');
+            if (!res.ok) { showToast(data.message || 'Mata pelajaran gagal dihapus.', 'error'); return; }
+            showToast(data.message || 'Mata pelajaran berhasil dihapus.', 'success');
             row?.remove();
         } catch (_) {
             showToast('Gagal terhubung ke server.', 'error');
@@ -236,6 +296,7 @@
         // always start on Info tab when opening
         document.querySelector('[data-tab="info"]').click();
         overlay.classList.add('open');
+        updateTabWarnings();
         nameEl.focus();
     }
 
@@ -248,14 +309,15 @@
         subjectId.value  = '';
         methodEl.value   = 'POST';
         activeLbl.textContent = 'Aktif';
-        // reset rule to semua
-        document.querySelector('[data-rule="semua"]').click();
+        // reset rule to manual so class assignment must be explicitly chosen
+        document.querySelector('[data-rule="manual"]').click();
         document.querySelectorAll('.mp-rule-pill').forEach(p => p.classList.remove('active'));
-        document.querySelector('[data-rule="semua"]').classList.add('active');
+        document.querySelector('[data-rule="manual"]').classList.add('active');
         document.querySelectorAll('.mp-rule-panel').forEach(p => p.classList.remove('active'));
-        document.querySelector('[data-rulepanel="semua"]').classList.add('active');
-        ruleInput.value = 'semua';
+        document.querySelector('[data-rulepanel="manual"]').classList.add('active');
+        ruleInput.value = 'manual';
         updatePreview();
+        updateTabWarnings();
     }
 
     let toastTimer;
@@ -268,6 +330,7 @@
 
     // ─── Initial preview ─────────────────────────────────────────
     updatePreview();
+    updateTabWarnings();
 
     // ─── 3-dot action dropdown ───────────────────────────────────
     PSC.initActionDropdowns('.mp-action__btn', '.mp-dropdown');

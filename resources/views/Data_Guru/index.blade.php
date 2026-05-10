@@ -225,6 +225,20 @@
                                         </svg>
                                         Edit Guru
                                     </a>
+                                    <button type="button" class="dg-dropdown__item"
+                                            data-action="reset-password"
+                                            data-id="{{ $guru->id }}"
+                                            data-name="{{ $guru->name }}"
+                                            data-nip="{{ $guru->nip }}">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
+                                             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M4 7h16"/>
+                                            <path d="M7 7V5a5 5 0 0 1 10 0v2"/>
+                                            <rect x="5" y="7" width="14" height="14" rx="2"/>
+                                            <path d="M12 11v4"/>
+                                        </svg>
+                                        Reset Password
+                                    </button>
                                     <div class="dg-dropdown__separator"></div>
                                     {{-- Hapus --}}
                                     <button type="button" class="dg-dropdown__item dg-dropdown__item--danger"
@@ -279,6 +293,7 @@
 @include('Data_Guru.tambah_guru')
 @include('Data_Guru.tambah_guru_excel')
 @include('Data_Guru.detail')
+@include('Data_Guru.reset_password')
 @include('Data_Guru.delete')
 
 @endsection

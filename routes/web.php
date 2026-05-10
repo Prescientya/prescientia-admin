@@ -21,6 +21,7 @@ Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'Login'])->name('login.post')->middleware('throttle:5,1');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
+
 // Protected routes
 Route::middleware('auth:admin')->group(function () {
 
@@ -32,12 +33,18 @@ Route::middleware('auth:admin')->group(function () {
     Route::get('/guru/template', [TeacherController::class, 'downloadTemplate'])->name('guru.template');
     Route::post('/guru/import', [TeacherController::class, 'importExcel'])->name('guru.import');
     Route::post('/guru/check-subjects', [TeacherController::class, 'checkSubjects'])->name('guru.checksubjects');
+    Route::post('/guru/{guru}/reset-password', [TeacherController::class, 'resetPassword'])->name('guru.reset-password');
     Route::resource('/guru', TeacherController::class)->except(['create']);
     /* ── Data Siswa ──────────────────────────────────── */
     Route::get('/siswa/template', [StudentController::class, 'downloadTemplate'])->name('siswa.template');
     Route::post('/siswa/import', [StudentController::class, 'importExcel'])->name('siswa.import');
     Route::post('/siswa/check-classes', [StudentController::class, 'checkClasses'])->name('siswa.checkclasses');
     Route::get('/siswa/check-role', [StudentController::class, 'checkRole'])->name('siswa.checkRole');
+    Route::post('/siswa/{siswa}/reset-password', [StudentController::class, 'resetPassword'])->name('siswa.reset-password');
+    Route::delete('/siswa/delete-graduates', [StudentController::class, 'destroyGraduates'])->name('siswa.delete-graduates');
+    Route::post('/siswa/bulk-deactivate', [StudentController::class, 'bulkDeactivate'])->name('siswa.bulk-deactivate');
+    Route::post('/siswa/bulk-activate', [StudentController::class, 'bulkActivate'])->name('siswa.bulk-activate');
+    Route::get('/siswa/preview-bulk', [StudentController::class, 'previewBulk'])->name('siswa.preview-bulk');
     Route::resource('/siswa', StudentController::class)->except(['create']);
 
     /* ── Jaringan WiFi ───────────────────────────────── */
@@ -63,12 +70,13 @@ Route::middleware('auth:admin')->group(function () {
     Route::prefix('attendance/siswa')->name('attendance.student.')->group(function () {
         Route::get('/',             [StudentAttendanceController::class, 'index'])->name('index');
         Route::post('/',            [StudentAttendanceController::class, 'store'])->name('store');
+        Route::get('export',        [StudentAttendanceController::class, 'export'])->name('export');
+        Route::get('search',        [StudentAttendanceController::class, 'searchStudents'])->name('search');
+        Route::delete('delete-range', [StudentAttendanceController::class, 'deleteRange'])->name('delete-range');
         Route::patch('{id}',        [StudentAttendanceController::class, 'update'])->name('update');
         Route::delete('{id}',       [StudentAttendanceController::class, 'destroy'])->name('destroy');
         Route::patch('{id}/status', [StudentAttendanceController::class, 'updateStatus'])->name('updateStatus');
         Route::patch('{id}/time',   [StudentAttendanceController::class, 'updateTime'])->name('updateTime');
-        Route::get('export',        [StudentAttendanceController::class, 'export'])->name('export');
-        Route::get('search',        [StudentAttendanceController::class, 'searchStudents'])->name('search');
         Route::get('period',         [PeriodAttendanceController::class, 'studentPeriodIndex'])->name('period');
         Route::post('period/store',  [PeriodAttendanceController::class, 'storeStudentPeriod'])->name('period.store');
         Route::post('period/auto-fill', [PeriodAttendanceController::class, 'autoFillStudentPeriods'])->name('period.autofill');
@@ -112,10 +120,11 @@ Route::middleware('auth:admin')->group(function () {
     Route::prefix('attendance/guru')->name('attendance.teacher.')->group(function () {
         Route::get('/',        [TeacherAttendanceController::class, 'index'])->name('index');
         Route::post('/',       [TeacherAttendanceController::class, 'store'])->name('store');
-        Route::patch('{id}',   [TeacherAttendanceController::class, 'update'])->name('update');
-        Route::delete('{id}',  [TeacherAttendanceController::class, 'destroy'])->name('destroy');
         Route::get('export',   [TeacherAttendanceController::class, 'export'])->name('export');
         Route::get('search',   [TeacherAttendanceController::class, 'searchTeachers'])->name('search');
+        Route::delete('delete-range', [TeacherAttendanceController::class, 'deleteRange'])->name('delete-range');
+        Route::patch('{id}',   [TeacherAttendanceController::class, 'update'])->name('update');
+        Route::delete('{id}',  [TeacherAttendanceController::class, 'destroy'])->name('destroy');
         Route::get('period',         [PeriodAttendanceController::class, 'teacherPeriodIndex'])->name('period');
         Route::post('period/store',  [PeriodAttendanceController::class, 'storeTeacherPeriod'])->name('period.store');
         Route::post('period/auto-fill', [PeriodAttendanceController::class, 'autoFillTeacherPeriods'])->name('period.autofill');

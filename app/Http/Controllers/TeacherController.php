@@ -293,6 +293,24 @@ class TeacherController extends Controller
         }
     }
 
+    public function resetPassword(Teacher $guru)
+    {
+        try {
+            DB::table('users')
+                ->where('id', $guru->user_id)
+                ->update([
+                    'password' => Hash::make($guru->nip),
+                    'first_login' => true,
+                    'updated_at' => now(),
+                ]);
+
+            return redirect()->route('guru.index')
+                ->with('success', "Password guru {$guru->name} berhasil direset ke NIP.");
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal mereset password guru: ' . $e->getMessage());
+        }
+    }
+
     /* ── CHECK SUBJECTS (AJAX for Excel import) ─────── */
 
     public function checkSubjects(Request $request): \Illuminate\Http\JsonResponse
