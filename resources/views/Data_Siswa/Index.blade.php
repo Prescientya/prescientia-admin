@@ -47,23 +47,6 @@
     </div>
     @endif
 
-    @if(session('student_store_failed') && $errors->any())
-    <div class="alert alert--error" style="display:block;">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-                 fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            <strong>Siswa belum berhasil ditambahkan. Alasan:</strong>
-        </div>
-        <ul style="margin:0 0 0 26px;padding:0;line-height:1.5;">
-            @foreach($errors->all() as $msg)
-                <li>{{ $msg }}</li>
-            @endforeach
-        </ul>
-    </div>
-    @endif
-
     @if(session('import_failed'))
     <div class="import-report">
         <div class="import-report__header">
@@ -287,6 +270,20 @@
                                         </svg>
                                         Edit Siswa
                                     </a>
+                                    <button type="button" class="ds-dropdown__item"
+                                            data-action="reset-password"
+                                            data-id="{{ $siswa->id }}"
+                                            data-name="{{ $siswa->name }}"
+                                            data-nis="{{ $siswa->nis }}">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
+                                             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M4 7h16"/>
+                                            <path d="M7 7V5a5 5 0 0 1 10 0v2"/>
+                                            <rect x="5" y="7" width="14" height="14" rx="2"/>
+                                            <path d="M12 11v4"/>
+                                        </svg>
+                                        Reset Password
+                                    </button>
                                     <div class="ds-dropdown__separator"></div>
                                     {{-- Hapus --}}
                                     <button type="button" class="ds-dropdown__item ds-dropdown__item--danger"
@@ -343,6 +340,7 @@
 @include('Data_Siswa.tambah_siswa')
 @include('Data_Siswa.tambah_siswa_excel')
 @include('Data_Siswa.detail')
+@include('Data_Siswa.reset_password')
 @include('Data_Siswa.delete')
 @include('Data_Siswa.bulk_status')
 
@@ -396,12 +394,5 @@
 @endsection
 
 @push('scripts')
-<script>
-@if(session('student_store_failed') || ($errors->any() && (old('name') || old('nis') || old('email') || old('class_id'))))
-document.addEventListener('DOMContentLoaded', function() {
-    if (window.PSC) window.PSC.openModal('modalTambahManual');
-});
-@endif
-</script>
 <script>{!! file_get_contents(resource_path('views/Data_Siswa/main.js')) !!}</script>
 @endpush

@@ -41,23 +41,6 @@
     </div>
     @endif
 
-    @if(session('teacher_store_failed') && $errors->any())
-    <div class="alert alert--error" style="display:block;">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-                 fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            <strong>Guru belum berhasil ditambahkan. Alasan:</strong>
-        </div>
-        <ul style="margin:0 0 0 26px;padding:0;line-height:1.5;">
-            @foreach($errors->all() as $msg)
-                <li>{{ $msg }}</li>
-            @endforeach
-        </ul>
-    </div>
-    @endif
-
     @if(session('import_failed'))
     <div class="import-report">
         <div class="import-report__header">
@@ -318,7 +301,7 @@
 @push('scripts')
 <script>
 window.VALID_MAPEL = @json($subjects->pluck('name'));
-@if(session('teacher_store_failed') || ($errors->any() && (old('name') || old('nip') || old('email') || old('mapel_text'))))
+@if($errors->has('mapel_text'))
 document.addEventListener('DOMContentLoaded', function() {
     if (window.PSC) window.PSC.openModal('modalTambahManual');
 });

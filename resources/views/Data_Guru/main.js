@@ -21,80 +21,18 @@
         const hidden  = $('#' + hiddenId);
         if (!wrap || !input || !hidden) return;
 
-        const validMapel = Array.isArray(window.VALID_MAPEL) ? window.VALID_MAPEL : [];
-        const suggestBox = document.createElement('div');
-        suggestBox.className = 'mapel-suggest';
-        suggestBox.id = textInputId + 'Suggest';
-        suggestBox.setAttribute('role', 'listbox');
-        input.setAttribute('autocomplete', 'off');
-        input.setAttribute('aria-expanded', 'false');
-        input.setAttribute('aria-controls', suggestBox.id);
-        wrap.parentNode?.insertBefore(suggestBox, hidden);
-
         // If initial not explicitly provided, seed from hidden.value
         // (handles old() restoration after a validation error)
         let tags = initial !== null
             ? [...initial]
             : (hidden.value ? hidden.value.split(',').map(s => s.trim()).filter(Boolean) : []);
 
-        function hasTag(name) {
-            return tags.some(t => t.toLowerCase() === name.toLowerCase());
-        }
-
-        function hideSuggestions() {
-            suggestBox.classList.remove('show');
-            suggestBox.innerHTML = '';
-            input.setAttribute('aria-expanded', 'false');
-        }
-
-        function showSuggestions(keyword) {
-            const q = String(keyword || '').trim().toLowerCase();
-            if (!q) {
-                hideSuggestions();
-                return;
-            }
-
-            const matches = validMapel
-                .filter(name => name.toLowerCase().includes(q) && !hasTag(name))
-                .slice(0, 8);
-
-            if (!matches.length) {
-                suggestBox.innerHTML = `
-                    <div class="mapel-suggest__empty" role="status">
-                        Tidak ada mata pelajaran untuk "${escHtml(keyword.trim())}".
-                    </div>
-                `;
-                suggestBox.classList.add('show');
-                input.setAttribute('aria-expanded', 'true');
-                return;
-            }
-
-            suggestBox.innerHTML = matches
-                .map(name => `
-                    <button type="button" class="mapel-suggest__item" data-mapel="${escHtml(name)}" role="option">
-                        ${escHtml(name)}
-                    </button>
-                `)
-                .join('');
-
-            suggestBox.querySelectorAll('.mapel-suggest__item').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    addTag(btn.dataset.mapel || '');
-                    input.value = '';
-                    input.focus();
-                    hideSuggestions();
-                });
-            });
-
-            suggestBox.classList.add('show');
-            input.setAttribute('aria-expanded', 'true');
-        }
-
         function renderTags() {
             // Remove existing tag elements (leave input)
             wrap.querySelectorAll('.mapel-tag').forEach(el => el.remove());
             // Insert before the text input
             tags.forEach(tag => {
+                const validMapel = window.VALID_MAPEL;
                 const isValid = !validMapel ||
                     validMapel.some(s => s.toLowerCase() === tag.toLowerCase());
                 const pill = document.createElement('span');
@@ -117,7 +55,7 @@
         function addTag(raw) {
             const names = raw.split(',').map(s => s.trim()).filter(Boolean);
             names.forEach(name => {
-                if (name && !hasTag(name)) tags.push(name);
+                if (name && !tags.includes(name)) tags.push(name);
             });
             renderTags();
         }
@@ -131,44 +69,19 @@
             if (e.key === 'Enter' || e.key === ',') {
                 e.preventDefault();
                 const val = input.value.trim().replace(/,$/, '');
-                if (val) {
-                    addTag(val);
-                    input.value = '';
-                    hideSuggestions();
-                }
+                if (val) { addTag(val); input.value = ''; }
             } else if (e.key === 'Backspace' && input.value === '' && tags.length > 0) {
                 removeTag(tags[tags.length - 1]);
             }
         });
 
-        input.addEventListener('input', () => showSuggestions(input.value));
-
-        input.addEventListener('focus', () => {
-            showSuggestions(input.value);
-        });
-
         input.addEventListener('blur', () => {
-            setTimeout(() => {
-                const val = input.value.trim().replace(/,$/, '');
-                if (val) {
-                    addTag(val);
-                    input.value = '';
-                }
-                hideSuggestions();
-            }, 120);
+            const val = input.value.trim().replace(/,$/, '');
+            if (val) { addTag(val); input.value = ''; }
         });
 
         // Allow clicking anywhere on wrap to focus input
-        wrap.addEventListener('click', () => {
-            input.focus();
-            showSuggestions(input.value);
-        });
-
-        document.addEventListener('click', e => {
-            if (!wrap.contains(e.target) && !suggestBox.contains(e.target)) {
-                hideSuggestions();
-            }
-        });
+        wrap.addEventListener('click', () => input.focus());
 
         renderTags();
     }

@@ -8,15 +8,12 @@ use App\Models\ClassModel;
 use App\Models\Student;
 use App\Models\StudentClassRole;
 use App\Models\User;
-use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
-use Throwable;
 use Maatwebsite\Excel\Facades\Excel;
 
 class StudentController extends Controller
@@ -66,7 +63,7 @@ class StudentController extends Controller
 
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $request->validate([
             'name'          => 'required|string|max:100',
             'nis'           => 'required|string|max:20|unique:students,nis',
             'email'         => 'required|email|max:100|unique:users,email',
@@ -80,13 +77,6 @@ class StudentController extends Controller
             'nis.unique'   => 'NIS sudah terdaftar.',
             'email.unique' => 'Email sudah digunakan.',
         ]);
-
-        if ($validator->fails()) {
-            return back()->withInput()
-                ->with('student_store_failed', true)
-                ->with('error', 'Siswa gagal ditambahkan. Periksa alasan kegagalan pada form di bawah.')
-                ->withErrors($validator);
-        }
 
         DB::beginTransaction();
         try {
@@ -117,14 +107,11 @@ class StudentController extends Controller
             DB::commit();
             Cache::forget('dashboard.total_siswa');
             return redirect()->route('siswa.index')
-                ->with('success', "Siswa {$request->name} berhasil ditambahkan. Akun login: {$request->email} (password awal: NIS).");
-        } catch (Throwable $e) {
+                ->with('success', "Siswa {$request->name} berhasil ditambahkan.");
+        } catch (\Exception $e) {
             DB::rollback();
-            $reason = $this->resolveStudentFailureReason($e);
             return back()->withInput()
-                ->with('student_store_failed', true)
-                ->withErrors(['student_store' => $reason])
-                ->with('error', "Siswa gagal ditambahkan. {$reason}");
+                ->with('error', 'Gagal menambahkan siswa: ' . $e->getMessage());
         }
     }
 
@@ -278,11 +265,10 @@ class StudentController extends Controller
             DB::commit();
             return redirect()->route('siswa.index')
                 ->with('success', "Data siswa {$siswa->name} berhasil diperbarui.");
-        } catch (Throwable $e) {
+        } catch (\Exception $e) {
             DB::rollback();
-            $reason = $this->resolveStudentFailureReason($e);
             return back()->withInput()
-                ->with('error', "Data siswa gagal diperbarui. {$reason}");
+                ->with('error', 'Gagal memperbarui data siswa: ' . $e->getMessage());
         }
     }
 
@@ -315,10 +301,27 @@ class StudentController extends Controller
             Cache::forget('dashboard.total_siswa');
             return redirect()->route('siswa.index')
                 ->with('success', "Data siswa {$name} berhasil dihapus.");
-        } catch (Throwable $e) {
+        } catch (\Exception $e) {
             DB::rollback();
-            $reason = $this->resolveStudentFailureReason($e);
-            return back()->with('error', "Data siswa gagal dihapus. {$reason}");
+            return back()->with('error', 'Gagal menghapus data siswa: ' . $e->getMessage());
+        }
+    }
+
+    public function resetPassword(Student $siswa)
+    {
+        try {
+            DB::table('users')
+                ->where('id', $siswa->user_id)
+                ->update([
+                    'password' => Hash::make($siswa->nis),
+                    'first_login' => true,
+                    'updated_at' => now(),
+                ]);
+
+            return redirect()->route('siswa.index')
+                ->with('success', "Password siswa {$siswa->name} berhasil direset ke NIS.");
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal mereset password siswa: ' . $e->getMessage());
         }
     }
     /* ── CHECK CLASSES (AJAX) ──────────────────────────────────── */
@@ -629,37 +632,6 @@ class StudentController extends Controller
             Log::error('[Students] bulkActivate failed: ' . $e->getMessage());
             return back()->with('error', 'Gagal mengaktifkan siswa: ' . $e->getMessage());
         }
-    }
-
-    /**
-     * Translate low-level exceptions into actionable messages for admin users.
-     */
-    private function resolveStudentFailureReason(Throwable $e): string
-    {
-        if ($e instanceof QueryException) {
-            $sqlState   = (string) ($e->errorInfo[0] ?? $e->getCode());
-            $rawMessage = strtolower($e->getMessage());
-
-            if ($sqlState === '23000') {
-                if (str_contains($rawMessage, 'students_nis_unique') || str_contains($rawMessage, 'students.nis')) {
-                    return 'NIS sudah dipakai akun siswa lain.';
-                }
-
-                if (str_contains($rawMessage, 'users_email_unique') || str_contains($rawMessage, 'users.email')) {
-                    return 'Email sudah dipakai akun lain.';
-                }
-
-                if (str_contains($rawMessage, 'foreign key')) {
-                    return 'Data relasi tidak valid. Pastikan kelas atau akun terkait masih tersedia.';
-                }
-
-                return 'Terjadi konflik data siswa. Periksa kembali NIS, email, atau kelas yang dipilih.';
-            }
-
-            return 'Database sedang bermasalah saat memproses data siswa. Silakan coba lagi beberapa saat.';
-        }
-
-        return 'Terjadi gangguan sistem yang tidak terduga. Silakan coba lagi atau hubungi tim teknis jika masalah berlanjut.';
     }
 
     /**

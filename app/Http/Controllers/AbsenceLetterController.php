@@ -99,7 +99,7 @@ class AbsenceLetterController extends Controller
             $letter->update([
                 'status'            => 'approved',
                 'approved_by_admin' => $adminId,
-                'approved_admin_at' => now(),
+                'approved_by_admin_at' => now(),
             ]);
 
             // Auto-create/update attendance record

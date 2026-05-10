@@ -16,9 +16,6 @@ use App\Http\Controllers\EventController;
 use App\Http\Controllers\PeriodAttendanceController;
 use App\Http\Controllers\AbsenceLetterController;
 
-// Public page for Play Store privacy policy (student app)
-Route::view('/privacy-policy/siswa', 'public.privacy-policy-siswa')->name('privacy-policy.siswa');
-
 // Login
 Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'Login'])->name('login.post')->middleware('throttle:5,1');
@@ -36,12 +33,14 @@ Route::middleware('auth:admin')->group(function () {
     Route::get('/guru/template', [TeacherController::class, 'downloadTemplate'])->name('guru.template');
     Route::post('/guru/import', [TeacherController::class, 'importExcel'])->name('guru.import');
     Route::post('/guru/check-subjects', [TeacherController::class, 'checkSubjects'])->name('guru.checksubjects');
+    Route::post('/guru/{guru}/reset-password', [TeacherController::class, 'resetPassword'])->name('guru.reset-password');
     Route::resource('/guru', TeacherController::class)->except(['create']);
     /* ── Data Siswa ──────────────────────────────────── */
     Route::get('/siswa/template', [StudentController::class, 'downloadTemplate'])->name('siswa.template');
     Route::post('/siswa/import', [StudentController::class, 'importExcel'])->name('siswa.import');
     Route::post('/siswa/check-classes', [StudentController::class, 'checkClasses'])->name('siswa.checkclasses');
     Route::get('/siswa/check-role', [StudentController::class, 'checkRole'])->name('siswa.checkRole');
+    Route::post('/siswa/{siswa}/reset-password', [StudentController::class, 'resetPassword'])->name('siswa.reset-password');
     Route::delete('/siswa/delete-graduates', [StudentController::class, 'destroyGraduates'])->name('siswa.delete-graduates');
     Route::post('/siswa/bulk-deactivate', [StudentController::class, 'bulkDeactivate'])->name('siswa.bulk-deactivate');
     Route::post('/siswa/bulk-activate', [StudentController::class, 'bulkActivate'])->name('siswa.bulk-activate');

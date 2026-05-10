@@ -8,16 +8,12 @@ use App\Models\ClassModel;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\User;
-use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
-use Throwable;
 use Maatwebsite\Excel\Facades\Excel;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
 class TeacherController extends Controller
 {
@@ -50,7 +46,7 @@ class TeacherController extends Controller
 
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $request->validate([
             'name'          => 'required|string|max:100',
             'nip'           => 'required|string|max:20|unique:teachers,nip',
             'email'         => 'required|email|max:100|unique:users,email',
@@ -65,21 +61,13 @@ class TeacherController extends Controller
             'email.unique' => 'Email sudah digunakan.',
         ]);
 
-        if ($validator->fails()) {
-            return back()->withInput()
-                ->with('teacher_store_failed', true)
-                ->with('error', 'Guru gagal ditambahkan. Periksa alasan kegagalan pada form di bawah.')
-                ->withErrors($validator);
-        }
-
         // Validate mapel names against subjects table BEFORE touching the DB
         $resolved = $this->resolveSubjectIds($request->mapel_text ?? '');
         if (!empty($resolved['notFound'])) {
             $list = collect($resolved['notFound'])->map(fn($n) => "\"$n\"")->implode(', ');
             return back()->withInput()->withErrors([
-                'mapel_text' => "Mapel {$list} tidak ditemukan di sistem sekolah ini. Tambahkan mapel tersebut di menu Mata Pelajaran atau hapus mapel yang belum tersedia.",
-            ])->with('teacher_store_failed', true)
-              ->with('error', 'Guru gagal ditambahkan karena ada mapel yang belum tersedia.');
+                'mapel_text' => "Mapel {$list} tidak ditemukan di sistem sekolah ini.",
+            ]);
         }
 
         DB::beginTransaction();
@@ -115,14 +103,11 @@ class TeacherController extends Controller
             DB::commit();
             Cache::forget('dashboard.total_guru');
             return redirect()->route('guru.index')
-                ->with('success', "Guru {$request->name} berhasil ditambahkan. Akun login: {$request->email} (password awal: NIP).");
-        } catch (Throwable $e) {
+                ->with('success', "Guru {$request->name} berhasil ditambahkan.");
+        } catch (\Exception $e) {
             DB::rollback();
-            $reason = $this->resolveTeacherFailureReason($e);
             return back()->withInput()
-                ->with('teacher_store_failed', true)
-                ->withErrors(['teacher_store' => $reason])
-                ->with('error', "Guru gagal ditambahkan. {$reason}");
+                ->with('error', 'Gagal menambahkan guru: ' . $e->getMessage());
         }
     }
 
@@ -199,7 +184,7 @@ class TeacherController extends Controller
         if (!empty($resolved['notFound'])) {
             $list = collect($resolved['notFound'])->map(fn($n) => "\"$n\"")->implode(', ');
             return back()->withInput()->withErrors([
-                'mapel_text' => "Mapel {$list} tidak ditemukan di sistem sekolah ini. Tambahkan mapel tersebut di menu Mata Pelajaran atau hapus mapel yang belum tersedia.",
+                'mapel_text' => "Mapel {$list} tidak ditemukan di sistem sekolah ini.",
             ]);
         }
 
@@ -266,11 +251,10 @@ class TeacherController extends Controller
             DB::commit();
             return redirect()->route('guru.index')
                 ->with('success', "Data guru {$guru->name} berhasil diperbarui.");
-        } catch (Throwable $e) {
+        } catch (\Exception $e) {
             DB::rollback();
-            $reason = $this->resolveTeacherFailureReason($e);
             return back()->withInput()
-                ->with('error', "Data guru gagal diperbarui. {$reason}");
+                ->with('error', 'Gagal memperbarui data guru: ' . $e->getMessage());
         }
     }
 
@@ -303,10 +287,9 @@ class TeacherController extends Controller
             Cache::forget('dashboard.total_guru');
             return redirect()->route('guru.index')
                 ->with('success', "Data guru {$name} berhasil dihapus.");
-        } catch (Throwable $e) {
+        } catch (\Exception $e) {
             DB::rollback();
-            $reason = $this->resolveTeacherFailureReason($e);
-            return back()->with('error', "Data guru gagal dihapus. {$reason}");
+            return back()->with('error', 'Gagal menghapus data guru: ' . $e->getMessage());
         }
     }
 
@@ -323,9 +306,8 @@ class TeacherController extends Controller
 
             return redirect()->route('guru.index')
                 ->with('success', "Password guru {$guru->name} berhasil direset ke NIP.");
-        } catch (Throwable $e) {
-            $reason = $this->resolveTeacherFailureReason($e);
-            return back()->with('error', "Password guru gagal direset. {$reason}");
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal mereset password guru: ' . $e->getMessage());
         }
     }
 
@@ -382,18 +364,7 @@ class TeacherController extends Controller
             }
 
             $import = new TeachersImport;
-            $sheets = Excel::toCollection(
-                new class implements WithHeadingRow {},
-                $request->file('file')
-            );
-
-            foreach ($sheets as $sheetName => $rows) {
-                if ($rows->isEmpty()) {
-                    continue;
-                }
-
-                $import->collection($rows);
-            }
+            Excel::import($import, $request->file('file'));
 
             // Hapus file sisa import (chunk reading menyimpan temp di imports/)
             $this->cleanupImportFiles();
@@ -443,37 +414,6 @@ class TeacherController extends Controller
     }
 
     /* ── PRIVATE HELPER ─────────────────────────────── */
-
-    /**
-     * Translate low-level exceptions into actionable messages for admin users.
-     */
-    private function resolveTeacherFailureReason(Throwable $e): string
-    {
-        if ($e instanceof QueryException) {
-            $sqlState   = (string) ($e->errorInfo[0] ?? $e->getCode());
-            $rawMessage = strtolower($e->getMessage());
-
-            if ($sqlState === '23000') {
-                if (str_contains($rawMessage, 'teachers_nip_unique') || str_contains($rawMessage, 'teachers.nip')) {
-                    return 'NIP sudah dipakai akun guru lain.';
-                }
-
-                if (str_contains($rawMessage, 'users_email_unique') || str_contains($rawMessage, 'users.email')) {
-                    return 'Email sudah dipakai akun lain.';
-                }
-
-                if (str_contains($rawMessage, 'foreign key')) {
-                    return 'Data relasi tidak valid. Pastikan data referensi (mis. akun atau mapel) masih tersedia.';
-                }
-
-                return 'Terjadi konflik data guru. Periksa kembali NIP, email, dan mapel yang dipilih.';
-            }
-
-            return 'Database sedang bermasalah saat memproses data guru. Silakan coba lagi beberapa saat.';
-        }
-
-        return 'Terjadi gangguan sistem yang tidak terduga. Silakan coba lagi atau hubungi tim teknis jika masalah berlanjut.';
-    }
 
     /**
      * Lookup subjects by name (case-insensitive). Does NOT create new subjects.
