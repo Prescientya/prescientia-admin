@@ -42,7 +42,7 @@ class MarkAbsentForMissingAttendance extends Command
 
     public function handle(): int
     {
-        $today     = $this->option('date') ? Carbon::parse($this->option('date')) : now()->timezone('Asia/Jakarta');
+        $today     = $this->option('date') ? Carbon::parse($this->option('date'), 'Asia/Jakarta') : now()->timezone('Asia/Jakarta');
         $yesterday = $today->copy()->subDay()->toDateString();
 
         $flagPath = $this->getFlagPath($yesterday);
@@ -88,13 +88,14 @@ class MarkAbsentForMissingAttendance extends Command
 
     private function markStudentsAbsent(int $calendarId): int
     {
-        $attended = StudentAttendance::where('calendar_id', $calendarId)
-            ->pluck('student_id')
-            ->all();
-
         // Only get active students (user is_active = true) with assigned class
         $missing = Student::whereNotNull('class_id')
-            ->whereNotIn('id', $attended)
+            ->whereNotExists(function ($query) use ($calendarId) {
+                $query->select(DB::raw(1))
+                    ->from('student_attendances')
+                    ->whereColumn('student_attendances.student_id', 'students.id')
+                    ->where('student_attendances.calendar_id', $calendarId);
+            })
             ->whereHas('user', fn($q) => $q->where('is_active', true))
             ->select('id', 'class_id')
             ->get();
@@ -103,7 +104,7 @@ class MarkAbsentForMissingAttendance extends Command
             return 0;
         }
 
-        $now = now();
+        $now = now('Asia/Jakarta');
         $records = $missing->map(fn($student) => [
             'student_id'  => $student->id,
             'class_id'    => $student->class_id,
@@ -122,12 +123,13 @@ class MarkAbsentForMissingAttendance extends Command
 
     private function markTeachersAbsent(int $calendarId): int
     {
-        $attended = TeacherAttendance::where('calendar_id', $calendarId)
-            ->pluck('teacher_id')
-            ->all();
-
         // Only get active teachers (user is_active = true)
-        $missing = Teacher::whereNotIn('id', $attended)
+        $missing = Teacher::whereNotExists(function ($query) use ($calendarId) {
+                $query->select(DB::raw(1))
+                    ->from('teacher_attendances')
+                    ->whereColumn('teacher_attendances.teacher_id', 'teachers.id')
+                    ->where('teacher_attendances.calendar_id', $calendarId);
+            })
             ->whereHas('user', fn($q) => $q->where('is_active', true))
             ->select('id')
             ->get();
@@ -136,9 +138,10 @@ class MarkAbsentForMissingAttendance extends Command
             return 0;
         }
 
-        $now = now();
+        $now = now('Asia/Jakarta');
         $records = $missing->map(fn($teacher) => [
             'teacher_id'  => $teacher->id,
+            'period_id'   => null,
             'calendar_id' => $calendarId,
             'status'      => 'alpa',
             'source'      => 'auto_system',
