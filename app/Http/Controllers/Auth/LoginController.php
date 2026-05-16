@@ -26,12 +26,14 @@ class LoginController extends Controller
     public function Login(Request $request)
     {
         $request->validate([
-            'email'    => 'required|email',
-            'password' => 'required|string',
+            'email'    => 'required|email|max:25',
+            'password' => 'required|string|max:15',
         ], [
             'email.required'    => 'Email wajib diisi.',
             'email.email'       => 'Format email tidak valid.',
+            'email.max'         => 'Email maksimal 25 karakter.',
             'password.required' => 'Password wajib diisi.',
+            'password.max'      => 'Password maksimal 15 karakter.',
         ]);
 
         if (Auth::guard('admin')->attempt(['email' => $request->email, 'password' => $request->password])) {

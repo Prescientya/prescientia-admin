@@ -7,6 +7,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('storage/prescientia-logo-square.png') }}">
     <link rel="shortcut icon" href="{{ asset('storage/prescientia-logo-square.png') }}">
     <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('storage/prescientia-logo-square.png') }}">
+    <link rel="preload" as="image" href="{{ asset('storage/prescientia-logo-square.png') }}">
     <title>Login &mdash; Prescientia Admin</title>
 
     {{-- Anti-flash theme apply --}}
@@ -122,6 +123,16 @@
     <div class="login-card">
 
         <div class="login-header">
+            <img
+                class="login-logo"
+                src="{{ asset('storage/prescientia-logo-square.png') }}"
+                alt="Logo Prescientia"
+                width="96"
+                height="96"
+                loading="eager"
+                decoding="sync"
+                fetchpriority="high"
+            >
             <h1>Prescientia</h1>
             <p>Masuk ke Panel Admin</p>
         </div>
@@ -157,6 +168,7 @@
                         placeholder="Masukkan email admin"
                         value="{{ old('email') }}"
                         required
+                        maxlength="25"
                         autocomplete="email"
                     >
                 </div>
@@ -178,6 +190,7 @@
                         name="password"
                         placeholder="Masukkan password"
                         required
+                        maxlength="15"
                         autocomplete="current-password"
                     >
                     <button type="button" class="toggle-password" id="togglePassword" aria-label="Tampilkan password">

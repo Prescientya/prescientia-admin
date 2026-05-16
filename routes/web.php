@@ -15,6 +15,13 @@ use App\Http\Controllers\ClassPeriodController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\PeriodAttendanceController;
 use App\Http\Controllers\AbsenceLetterController;
+use App\Http\Controllers\GuidelineController;
+use App\Http\Controllers\PublicGuidelineController;
+
+// Halaman Panduan (publik, tanpa auth)
+Route::get('/panduan/{type}', [PublicGuidelineController::class, 'show'])
+    ->where('type', 'siswa|guru')
+    ->name('panduan.show');
 
 // Login
 Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
@@ -138,6 +145,20 @@ Route::middleware('auth:admin')->group(function () {
         Route::get('/',              [AbsenceLetterController::class, 'index'])->name('index');
         Route::patch('{id}/approve', [AbsenceLetterController::class, 'approve'])->name('approve');
         Route::patch('{id}/reject',  [AbsenceLetterController::class, 'reject'])->name('reject');
+    });
+
+    /* ── Panduan Aplikasi ────────────────────────────── */
+    Route::prefix('guidelines')->name('guidelines.')->group(function () {
+        Route::get('/',                                    [GuidelineController::class, 'index'])->name('index');
+        Route::get('/{guideline}',                         [GuidelineController::class, 'show'])->name('show')->where('guideline', 'siswa|guru');
+        Route::put('/{guideline}',                         [GuidelineController::class, 'updatePage'])->name('update')->where('guideline', 'siswa|guru');
+        Route::patch('/{guideline}/toggle-publish',        [GuidelineController::class, 'togglePublish'])->name('toggle-publish')->where('guideline', 'siswa|guru');
+        Route::post('/{guideline}/sections',               [GuidelineController::class, 'storeSection'])->name('sections.store')->where('guideline', 'siswa|guru');
+        Route::put('/sections/{section}',                  [GuidelineController::class, 'updateSection'])->name('sections.update');
+        Route::delete('/sections/{section}',               [GuidelineController::class, 'destroySection'])->name('sections.destroy');
+        Route::post('/sections/{section}/items',           [GuidelineController::class, 'storeItem'])->name('items.store');
+        Route::match(['post', 'put'], '/items/{item}',     [GuidelineController::class, 'updateItem'])->name('items.update');
+        Route::delete('/items/{item}',                     [GuidelineController::class, 'destroyItem'])->name('items.destroy');
     });
 
 });

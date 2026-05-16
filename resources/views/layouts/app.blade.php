@@ -130,7 +130,7 @@
             </div>
 
             {{-- Informasi --}}
-            <div class="nav-section folder {{ request()->routeIs('events*') ? 'open active' : '' }}">
+            <div class="nav-section folder {{ request()->routeIs('events*', 'guidelines*') ? 'open active' : '' }}">
                 <div class="nav-section-header" title="Click to open">
                     <span class="nav-section-label">
                         <svg class="folder-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
@@ -141,6 +141,9 @@
                 <div class="nav-folder-items">
                     <a href="{{ route('events.index') }}" title="Event / Acara" class="nav-item {{ request()->routeIs('events*') ? 'active' : '' }}">
                         <span class="nav-item-label">Event / Acara</span>
+                    </a>
+                    <a href="{{ route('guidelines.index') }}" title="Panduan Aplikasi" class="nav-item {{ request()->routeIs('guidelines*') ? 'active' : '' }}">
+                        <span class="nav-item-label">Panduan Aplikasi</span>
                     </a>
                 </div>
             </div>
