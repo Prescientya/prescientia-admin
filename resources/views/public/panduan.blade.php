@@ -82,10 +82,6 @@
             max-width: 860px; margin: 0 auto;
             display: flex; align-items: center; justify-content: space-between;
             height: 90px; gap: 14px;
-            transition: height .35s ease;
-        }
-        .pand-nav.shrink .pand-nav__inner {
-            height: 56px;
         }
         .pand-nav__brand {
             display: flex; align-items: center; gap: 14px;
@@ -192,19 +188,65 @@
 
         .pand-toc {
             position: sticky; top: 90px;
+            padding: 14px 12px;
+            background: rgba(255,255,255,.55);
+            backdrop-filter: blur(6px);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            box-shadow: 0 4px 18px rgba(245,158,11,.08);
+            /* Smooth reveal — controlled by .is-revealed (set via JS with hysteresis) */
+            opacity: 0; transform: translateX(-10px);
+            transition: opacity .4s ease, transform .4s ease;
+            pointer-events: none;
+        }
+        .pand-toc.is-revealed {
+            opacity: 1; transform: translateX(0);
+            pointer-events: auto;
         }
         .pand-toc__title {
             font-size: .72rem; font-weight: 700; letter-spacing: .08em;
-            text-transform: uppercase; color: var(--muted); margin-bottom: 10px;
+            text-transform: uppercase; color: var(--gold-dark);
+            margin-bottom: 12px; padding: 0 4px;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .pand-toc__title::before {
+            content: ''; width: 14px; height: 2px; background: var(--gold);
+            border-radius: 2px;
         }
         .pand-toc__list { list-style: none; display: flex; flex-direction: column; gap: 2px; }
-        .pand-toc__item a {
-            display: block; padding: 6px 10px; border-radius: 8px;
-            font-size: .82rem; color: var(--muted); text-decoration: none;
-            transition: all .15s; border-left: 2px solid transparent;
+        .pand-toc__item {
+            /* Stagger reveal — driven by CSS variable set inline */
+            opacity: 0; transform: translateY(-4px);
+            transition: opacity .35s ease, transform .35s ease;
+            transition-delay: 0ms;
         }
-        .pand-toc__item a:hover { color: var(--gold-dark); background: var(--gold-light); border-left-color: var(--gold); }
-        .pand-toc__item a.active { color: var(--gold-dark); background: var(--gold-light); border-left-color: var(--gold); font-weight: 600; }
+        .pand-toc.is-revealed .pand-toc__item {
+            opacity: 1; transform: translateY(0);
+            transition-delay: calc(var(--toc-i, 0) * 55ms + 80ms);
+        }
+        .pand-toc__item a {
+            display: flex; align-items: center; gap: 8px;
+            padding: 7px 10px; border-radius: 8px;
+            font-size: .82rem; color: var(--muted); text-decoration: none;
+            transition: color .15s, background .15s, border-color .15s, transform .15s;
+            border-left: 2px solid transparent;
+            line-height: 1.3;
+        }
+        .pand-toc__item a::before {
+            content: ''; width: 5px; height: 5px; border-radius: 50%;
+            background: currentColor; opacity: .35; flex-shrink: 0;
+            transition: opacity .15s, transform .15s;
+        }
+        .pand-toc__item a:hover {
+            color: var(--gold-dark); background: var(--gold-light);
+            border-left-color: var(--gold); transform: translateX(2px);
+        }
+        .pand-toc__item a:hover::before { opacity: 1; transform: scale(1.4); }
+        .pand-toc__item a.active {
+            color: var(--gold-dark); background: var(--gold-light);
+            border-left-color: var(--gold); font-weight: 600;
+        }
+        .pand-toc__item a.active::before { opacity: 1; transform: scale(1.4); background: var(--gold); }
 
         @media (max-width: 899px) {
             .pand-toc { display: none; }
@@ -216,6 +258,7 @@
         .pand-section {
             opacity: 0; transform: translateY(28px);
             transition: opacity .55s ease, transform .55s ease;
+            scroll-margin-top: 100px;
         }
         .pand-section.visible { opacity: 1; transform: translateY(0); }
 
@@ -223,20 +266,28 @@
             display: flex; align-items: flex-start; gap: 14px; margin-bottom: 20px;
         }
         .pand-section__num {
-            width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
-            background: var(--gold); color: #fff;
+            width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+            color: #fff;
             display: flex; align-items: center; justify-content: center;
-            font-weight: 800; font-size: .9rem; box-shadow: 0 3px 10px rgba(245,158,11,.35);
+            font-weight: 800; font-size: .95rem;
+            box-shadow: 0 4px 14px rgba(245,158,11,.4);
+            transition: transform .25s ease, box-shadow .25s ease;
+        }
+        .pand-section:hover .pand-section__num {
+            transform: translateY(-2px) rotate(-3deg);
+            box-shadow: 0 7px 20px rgba(245,158,11,.5);
         }
         .pand-section__title {
-            font-size: 1.2rem; font-weight: 800; color: var(--ink); padding-top: 6px;
+            font-size: 1.2rem; font-weight: 800; color: var(--ink); padding-top: 7px;
         }
         .pand-section__desc {
-            font-size: .88rem; color: var(--muted); margin-top: 4px; line-height: 1.6;
+            font-size: .88rem; color: var(--muted); margin-top: 6px; line-height: 1.65;
         }
         .pand-divider {
-            height: 2px; background: linear-gradient(90deg, var(--gold-soft), transparent);
-            border-radius: 2px; margin-bottom: 20px;
+            height: 2px;
+            background: linear-gradient(90deg, var(--gold) 0%, var(--gold-soft) 30%, transparent 100%);
+            border-radius: 2px; margin-bottom: 22px;
         }
 
         /* ── Items ─────────────────────────────────────── */
@@ -247,10 +298,23 @@
             border-radius: 14px; overflow: hidden;
             box-shadow: 0 2px 12px var(--shadow-lg);
             opacity: 0; transform: translateY(16px);
-            transition: opacity .45s ease, transform .45s ease, box-shadow .2s;
+            transition: opacity .45s ease, transform .45s ease,
+                        box-shadow .25s ease, border-color .25s ease;
+            position: relative;
+        }
+        .pand-item::before {
+            content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+            width: 3px; background: var(--gold);
+            transform: scaleY(0); transform-origin: top;
+            transition: transform .3s ease;
         }
         .pand-item.visible { opacity: 1; transform: translateY(0); }
-        .pand-item:hover { box-shadow: 0 6px 24px rgba(245,158,11,.15); }
+        .pand-item:hover {
+            box-shadow: 0 8px 28px rgba(245,158,11,.18);
+            border-color: var(--gold-soft);
+            transform: translateY(-2px);
+        }
+        .pand-item:hover::before { transform: scaleY(1); }
 
         .pand-item__content { padding: 18px 20px; display: flex; gap: 14px; }
         .pand-item__step {
@@ -258,6 +322,10 @@
             background: var(--step-bg); color: var(--step-color);
             display: flex; align-items: center; justify-content: center;
             font-weight: 800; font-size: .8rem; margin-top: 1px;
+            transition: background .2s ease, color .2s ease, transform .2s ease;
+        }
+        .pand-item:hover .pand-item__step {
+            background: var(--gold); color: #fff; transform: scale(1.05);
         }
         .pand-item__body { flex: 1; min-width: 0; }
         .pand-item__title {
@@ -334,10 +402,7 @@
         .pand-hero__title.hero-fade-in    { animation-delay: .18s; }
         .pand-hero__subtitle.hero-fade-in { animation-delay: .30s; }
         .pand-hero__meta.hero-fade-in     { animation-delay: .42s; }
-        /* TOC items — JS toggles classes to replay animation */
-        .pand-toc__item                { opacity: 0; }
-        .pand-toc__item.toc-fade-in   { animation: fadeUp  .38s ease both; }
-        .pand-toc__item.toc-fade-out  { animation: fadeDown .28s ease both forwards; }
+        /* (TOC reveal animation is now driven by .pand-toc.is-revealed with CSS variables — see TOC block above) */
 
         /* ── Responsive ───────────────────────────────── */
         @media (max-width: 600px) {
@@ -420,11 +485,11 @@
 <div class="pand-layout">
 
     {{-- Table of Contents --}}
-    <aside class="pand-toc">
+    <aside class="pand-toc" id="pandToc">
         <div class="pand-toc__title">Daftar Isi</div>
         <ul class="pand-toc__list">
             @foreach($page->sections as $sec)
-            <li class="pand-toc__item">
+            <li class="pand-toc__item" style="--toc-i: {{ $loop->index }};">
                 <a href="#section-{{ $sec->id }}" data-toc-target="section-{{ $sec->id }}">
                     {{ $loop->iteration }}. {{ $sec->title }}
                 </a>
@@ -536,7 +601,9 @@
         updateBackToTop();
         highlightToc();
         updateNavShrink();
+        updateHeroAndToc();
     }, { passive: true });
+    window.addEventListener('resize', updateHeroAndToc, { passive: true });
 
     updateProgress();
     updateNavShrink();
@@ -560,8 +627,13 @@
         observer.observe(el);
     });
 
-    /* ── Hero re-entrance + TOC animation (unified, replay on scroll) ── */
-    var tocItems = document.querySelectorAll('.pand-toc__item');
+    /* ── Hero entrance + TOC reveal with hysteresis ──
+       Bug-fix (was: TOC disappeared the moment user scrolled even 1px back
+       toward hero, because IntersectionObserver(threshold:0) flipped state on
+       any pixel of hero re-entering). We now use scroll-position based logic
+       with two different thresholds (hysteresis) so the TOC stays revealed
+       until user has clearly scrolled all the way back into the hero. */
+    var tocEl    = document.getElementById('pandToc');
     var heroEl   = document.querySelector('.pand-hero');
     var heroKids = document.querySelectorAll('.pand-hero__inner > *');
 
@@ -576,42 +648,45 @@
         heroKids.forEach(function (el) { el.classList.remove('hero-fade-in'); });
     }
 
-    function showToc() {
-        tocItems.forEach(function (item, i) {
-            item.classList.remove('toc-fade-out', 'toc-fade-in');
-            item.style.animationDelay = '';
-            item.offsetHeight;
-            item.style.animationDelay = (i * 90) + 'ms';
-            item.classList.add('toc-fade-in');
-        });
-    }
-    function hideToc() {
-        var arr = Array.from(tocItems).reverse();
-        arr.forEach(function (item, i) {
-            item.classList.remove('toc-fade-in', 'toc-fade-out');
-            item.style.animationDelay = '';
-            item.offsetHeight;
-            item.style.animationDelay = (i * 65) + 'ms';
-            item.classList.add('toc-fade-out');
-        });
+    /* Hysteresis state:
+        - Reveal TOC  when hero bottom passes ABOVE the reveal threshold
+        - Hide   TOC  only when hero bottom comes back BELOW the hide threshold
+       The gap between thresholds (~140px) prevents jitter / abrupt disappearing
+       when scrolling near the boundary. */
+    var REVEAL_AT_BOTTOM = 80;   // hero bottom < 80px from top  → reveal TOC
+    var HIDE_AT_BOTTOM   = 220;  // hero bottom > 220px from top → hide TOC
+    var tocRevealed = false;
+    var heroVisible = true;
+
+    function updateHeroAndToc() {
+        if (!heroEl) return;
+        var heroBottom = heroEl.getBoundingClientRect().bottom;
+
+        // ── TOC reveal/hide with hysteresis ──
+        if (tocEl) {
+            if (!tocRevealed && heroBottom < REVEAL_AT_BOTTOM) {
+                tocRevealed = true;
+                tocEl.classList.add('is-revealed');
+            } else if (tocRevealed && heroBottom > HIDE_AT_BOTTOM) {
+                tocRevealed = false;
+                tocEl.classList.remove('is-revealed');
+            }
+        }
+
+        // ── Hero entrance replay (only when fully re-entering) ──
+        var nowVisible = heroBottom > window.innerHeight * 0.4;
+        if (nowVisible && !heroVisible) {
+            heroVisible = true;
+            playHero();
+        } else if (!nowVisible && heroVisible) {
+            heroVisible = false;
+            stopHero();
+        }
     }
 
-    if (heroEl) {
-        var heroObserver = new IntersectionObserver(function (entries) {
-            entries.forEach(function (entry) {
-                if (entry.isIntersecting) {
-                    // Hero in view → play hero entrance, hide TOC
-                    playHero();
-                    if (tocItems.length) hideToc();
-                } else {
-                    // Hero out of view → reset hero, show TOC
-                    stopHero();
-                    if (tocItems.length) showToc();
-                }
-            });
-        }, { threshold: 0 });
-        heroObserver.observe(heroEl);
-    }
+    /* Play hero entrance on first paint (page loads with hero in view). */
+    playHero();
+    updateHeroAndToc();
 
     /* ── TOC active highlight ─────────────────────── */
     var sections = document.querySelectorAll('.pand-section[id]');
