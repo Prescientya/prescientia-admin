@@ -324,16 +324,23 @@
             reader.onload = async e => {
                 setProgress(85, 'Memproses data… 85%');
                 try {
-                    const data   = new Uint8Array(e.target.result);
-                    const wb     = XLSX.read(data, { type: 'array' });
-                    const ws     = wb.Sheets[wb.SheetNames[0]];
-                    const rows   = XLSX.utils.sheet_to_json(ws, { defval: '' });
+                    const data = new Uint8Array(e.target.result);
+                    const wb   = XLSX.read(data, { type: 'array' });
+
+                    // Baca semua sheet, gabungkan barisnya
+                    let allRows = [];
+                    wb.SheetNames.forEach(wsName => {
+                        const ws   = wb.Sheets[wsName];
+                        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+                        allRows = allRows.concat(rows);
+                    });
+                    const totalSheets = wb.SheetNames.length;
 
                     setProgress(90, 'Memeriksa mapel di database… 90%');
 
-                    // Collect unique subject names from comma-separated 'mapel' column
+                    // Kumpulkan nama mapel unik dari semua sheet
                     const subjectSet = new Set();
-                    rows.forEach(row => {
+                    allRows.forEach(row => {
                         const mapelRaw = String(row['mapel'] || row['Mapel'] || '').trim();
                         if (mapelRaw) {
                             mapelRaw.split(',').forEach(n => {
@@ -345,7 +352,8 @@
 
                     const missingSubjects = await checkMissingSubjects(Array.from(subjectSet));
 
-                    setProgress(100, `Selesai dibaca — ${rows.length} baris terdeteksi ✓`);
+                    const sheetInfo = totalSheets > 1 ? ` (${totalSheets} sheet)` : '';
+                    setProgress(100, `Selesai dibaca — ${allRows.length} baris terdeteksi${sheetInfo} ✓`);
 
                     renderMissingSubjects(missingSubjects);
 

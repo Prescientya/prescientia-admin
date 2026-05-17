@@ -36,7 +36,14 @@ class TeachersImport implements ToCollection, WithHeadingRow
 
     public function collection(Collection $rows): void
     {
-        //  1. Preload lookup sets 
+        $this->importSheet($rows);
+    }
+
+    public function importSheet(Collection $rows, ?string $sheetName = null): void
+    {
+        $sheetLabel = $sheetName ? "[{$sheetName}] " : '';
+
+        //  1. Preload lookup sets
         $existingNips   = DB::table('teachers')->pluck('nip')->flip()->toArray();
         $existingEmails = DB::table('users')->pluck('email')->flip()->toArray();
 
@@ -45,11 +52,11 @@ class TeachersImport implements ToCollection, WithHeadingRow
             ->mapWithKeys(fn($id, $name) => [strtolower(trim($name)) => $id])
             ->toArray();
 
-        //  2. Validate & bucket rows 
-        $toInsertUsers    = [];   // sequential, same order as teacherDataByNip
-        $teacherDataByNip = [];   // nip => [fields]
-        $subjectsByNip    = [];   // nip => [subject_id, ...]
-        $seenNips         = [];   // within this file
+        //  2. Validate & bucket rows
+        $toInsertUsers    = [];
+        $teacherDataByNip = [];
+        $subjectsByNip    = [];
+        $seenNips         = [];
         $now              = now()->toDateTimeString();
 
         foreach ($rows as $row) {
@@ -67,12 +74,13 @@ class TeachersImport implements ToCollection, WithHeadingRow
                 $email = $nip . '@guru.prescientia.id';
             }
 
-            // Duplicate NIP (DB or within this file)
+            // Duplicate NIP (DB or within this sheet)
             if (isset($existingNips[$nip]) || isset($seenNips[$nip])) {
                 $this->failedRows[] = [
+                    'sheet'  => $sheetName,
                     'nip'    => $nip,
                     'nama'   => $nama,
-                    'reason' => "NIP {$nip} sudah terdaftar di sistem.",
+                    'reason' => $sheetLabel . "NIP {$nip} sudah terdaftar di sistem.",
                 ];
                 continue;
             }
@@ -80,9 +88,10 @@ class TeachersImport implements ToCollection, WithHeadingRow
             // Duplicate email
             if (isset($existingEmails[$email])) {
                 $this->failedRows[] = [
+                    'sheet'  => $sheetName,
                     'nip'    => $nip,
                     'nama'   => $nama,
-                    'reason' => "Email {$email} sudah digunakan akun lain.",
+                    'reason' => $sheetLabel . "Email {$email} sudah digunakan akun lain.",
                 ];
                 continue;
             }
@@ -96,7 +105,7 @@ class TeachersImport implements ToCollection, WithHeadingRow
                 }
             }
 
-            // Resolve mapel  subject IDs
+            // Resolve mapel → subject IDs
             $subjectIds    = [];
             $notFoundMapel = [];
             if (!empty($row['mapel'])) {
@@ -114,9 +123,10 @@ class TeachersImport implements ToCollection, WithHeadingRow
             if (!empty($notFoundMapel)) {
                 $list = collect($notFoundMapel)->map(fn($n) => '"' . $n . '"')->implode(', ');
                 $this->failedRows[] = [
+                    'sheet'  => $sheetName,
                     'nip'    => $nip,
                     'nama'   => $nama,
-                    'reason' => "Mapel {$list} tidak ditemukan di sistem sekolah ini.",
+                    'reason' => $sheetLabel . "Mapel {$list} tidak ditemukan di sistem sekolah ini.",
                 ];
                 continue;
             }
@@ -153,22 +163,19 @@ class TeachersImport implements ToCollection, WithHeadingRow
             return;
         }
 
-        //  3. Bulk insert inside a transaction 
-        DB::transaction(function () use ($toInsertUsers, $teacherDataByNip, $subjectsByNip, $now) {
+        //  3. Bulk insert inside a transaction
+        DB::transaction(function () use ($toInsertUsers, $teacherDataByNip, $subjectsByNip) {
 
-            // Insert users in chunks of 200
             foreach (array_chunk($toInsertUsers, 200) as $chunk) {
                 DB::table('users')->insert($chunk);
             }
 
-            // Retrieve inserted user IDs by email
             $emails        = array_column($toInsertUsers, 'email');
             $userIdByEmail = DB::table('users')
                 ->whereIn('email', $emails)
                 ->pluck('id', 'email')
                 ->toArray();
 
-            // Build teachers rows
             $toInsertTeachers = [];
             foreach ($teacherDataByNip as $nip => $data) {
                 $userId = $userIdByEmail[$data['email']] ?? null;
@@ -188,19 +195,16 @@ class TeachersImport implements ToCollection, WithHeadingRow
                 ];
             }
 
-            // Insert teachers in chunks of 200
             foreach (array_chunk($toInsertTeachers, 200) as $chunk) {
                 DB::table('teachers')->insert($chunk);
             }
 
-            // Retrieve teacher IDs by NIP
-            $insertedNips     = array_column($toInsertTeachers, 'nip');
-            $teacherIdByNip   = DB::table('teachers')
+            $insertedNips   = array_column($toInsertTeachers, 'nip');
+            $teacherIdByNip = DB::table('teachers')
                 ->whereIn('nip', $insertedNips)
                 ->pluck('id', 'nip')
                 ->toArray();
 
-            // Build pivot rows (teacher_subject)
             $pivotRows = [];
             foreach ($subjectsByNip as $nip => $subjectIds) {
                 $teacherId = $teacherIdByNip[$nip] ?? null;

@@ -246,17 +246,23 @@
             reader.onload = async e => {
                 setProgress(85, 'Memproses data… 85%');
                 try {
-                    const data     = new Uint8Array(e.target.result);
-                    const wb       = XLSX.read(data, { type: 'array' });
-                    const wsName   = wb.SheetNames[0];
-                    const ws       = wb.Sheets[wsName];
-                    const rows     = XLSX.utils.sheet_to_json(ws, { defval: '' });
+                    const data = new Uint8Array(e.target.result);
+                    const wb   = XLSX.read(data, { type: 'array' });
+
+                    // Baca semua sheet, gabungkan barisnya
+                    let allRows = [];
+                    wb.SheetNames.forEach(wsName => {
+                        const ws   = wb.Sheets[wsName];
+                        const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+                        allRows = allRows.concat(rows);
+                    });
+                    const totalSheets = wb.SheetNames.length;
 
                     setProgress(90, 'Memeriksa kelas di database… 90%');
 
-                    // Extract unique (tingkat, jurusan) combinations
+                    // Extract unique (tingkat, jurusan) combinations dari semua sheet
                     const classMap = new Map();
-                    rows.forEach(row => {
+                    allRows.forEach(row => {
                         const tingkat = String(row['tingkat'] || row['Tingkat'] || '').trim();
                         const jurusan = String(row['jurusan'] || row['Jurusan'] || '').trim().toUpperCase();
                         if (tingkat) {
@@ -269,7 +275,8 @@
 
                     const missingClasses = await checkMissingClasses(Array.from(classMap.values()));
 
-                    setProgress(100, `Selesai dibaca — ${rows.length} baris terdeteksi ✓`);
+                    const sheetInfo = totalSheets > 1 ? ` (${totalSheets} sheet)` : '';
+                    setProgress(100, `Selesai dibaca — ${allRows.length} baris terdeteksi${sheetInfo} ✓`);
 
                     renderMissingClasses(missingClasses);
 

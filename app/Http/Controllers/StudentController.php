@@ -399,7 +399,9 @@ class StudentController extends Controller
             // autoCreate: true only when old checkbox used & no specific classes sent
             $autoCreate = $request->boolean('auto_create_classes') && empty($classesToCreate);
             $import = new StudentsImport($autoCreate);
-            Excel::import($import, $request->file('file'));
+            foreach ($this->loadSheetsAsCollections($request->file('file')->getRealPath()) as $sheet) {
+                $import->importSheet($sheet['rows'], $sheet['name']);
+            }
 
             // Hapus file sisa import (chunk reading menyimpan temp di imports/)
             $this->cleanupImportFiles();
@@ -647,5 +649,42 @@ class StudentController extends Controller
                 }
             }
         }
+    }
+
+    /**
+     * Baca semua sheet dari file Excel menggunakan PhpSpreadsheet.
+     * Mengembalikan array of ['name' => string, 'rows' => Collection].
+     * Setiap baris adalah Collection dengan kunci nama kolom (lowercase).
+     */
+    private function loadSheetsAsCollections(string $filePath): array
+    {
+        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filePath);
+        $result      = [];
+
+        foreach ($spreadsheet->getAllSheets() as $worksheet) {
+            $data = $worksheet->toArray(null, false, false, false);
+            if (empty($data)) {
+                continue;
+            }
+
+            $headers = array_map(fn($h) => strtolower(trim((string) ($h ?? ''))), $data[0]);
+
+            // Skip sheet kosong (semua header kosong)
+            if (array_filter($headers) === []) {
+                continue;
+            }
+
+            $rows = collect(array_slice($data, 1))->map(function ($rowData) use ($headers) {
+                $padded = array_pad((array) $rowData, count($headers), null);
+                return collect(array_combine($headers, array_slice($padded, 0, count($headers))));
+            });
+
+            $result[] = ['name' => $worksheet->getTitle(), 'rows' => $rows];
+        }
+
+        $spreadsheet->disconnectWorksheets();
+        unset($spreadsheet);
+
+        return $result;
     }
 }
