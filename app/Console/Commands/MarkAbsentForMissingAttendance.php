@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace App\Console\Commands;
 
@@ -42,7 +42,7 @@ class MarkAbsentForMissingAttendance extends Command
 
     public function handle(): int
     {
-        $today     = $this->option('date') ? Carbon::parse($this->option('date'), 'Asia/Jakarta') : now()->timezone('Asia/Jakarta');
+        $today     = $this->option('date') ? Carbon::parse($this->option('date')) : now();
         $yesterday = $today->copy()->subDay()->toDateString();
 
         $flagPath = $this->getFlagPath($yesterday);
@@ -104,7 +104,7 @@ class MarkAbsentForMissingAttendance extends Command
             return 0;
         }
 
-        $now = now('Asia/Jakarta');
+        $now = now();
         $records = $missing->map(fn($student) => [
             'student_id'  => $student->id,
             'class_id'    => $student->class_id,
@@ -138,7 +138,7 @@ class MarkAbsentForMissingAttendance extends Command
             return 0;
         }
 
-        $now = now('Asia/Jakarta');
+        $now = now();
         $records = $missing->map(fn($teacher) => [
             'teacher_id'  => $teacher->id,
             'period_id'   => null,

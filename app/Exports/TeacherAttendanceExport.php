@@ -66,18 +66,23 @@ class TeacherAttendanceExport implements FromArray, WithStyles, WithColumnWidths
             ->whereBetween('date', [$this->dateFrom, $this->dateTo])
             ->pluck('id');
 
-        $teachers = Teacher::orderBy('name')->get();
+        $teachers   = Teacher::orderBy('name')->get();
+        $teacherIds = $teachers->pluck('id');
+
+        // Pre-fetch semua attendance sekaligus (satu query) lalu group by teacher_id
+        $allAtts = TeacherAttendance::query()
+            ->whereIn('teacher_id', $teacherIds)
+            ->whereIn('calendar_id', $calendarIds)
+            ->when($this->status, fn($q) => $q->where('status', $this->status))
+            ->get()
+            ->groupBy('teacher_id');
 
         $grandTotals = array_fill_keys(['hadir', 'sakit', 'izin', 'dinas', 'alpa', 'terlambat', 'teachers'], 0);
         $no = 0;
 
         $isAlt = false;
         foreach ($teachers as $teacher) {
-            $atts = TeacherAttendance::query()
-                ->where('teacher_id', $teacher->id)
-                ->whereIn('calendar_id', $calendarIds)
-                ->when($this->status, fn($q) => $q->where('status', $this->status))
-                ->get();
+            $atts = $allAtts->get($teacher->id, collect());
 
             if ($atts->isEmpty() && $this->status) continue;
 

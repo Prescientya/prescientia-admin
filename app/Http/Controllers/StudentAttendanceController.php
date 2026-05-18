@@ -80,6 +80,13 @@ class StudentAttendanceController extends Controller
      |──────────────────────────────────────────────────────────*/
     public function export(Request $request)
     {
+        $request->validate([
+            'date_from' => 'nullable|date',
+            'date_to'   => 'nullable|date|after_or_equal:date_from',
+        ], [
+            'date_to.after_or_equal' => 'Tanggal akhir harus sama dengan atau setelah tanggal awal.',
+        ]);
+
         $dateFrom = $request->get('date_from', today()->startOfMonth()->toDateString());
         $dateTo   = $request->get('date_to',   today()->toDateString());
         $classId  = $request->get('class_id') ?: null;

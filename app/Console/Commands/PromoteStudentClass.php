@@ -56,7 +56,7 @@ class PromoteStudentClass extends Command
     {
         $today = $this->option('date')
             ? \Carbon\Carbon::parse($this->option('date'))
-            : now()->timezone('Asia/Jakarta');
+            : now();
 
         $isDryRun = $this->option('dry-run');
 

@@ -73,10 +73,11 @@ class TeacherController extends Controller
         DB::beginTransaction();
         try {
             $user = User::create([
-                'email'     => $request->email,
-                'password'  => Hash::make($request->nip), // default password = NIP
-                'role'      => 'teacher',
-                'is_active' => true,
+                'email'       => $request->email,
+                'password'    => Hash::make($request->nip), // default password = NIP, wajib diganti saat login pertama
+                'role'        => 'teacher',
+                'is_active'   => true,
+                'first_login' => true, // paksa ganti password saat login pertama via Flutter app
             ]);
 
             $photoPath = null;

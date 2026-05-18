@@ -81,10 +81,11 @@ class StudentController extends Controller
         DB::beginTransaction();
         try {
             $user = User::create([
-                'email'     => $request->email,
-                'password'  => Hash::make($request->nis), // default password = NIS
-                'role'      => 'student',
-                'is_active' => true,
+                'email'       => $request->email,
+                'password'    => Hash::make($request->nis), // default password = NIS, wajib diganti saat login pertama
+                'role'        => 'student',
+                'is_active'   => true,
+                'first_login' => true, // paksa ganti password saat login pertama via Flutter app
             ]);
 
             $photoPath = null;
@@ -254,10 +255,13 @@ class StudentController extends Controller
                             ->with('error', 'Slot role ' . StudentClassRole::roleLabel($role) . ' sudah penuh di kelas ini.');
                     }
                 }
-                StudentClassRole::updateOrCreate(
-                    ['student_id' => $siswa->id],
-                    ['class_id' => $classId, 'role' => $role]
-                );
+                // Hapus role lama dulu (termasuk stale records dari kelas sebelumnya)
+                StudentClassRole::where('student_id', $siswa->id)->delete();
+                StudentClassRole::create([
+                    'student_id' => $siswa->id,
+                    'class_id'   => $classId,
+                    'role'       => $role,
+                ]);
             } else {
                 StudentClassRole::where('student_id', $siswa->id)->delete();
             }
@@ -451,13 +455,20 @@ class StudentController extends Controller
         }
 
         $flagPath = storage_path('app/graduates_deleted_' . $now->year . '.flag');
-        if (file_exists($flagPath)) {
+
+        // Buat flag file secara atomik dengan mode 'x' (gagal jika sudah ada).
+        // Ini mencegah race condition di mana dua request paralel bisa melewati
+        // cek file_exists() sebelum salah satu selesai menulis flag.
+        $fp = @fopen($flagPath, 'x');
+        if ($fp === false) {
             return back()->with('error', 'Siswa lulus untuk tahun ini sudah pernah dihapus.');
         }
+        fclose($fp);
 
         $graduates = Student::whereNull('class_id')->with('user')->get();
 
         if ($graduates->isEmpty()) {
+            @unlink($flagPath); // hapus flag agar tidak memblokir jika memang tidak ada data
             return back()->with('info', 'Tidak ada siswa lulus yang perlu dihapus.');
         }
 
@@ -483,6 +494,7 @@ class StudentController extends Controller
             return back()->with('success', "Berhasil menghapus {$count} siswa lulus.");
         } catch (\Exception $e) {
             DB::rollback();
+            @unlink($flagPath); // hapus flag agar bisa dicoba ulang setelah error
             Log::error('[Students] destroyGraduates failed: ' . $e->getMessage());
             return back()->with('error', 'Gagal menghapus siswa lulus: ' . $e->getMessage());
         }

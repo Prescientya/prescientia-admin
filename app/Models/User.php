@@ -23,6 +23,7 @@ class User extends Authenticatable
         'role',
         'is_active',
         'device_id',
+        'first_login',
     ];
 
     /**

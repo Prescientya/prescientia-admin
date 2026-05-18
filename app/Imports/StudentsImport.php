@@ -142,12 +142,13 @@ class StudentsImport
             $nowStr = $now->toDateTimeString();
 
             $usersToInsert[] = [
-                'email'      => $email,
-                'password'   => Hash::make($nis, ['rounds' => 10]),
-                'role'       => 'student',
-                'is_active'  => true,
-                'created_at' => $nowStr,
-                'updated_at' => $nowStr,
+                'email'       => $email,
+                'password'    => Hash::make($nis, ['rounds' => 10]), // default = NIS, wajib diganti saat login pertama
+                'role'        => 'student',
+                'is_active'   => true,
+                'first_login' => true, // paksa ganti password saat login pertama via Flutter app
+                'created_at'  => $nowStr,
+                'updated_at'  => $nowStr,
             ];
 
             $studentsToInsert[] = [
