@@ -64,18 +64,23 @@ class StudentController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name'          => 'required|string|max:100',
-            'nis'           => 'required|string|max:20|unique:students,nis',
-            'email'         => 'required|email|max:100|unique:users,email',
+            'name'          => 'required|string|max:50',
+            'nis'           => 'required|string|max:25|unique:students,nis',
+            'email'         => 'required|email|max:50|unique:users,email',
             'gender'        => 'required|in:L,P',
             'date_of_birth' => 'required|date',
             'class_id'      => 'nullable|exists:classes,id',
             'phone_number'  => 'nullable|string|max:20',
-            'address'       => 'nullable|string',
+            'address'       => 'nullable|string|max:500',
             'photo_profile' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ], [
+            'name.max'     => 'Nama maksimal 50 karakter.',
+            'nis.max'      => 'NIS maksimal 25 karakter.',
             'nis.unique'   => 'NIS sudah terdaftar.',
+            'email.max'    => 'Email maksimal 50 karakter.',
             'email.unique' => 'Email sudah digunakan.',
+            'phone_number.max' => 'Nomor HP maksimal 20 karakter.',
+            'address.max'  => 'Alamat maksimal 500 karakter.',
         ]);
 
         DB::beginTransaction();
@@ -192,20 +197,26 @@ class StudentController extends Controller
     public function update(Request $request, Student $siswa)
     {
         $request->validate([
-            'name'          => 'required|string|max:100',
-            'nis'           => 'required|string|max:20|unique:students,nis,' . $siswa->id,
-            'email'         => 'required|email|max:100|unique:users,email,' . $siswa->user_id,
+            'name'          => 'required|string|max:50',
+            'nis'           => 'required|string|max:25|unique:students,nis,' . $siswa->id,
+            'email'         => 'required|email|max:50|unique:users,email,' . $siswa->user_id,
             'gender'        => 'required|in:L,P',
             'date_of_birth' => 'required|date',
             'class_id'      => 'nullable|exists:classes,id',
             'phone_number'  => 'nullable|string|max:20',
-            'address'       => 'nullable|string',
+            'address'       => 'nullable|string|max:500',
             'password'      => 'nullable|string|min:8',
             'is_active'     => 'nullable|boolean',
             'photo_profile' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ], [
+            'name.max'     => 'Nama maksimal 50 karakter.',
+            'nis.max'      => 'NIS maksimal 25 karakter.',
             'nis.unique'   => 'NIS sudah digunakan siswa lain.',
+            'email.max'    => 'Email maksimal 50 karakter.',
             'email.unique' => 'Email sudah digunakan akun lain.',
+            'phone_number.max' => 'Nomor HP maksimal 20 karakter.',
+            'address.max'  => 'Alamat maksimal 500 karakter.',
+            'password.min' => 'Password minimal 8 karakter.',
         ]);
 
         DB::beginTransaction();

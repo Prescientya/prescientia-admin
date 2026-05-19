@@ -73,8 +73,8 @@ class EventController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'title'           => 'required|string|max:200',
-            'description'     => 'nullable|string',
+            'title'           => 'required|string|max:100',
+            'description'     => 'nullable|string|max:1000',
             'link'            => 'nullable|url|max:500',
             'release_date'    => 'required|date',
             'end_date'        => 'required|date|after_or_equal:release_date',
@@ -87,10 +87,13 @@ class EventController extends Controller
             'target_majors.*' => 'string|max:100',
         ], [
             'title.required'        => 'Judul event wajib diisi.',
+            'title.max'             => 'Judul event maksimal 100 karakter.',
+            'description.max'       => 'Deskripsi maksimal 1000 karakter.',
             'release_date.required' => 'Tanggal rilis wajib diisi.',
             'end_date.required'     => 'Tanggal selesai wajib diisi.',
             'end_date.after_or_equal' => 'Tanggal selesai harus setelah atau sama dengan tanggal rilis.',
             'link.url'              => 'Format link tidak valid.',
+            'link.max'              => 'Link maksimal 500 karakter.',
             'target_audience.required' => 'Target audiens wajib dipilih.',
         ]);
 
@@ -169,8 +172,8 @@ class EventController extends Controller
     public function update(Request $request, Event $event)
     {
         $request->validate([
-            'title'           => 'required|string|max:200',
-            'description'     => 'nullable|string',
+            'title'           => 'required|string|max:100',
+            'description'     => 'nullable|string|max:1000',
             'link'            => 'nullable|url|max:500',
             'release_date'    => 'required|date',
             'end_date'        => 'required|date|after_or_equal:release_date',
@@ -183,6 +186,9 @@ class EventController extends Controller
             'target_majors.*' => 'string|max:100',
         ], [
             'title.required'        => 'Judul event wajib diisi.',
+            'title.max'             => 'Judul event maksimal 100 karakter.',
+            'description.max'       => 'Deskripsi maksimal 1000 karakter.',
+            'link.max'              => 'Link maksimal 500 karakter.',
             'release_date.required' => 'Tanggal rilis wajib diisi.',
             'end_date.required'     => 'Tanggal selesai wajib diisi.',
             'end_date.after_or_equal' => 'Tanggal selesai harus setelah atau sama dengan tanggal rilis.',

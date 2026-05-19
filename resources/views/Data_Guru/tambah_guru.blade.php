@@ -62,12 +62,12 @@
                     <div class="form-group">
                         <label class="form-label">Nama Lengkap <span class="req">*</span></label>
                         <input type="text" name="name" class="form-control"
-                               placeholder="Nama lengkap guru" value="{{ old('name') }}" required>
+                               placeholder="Nama lengkap guru" value="{{ old('name') }}" maxlength="50" required>
                     </div>
                     <div class="form-group">
                         <label class="form-label">NIP <span class="req">*</span></label>
                         <input type="text" name="nip" class="form-control"
-                               placeholder="Nomor Induk Pegawai" value="{{ old('nip') }}" required>
+                               placeholder="Nomor Induk Pegawai" value="{{ old('nip') }}" maxlength="25" required>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Jenis Kelamin <span class="req">*</span></label>
@@ -85,7 +85,7 @@
                     <div class="form-group">
                         <label class="form-label">No. HP</label>
                         <input type="text" name="phone_number" class="form-control"
-                               placeholder="08xxxxxxxxxx" value="{{ old('phone_number') }}">
+                               placeholder="08xxxxxxxxxx" value="{{ old('phone_number') }}" maxlength="20">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Mata Pelajaran</label>
@@ -102,7 +102,7 @@
                     <div class="form-group form-col-full">
                         <label class="form-label">Alamat</label>
                         <textarea name="address" class="form-control"
-                                  placeholder="Alamat lengkap guru" rows="2">{{ old('address') }}</textarea>
+                                  placeholder="Alamat lengkap guru" rows="2" maxlength="500">{{ old('address') }}</textarea>
                     </div>
                 </div>
 
@@ -112,7 +112,7 @@
                     <div class="form-group form-col-full">
                         <label class="form-label">Email <span class="req">*</span></label>
                         <input type="email" name="email" class="form-control"
-                               placeholder="email@domain.com" value="{{ old('email') }}" required>
+                               placeholder="email@domain.com" value="{{ old('email') }}" maxlength="50" required>
                     </div>
                 </div>
                 <p style="font-size:0.78rem;color:var(--text-muted);margin-top:-8px;">

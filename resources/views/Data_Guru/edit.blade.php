@@ -25,7 +25,30 @@
 @section('content')
 <div class="dg-page dg-edit-wrap">
 
-    {{-- Flash errors --}}
+    {{-- Flash success --}}
+    @if(session('success'))
+    <div class="alert alert--success" style="margin-bottom:20px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        {{ session('success') }}
+    </div>
+    @endif
+
+    {{-- Flash error (dari catch block controller) --}}
+    @if(session('error'))
+    <div class="alert alert--error" style="margin-bottom:20px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        {{ session('error') }}
+    </div>
+    @endif
+
+    {{-- Validation errors --}}
     @if($errors->any())
     <div class="alert alert--error" style="margin-bottom:20px;">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
@@ -100,12 +123,12 @@
                         <div class="form-group">
                             <label class="form-label">Nama Lengkap <span class="req">*</span></label>
                             <input type="text" name="name" class="form-control"
-                                   value="{{ old('name', $guru->name) }}" required>
+                                   value="{{ old('name', $guru->name) }}" maxlength="50" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">NIP <span class="req">*</span></label>
                             <input type="text" name="nip" class="form-control"
-                                   value="{{ old('nip', $guru->nip) }}" required>
+                                   value="{{ old('nip', $guru->nip) }}" maxlength="25" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Jenis Kelamin <span class="req">*</span></label>
@@ -123,12 +146,12 @@
                             <label class="form-label">No. HP</label>
                             <input type="text" name="phone_number" class="form-control"
                                    placeholder="08xxxxxxxxxx"
-                                   value="{{ old('phone_number', $guru->phone_number) }}">
+                                   value="{{ old('phone_number', $guru->phone_number) }}" maxlength="20">
                         </div>
                         <div class="form-group form-col-full">
                             <label class="form-label">Alamat</label>
                             <textarea name="address" class="form-control" rows="2"
-                                      placeholder="Alamat lengkap">{{ old('address', $guru->address) }}</textarea>
+                                      placeholder="Alamat lengkap" maxlength="500">{{ old('address', $guru->address) }}</textarea>
                         </div>
                     </div>
                 </div>
@@ -207,7 +230,7 @@
                         <div class="form-group form-col-full">
                             <label class="form-label">Email <span class="req">*</span></label>
                             <input type="email" name="email" class="form-control"
-                                   value="{{ old('email', optional($guru->user)->email) }}" required>
+                                   value="{{ old('email', optional($guru->user)->email) }}" maxlength="50" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Password Baru</label>

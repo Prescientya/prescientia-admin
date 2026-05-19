@@ -21,6 +21,17 @@
 @section('content')
 <div class="ev-page">
 
+    @if(session('success'))
+    <div class="alert alert--success">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        {{ session('success') }}
+    </div>
+    @endif
+
     @if(session('error'))
     <div class="alert alert--error">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
@@ -54,7 +65,7 @@
                             <label class="form-label">Judul Event <span class="req">*</span></label>
                             <input type="text" name="title" class="form-control"
                                    placeholder="Masukkan judul event..."
-                                   value="{{ old('title') }}" required>
+                                   value="{{ old('title') }}" maxlength="100" required>
                             @error('title')
                                 <span class="form-hint" style="color:#ef4444;">{{ $message }}</span>
                             @enderror
@@ -62,13 +73,16 @@
                         <div class="form-group form-col-full">
                             <label class="form-label">Deskripsi</label>
                             <textarea name="description" class="form-control" rows="4"
-                                      placeholder="Tuliskan deskripsi event...">{{ old('description') }}</textarea>
+                                      placeholder="Tuliskan deskripsi event..." maxlength="1000">{{ old('description') }}</textarea>
+                            @error('description')
+                                <span class="form-hint" style="color:#ef4444;">{{ $message }}</span>
+                            @enderror
                         </div>
                         <div class="form-group form-col-full">
                             <label class="form-label">Link</label>
                             <input type="url" name="link" class="form-control"
                                    placeholder="https://contoh.com/event"
-                                   value="{{ old('link') }}">
+                                   value="{{ old('link') }}" maxlength="500">
                             @error('link')
                                 <span class="form-hint" style="color:#ef4444;">{{ $message }}</span>
                             @enderror

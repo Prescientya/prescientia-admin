@@ -47,18 +47,23 @@ class TeacherController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name'          => 'required|string|max:100',
-            'nip'           => 'required|string|max:20|unique:teachers,nip',
-            'email'         => 'required|email|max:100|unique:users,email',
+            'name'          => 'required|string|max:50',
+            'nip'           => 'required|string|max:25|unique:teachers,nip',
+            'email'         => 'required|email|max:50|unique:users,email',
             'gender'        => 'required|in:L,P',
             'date_of_birth' => 'required|date',
             'phone_number'  => 'nullable|string|max:20',
-            'address'       => 'nullable|string',
+            'address'       => 'nullable|string|max:500',
             'photo_profile' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'mapel_text'    => 'nullable|string|max:500',
         ], [
+            'name.max'     => 'Nama maksimal 50 karakter.',
+            'nip.max'      => 'NIP maksimal 25 karakter.',
             'nip.unique'   => 'NIP sudah terdaftar.',
+            'email.max'    => 'Email maksimal 50 karakter.',
             'email.unique' => 'Email sudah digunakan.',
+            'phone_number.max' => 'Nomor HP maksimal 20 karakter.',
+            'address.max'  => 'Alamat maksimal 500 karakter.',
         ]);
 
         // Validate mapel names against subjects table BEFORE touching the DB
@@ -157,13 +162,13 @@ class TeacherController extends Controller
     public function update(Request $request, Teacher $guru)
     {
         $request->validate([
-            'name'             => 'required|string|max:100',
-            'nip'              => 'required|string|max:20|unique:teachers,nip,' . $guru->id,
-            'email'            => 'required|email|max:100|unique:users,email,' . $guru->user_id,
+            'name'             => 'required|string|max:50',
+            'nip'              => 'required|string|max:25|unique:teachers,nip,' . $guru->id,
+            'email'            => 'required|email|max:50|unique:users,email,' . $guru->user_id,
             'gender'           => 'required|in:L,P',
             'date_of_birth'    => 'required|date',
             'phone_number'     => 'nullable|string|max:20',
-            'address'          => 'nullable|string',
+            'address'          => 'nullable|string|max:500',
             'password'         => 'nullable|string|min:8',
             'is_active'        => 'nullable|boolean',
             'photo_profile'    => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
@@ -171,8 +176,14 @@ class TeacherController extends Controller
             'teacher_role'     => 'required|in:pengajar,walikelas',
             'homeroom_class_id'=> 'nullable|integer|exists:classes,id',
         ], [
+            'name.max'                => 'Nama maksimal 50 karakter.',
+            'nip.max'                 => 'NIP maksimal 25 karakter.',
             'nip.unique'              => 'NIP sudah digunakan guru lain.',
+            'email.max'               => 'Email maksimal 50 karakter.',
             'email.unique'            => 'Email sudah digunakan akun lain.',
+            'phone_number.max'        => 'Nomor HP maksimal 20 karakter.',
+            'address.max'             => 'Alamat maksimal 500 karakter.',
+            'password.min'            => 'Password minimal 8 karakter.',
             'homeroom_class_id.exists'=> 'Kelas yang dipilih tidak ditemukan.',
         ]);
 
