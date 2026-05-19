@@ -105,6 +105,44 @@ class DeviceChangeRequestController extends Controller
         return back()->with('success', 'Permintaan pergantian device berhasil disetujui.');
     }
 
+    /* ── Approve All Pending ────────────────────────────── */
+    public function approveAll(Request $request)
+    {
+        $type = $request->input('type', 'siswa');
+
+        $query = DB::table('device_change_requests as dcr')
+            ->join('users', 'users.id', '=', 'dcr.user_id')
+            ->leftJoin('students', 'students.user_id', '=', 'users.id')
+            ->leftJoin('teachers', 'teachers.user_id', '=', 'users.id')
+            ->where('dcr.status', 'pending')
+            ->select('dcr.id', 'dcr.user_id', 'dcr.device_id_new');
+
+        if ($type === 'guru') {
+            $query->whereNotNull('teachers.id');
+        } else {
+            $query->whereNotNull('students.id');
+        }
+
+        $pendingRequests = $query->get();
+
+        if ($pendingRequests->isEmpty()) {
+            return back()->with('error', 'Tidak ada permintaan yang menunggu persetujuan.');
+        }
+
+        DB::transaction(function () use ($pendingRequests) {
+            foreach ($pendingRequests as $dcr) {
+                User::where('id', $dcr->user_id)
+                    ->update(['device_id' => $dcr->device_id_new]);
+
+                DB::table('device_change_requests')
+                    ->where('id', $dcr->id)
+                    ->update(['status' => 'confirm', 'updated_at' => now()]);
+            }
+        });
+
+        return back()->with('success', $pendingRequests->count() . ' permintaan pergantian device berhasil disetujui.');
+    }
+
     /* ── Reject ─────────────────────────────────────────── */
     public function reject(Request $request, int $id)
     {

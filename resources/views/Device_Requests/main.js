@@ -8,22 +8,24 @@
     const modalMessage = document.getElementById('modalMessage');
     const modalOldId = document.getElementById('modalOldId');
     const modalNewId = document.getElementById('modalNewId');
+    const modalDeviceDetail = document.getElementById('modalDeviceDetail');
     const btnConfirm = document.getElementById('btnConfirmAction');
 
-    // Handle Confirm Buttons
+    // Handle Confirm Buttons (approve / reject satu per satu)
     document.querySelectorAll('.btn-confirm').forEach(function (btn) {
         btn.addEventListener('click', function (e) {
             e.preventDefault();
-            
+
             const form = btn.closest('form');
             currentForm = form;
-            
+
             const action = btn.getAttribute('data-action');
             const oldId = btn.getAttribute('data-old') || '-';
             const newId = btn.getAttribute('data-new') || '-';
 
             modalOldId.textContent = oldId;
             modalNewId.textContent = newId;
+            if (modalDeviceDetail) modalDeviceDetail.style.display = '';
 
             if (action === 'approve') {
                 modalTitle.textContent = 'Setujui Permintaan';
@@ -37,19 +39,31 @@
                 btnConfirm.textContent = 'Tolak';
             }
 
-            // Show Modal
-            if (modal) {
-                modal.style.display = 'flex';
-            }
+            if (modal) modal.style.display = 'flex';
         });
     });
+
+    // Handle ACC Semua
+    var btnApproveAll = document.getElementById('btn-approve-all');
+    var formApproveAll = document.getElementById('form-approve-all');
+
+    if (btnApproveAll && formApproveAll) {
+        btnApproveAll.addEventListener('click', function () {
+            currentForm = formApproveAll;
+            modalTitle.textContent = 'ACC Semua Permintaan';
+            modalMessage.textContent = 'Apakah Anda yakin mau mengacc semuanya?';
+            btnConfirm.className = 'btn btn--primary';
+            btnConfirm.textContent = 'Ya, ACC Semua';
+            if (modalDeviceDetail) modalDeviceDetail.style.display = 'none';
+            if (modal) modal.style.display = 'flex';
+        });
+    }
 
     // Handle close modal
     document.querySelectorAll('.js-modal-close').forEach(function (btn) {
         btn.addEventListener('click', function () {
-            if (modal) {
-                modal.style.display = 'none';
-            }
+            if (modal) modal.style.display = 'none';
+            if (modalDeviceDetail) modalDeviceDetail.style.display = '';
             currentForm = null;
         });
     });

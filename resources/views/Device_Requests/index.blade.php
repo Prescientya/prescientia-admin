@@ -110,6 +110,20 @@
     <div class="data-card">
         <div class="data-card__toolbar">
             <span class="data-card__count">{{ $requests->total() }} permintaan ditemukan</span>
+            @if(($counts['pending'] ?? 0) > 0)
+            <form method="POST" action="{{ route('device-requests.approve-all') }}" id="form-approve-all" style="margin:0;">
+                @csrf @method('PATCH')
+                <input type="hidden" name="type" value="{{ $type }}">
+                <button type="button" class="btn btn--primary btn--sm" id="btn-approve-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                         style="margin-right:0.3rem;">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    ACC Semua ({{ $counts['pending'] }})
+                </button>
+            </form>
+            @endif
         </div>
 
         <div class="table-wrap">
@@ -275,7 +289,7 @@
             </div>
             <div class="modal__body">
                 <p id="modalMessage" style="margin-bottom: 1rem; color: var(--text-color);">Apakah Anda yakin?</p>
-                <div style="background-color: var(--sidebar-bg, rgba(0,0,0,0.1)); padding: 1rem; border-radius: 6px; border: 1px solid var(--card-border, rgba(255, 255, 255, 0.1));">
+                <div id="modalDeviceDetail" style="background-color: var(--sidebar-bg, rgba(0,0,0,0.1)); padding: 1rem; border-radius: 6px; border: 1px solid var(--card-border, rgba(255, 255, 255, 0.1));">
                     <div style="margin-bottom: 0.5rem;">
                         <span style="display:block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.2rem;">Device ID Lama</span>
                         <code id="modalOldId" style="color: var(--text-color); word-break: break-all;">-</code>

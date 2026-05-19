@@ -69,6 +69,7 @@ Route::middleware('auth:admin')->group(function () {
     /* ── Device Change Requests ──────────────────────── */
     Route::prefix('device-requests')->name('device-requests.')->group(function () {
         Route::get('/',              [DeviceChangeRequestController::class, 'index'])->name('index');
+        Route::patch('approve-all',  [DeviceChangeRequestController::class, 'approveAll'])->name('approve-all');
         Route::patch('{id}/approve', [DeviceChangeRequestController::class, 'approve'])->name('approve');
         Route::patch('{id}/reject',  [DeviceChangeRequestController::class, 'reject'])->name('reject');
     });
