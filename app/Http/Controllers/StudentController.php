@@ -65,7 +65,7 @@ class StudentController extends Controller
     {
         $request->validate([
             'name'          => 'required|string|max:50',
-            'nis'           => 'required|string|max:25|unique:students,nis',
+            'nis'           => 'required|string|max:20|unique:students,nis',
             'email'         => 'required|email|max:50|unique:users,email',
             'gender'        => 'required|in:L,P',
             'date_of_birth' => 'required|date',
@@ -75,7 +75,7 @@ class StudentController extends Controller
             'photo_profile' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ], [
             'name.max'     => 'Nama maksimal 50 karakter.',
-            'nis.max'      => 'NIS maksimal 25 karakter.',
+            'nis.max'      => 'NIS maksimal 20 karakter.',
             'nis.unique'   => 'NIS sudah terdaftar.',
             'email.max'    => 'Email maksimal 50 karakter.',
             'email.unique' => 'Email sudah digunakan.',
@@ -114,10 +114,18 @@ class StudentController extends Controller
             Cache::forget('dashboard.total_siswa');
             return redirect()->route('siswa.index')
                 ->with('success', "Siswa {$request->name} berhasil ditambahkan.");
+        } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollback();
+            Log::error('[Students] store QueryException: ' . $e->getMessage());
+            $msg = $e->getCode() === '23000'
+                ? 'NIS atau email sudah terdaftar. Silakan periksa kembali.'
+                : 'Terjadi kesalahan database. Silakan coba lagi.';
+            return back()->withInput()->with('error', $msg);
         } catch (\Exception $e) {
             DB::rollback();
+            Log::error('[Students] store failed: ' . $e->getMessage());
             return back()->withInput()
-                ->with('error', 'Gagal menambahkan siswa: ' . $e->getMessage());
+                ->with('error', 'Gagal menambahkan siswa. Silakan coba lagi.');
         }
     }
 
@@ -198,7 +206,7 @@ class StudentController extends Controller
     {
         $request->validate([
             'name'          => 'required|string|max:50',
-            'nis'           => 'required|string|max:25|unique:students,nis,' . $siswa->id,
+            'nis'           => 'required|string|max:20|unique:students,nis,' . $siswa->id,
             'email'         => 'required|email|max:50|unique:users,email,' . $siswa->user_id,
             'gender'        => 'required|in:L,P',
             'date_of_birth' => 'required|date',
@@ -210,7 +218,7 @@ class StudentController extends Controller
             'photo_profile' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ], [
             'name.max'     => 'Nama maksimal 50 karakter.',
-            'nis.max'      => 'NIS maksimal 25 karakter.',
+            'nis.max'      => 'NIS maksimal 20 karakter.',
             'nis.unique'   => 'NIS sudah digunakan siswa lain.',
             'email.max'    => 'Email maksimal 50 karakter.',
             'email.unique' => 'Email sudah digunakan akun lain.',
@@ -280,10 +288,18 @@ class StudentController extends Controller
             DB::commit();
             return redirect()->route('siswa.index')
                 ->with('success', "Data siswa {$siswa->name} berhasil diperbarui.");
+        } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollback();
+            Log::error('[Students] update QueryException: ' . $e->getMessage());
+            $msg = $e->getCode() === '23000'
+                ? 'NIS atau email sudah digunakan akun lain. Silakan periksa kembali.'
+                : 'Terjadi kesalahan database. Silakan coba lagi.';
+            return back()->withInput()->with('error', $msg);
         } catch (\Exception $e) {
             DB::rollback();
+            Log::error('[Students] update failed: ' . $e->getMessage());
             return back()->withInput()
-                ->with('error', 'Gagal memperbarui data siswa: ' . $e->getMessage());
+                ->with('error', 'Gagal memperbarui data siswa. Silakan coba lagi.');
         }
     }
 

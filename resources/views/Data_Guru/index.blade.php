@@ -301,7 +301,7 @@
 @push('scripts')
 <script>
 window.VALID_MAPEL = @json($subjects->pluck('name'));
-@if($errors->has('mapel_text'))
+@if($errors->any() && !$errors->has('file'))
 document.addEventListener('DOMContentLoaded', function() {
     if (window.PSC) window.PSC.openModal('modalTambahManual');
 });

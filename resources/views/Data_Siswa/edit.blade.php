@@ -128,7 +128,7 @@
                         <div class="form-group">
                             <label class="form-label">NIS <span class="req">*</span></label>
                             <input type="text" name="nis" class="form-control"
-                                   value="{{ old('nis', $siswa->nis) }}" maxlength="25" required>
+                                   value="{{ old('nis', $siswa->nis) }}" maxlength="20" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Jenis Kelamin <span class="req">*</span></label>

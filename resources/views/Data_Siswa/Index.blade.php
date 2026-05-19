@@ -394,5 +394,12 @@
 @endsection
 
 @push('scripts')
+<script>
+@if($errors->any() && !$errors->has('file'))
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.PSC) window.PSC.openModal('modalTambahManual');
+});
+@endif
+</script>
 <script>{!! file_get_contents(resource_path('views/Data_Siswa/main.js')) !!}</script>
 @endpush
