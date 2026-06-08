@@ -80,10 +80,12 @@ class TeacherController extends Controller
             $user = User::create([
                 'email'       => $request->email,
                 'password'    => Hash::make($request->nip), // default password = NIP, wajib diganti saat login pertama
-                'role'        => 'teacher',
-                'is_active'   => true,
                 'first_login' => true, // paksa ganti password saat login pertama via Flutter app
             ]);
+            // role & is_active dikunci dari mass assignment (lihat User::$fillable). Set eksplisit.
+            $user->role      = 'teacher';
+            $user->is_active = true;
+            $user->save();
 
             $photoPath = null;
             if ($request->hasFile('photo_profile')) {
@@ -203,13 +205,15 @@ class TeacherController extends Controller
         DB::beginTransaction();
         try {
             $userUpdate = [
-                'email'     => $request->email,
-                'is_active' => $request->boolean('is_active', true),
+                'email' => $request->email,
             ];
             if ($request->filled('password')) {
                 $userUpdate['password'] = Hash::make($request->password);
             }
             $guru->user->update($userUpdate);
+            // is_active dikunci dari mass assignment (lihat User::$fillable). Set eksplisit.
+            $guru->user->is_active = $request->boolean('is_active', true);
+            $guru->user->save();
 
             $photoPath = $guru->photo_profile;
             if ($request->hasFile('photo_profile')) {

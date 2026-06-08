@@ -15,13 +15,16 @@ class User extends Authenticatable
     /**
      * The attributes that are mass assignable.
      *
+     * SECURITY: `role` dan `is_active` SENGAJA tidak di-fillable. Field ini menentukan
+     * privilege dan harus di-set eksplisit via property setter (`$user->role = 'admin'`),
+     * jangan melalui mass assignment. Mencegah privilege escalation jika ada controller
+     * yang tidak sengaja pakai `User::create($request->all())`.
+     *
      * @var list<string>
      */
     protected $fillable = [
         'email',
         'password',
-        'role',
-        'is_active',
         'device_id',
         'first_login',
     ];

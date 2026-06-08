@@ -143,7 +143,7 @@ class StudentsImport
 
             $usersToInsert[] = [
                 'email'       => $email,
-                'password'    => Hash::make($nis, ['rounds' => 10]), // default = NIS, wajib diganti saat login pertama
+                'password'    => Hash::make($nis), // default = NIS, wajib diganti saat login pertama; rounds dari config (BCRYPT_ROUNDS)
                 'role'        => 'student',
                 'is_active'   => true,
                 'first_login' => true, // paksa ganti password saat login pertama via Flutter app

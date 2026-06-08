@@ -88,10 +88,12 @@ class StudentController extends Controller
             $user = User::create([
                 'email'       => $request->email,
                 'password'    => Hash::make($request->nis), // default password = NIS, wajib diganti saat login pertama
-                'role'        => 'student',
-                'is_active'   => true,
                 'first_login' => true, // paksa ganti password saat login pertama via Flutter app
             ]);
+            // role & is_active dikunci dari mass assignment (lihat User::$fillable). Set eksplisit.
+            $user->role      = 'student';
+            $user->is_active = true;
+            $user->save();
 
             $photoPath = null;
             if ($request->hasFile('photo_profile')) {
@@ -231,13 +233,15 @@ class StudentController extends Controller
         try {
             // Update user account
             $userUpdate = [
-                'email'     => $request->email,
-                'is_active' => $request->boolean('is_active', true),
+                'email' => $request->email,
             ];
             if ($request->filled('password')) {
                 $userUpdate['password'] = Hash::make($request->password);
             }
             $siswa->user->update($userUpdate);
+            // is_active dikunci dari mass assignment (lihat User::$fillable). Set eksplisit.
+            $siswa->user->is_active = $request->boolean('is_active', true);
+            $siswa->user->save();
 
             // Photo
             $photoPath = $siswa->photo_profile;
@@ -626,7 +630,9 @@ class StudentController extends Controller
             $count = 0;
             foreach ($students as $student) {
                 if ($student->user) {
-                    $student->user->update(['is_active' => false]);
+                    // is_active dikunci dari mass assignment (lihat User::$fillable). Set eksplisit.
+                    $student->user->is_active = false;
+                    $student->user->save();
                     $count++;
                 }
             }
@@ -659,7 +665,9 @@ class StudentController extends Controller
             $count = 0;
             foreach ($students as $student) {
                 if ($student->user) {
-                    $student->user->update(['is_active' => true]);
+                    // is_active dikunci dari mass assignment (lihat User::$fillable). Set eksplisit.
+                    $student->user->is_active = true;
+                    $student->user->save();
                     $count++;
                 }
             }

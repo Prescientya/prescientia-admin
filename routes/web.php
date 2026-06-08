@@ -17,11 +17,17 @@ use App\Http\Controllers\PeriodAttendanceController;
 use App\Http\Controllers\AbsenceLetterController;
 use App\Http\Controllers\GuidelineController;
 use App\Http\Controllers\PublicGuidelineController;
+use App\Http\Controllers\PrivacyPolicyController;
 
 // Halaman Panduan (publik, tanpa auth)
 Route::get('/panduan/{type}', [PublicGuidelineController::class, 'show'])
     ->where('type', 'siswa|guru')
     ->name('panduan.show');
+
+// Kebijakan Privasi (publik, tanpa auth — syarat Google Play, harus 200 dari mana saja)
+Route::get('/privacy-policy/{type}', [PrivacyPolicyController::class, 'show'])
+    ->where('type', 'siswa|guru')
+    ->name('privacy-policy.show');
 
 // Login
 Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
@@ -40,14 +46,18 @@ Route::middleware('auth:admin')->group(function () {
     Route::get('/guru/template', [TeacherController::class, 'downloadTemplate'])->name('guru.template');
     Route::post('/guru/import', [TeacherController::class, 'importExcel'])->name('guru.import');
     Route::post('/guru/check-subjects', [TeacherController::class, 'checkSubjects'])->name('guru.checksubjects');
-    Route::post('/guru/{guru}/reset-password', [TeacherController::class, 'resetPassword'])->name('guru.reset-password');
+    Route::post('/guru/{guru}/reset-password', [TeacherController::class, 'resetPassword'])
+        ->middleware('throttle:5,15')
+        ->name('guru.reset-password');
     Route::resource('/guru', TeacherController::class)->except(['create']);
     /* ── Data Siswa ──────────────────────────────────── */
     Route::get('/siswa/template', [StudentController::class, 'downloadTemplate'])->name('siswa.template');
     Route::post('/siswa/import', [StudentController::class, 'importExcel'])->name('siswa.import');
     Route::post('/siswa/check-classes', [StudentController::class, 'checkClasses'])->name('siswa.checkclasses');
     Route::get('/siswa/check-role', [StudentController::class, 'checkRole'])->name('siswa.checkRole');
-    Route::post('/siswa/{siswa}/reset-password', [StudentController::class, 'resetPassword'])->name('siswa.reset-password');
+    Route::post('/siswa/{siswa}/reset-password', [StudentController::class, 'resetPassword'])
+        ->middleware('throttle:5,15')
+        ->name('siswa.reset-password');
     Route::delete('/siswa/delete-graduates', [StudentController::class, 'destroyGraduates'])->name('siswa.delete-graduates');
     Route::post('/siswa/bulk-deactivate', [StudentController::class, 'bulkDeactivate'])->name('siswa.bulk-deactivate');
     Route::post('/siswa/bulk-activate', [StudentController::class, 'bulkActivate'])->name('siswa.bulk-activate');

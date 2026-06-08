@@ -137,7 +137,7 @@ class TeachersImport implements ToCollection, WithHeadingRow
 
             $toInsertUsers[] = [
                 'email'      => $email,
-                'password'   => Hash::make($nip, ['rounds' => 10]),
+                'password'   => Hash::make($nip), // rounds dari config (BCRYPT_ROUNDS), bukan hardcoded
                 'role'       => 'teacher',
                 'is_active'  => true,
                 'created_at' => $now,
