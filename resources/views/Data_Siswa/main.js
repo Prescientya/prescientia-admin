@@ -616,6 +616,106 @@
         }
     }
 
+    /* ── 8. IMPORT EXCEL: submit async + polling status ──── */
+    function initImportSubmit() {
+        const form      = $('#importExcelForm');
+        const submitBtn = $('#importSubmitBtn');
+        const fileInput = $('#excelFileInput');
+        if (!form) return;
+
+        let poller = null;
+
+        function setProgressUI(label, pct) {
+            const sec  = $('#importReadingSection');
+            const fill = $('#importProgressFill');
+            const lbl  = $('#importProgressLabel');
+            if (sec)  sec.style.display = '';
+            if (lbl)  lbl.textContent   = label;
+            if (fill) fill.style.width  = (pct != null ? pct : 60) + '%';
+        }
+
+        function restoreButton() {
+            if (!submitBtn) return;
+            submitBtn.disabled = false;
+            submitBtn.querySelector('.spinner')?.classList.remove('active');
+            const txt = submitBtn.querySelector('.btn-text');
+            if (txt) txt.style.opacity = '';
+        }
+
+        function fail(msg) {
+            if (poller) { clearInterval(poller); poller = null; }
+            setProgressUI(msg, 0);
+            restoreButton();
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!fileInput || !fileInput.files.length) {
+                fail('Pilih file Excel terlebih dahulu.');
+                return;
+            }
+
+            const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            setProgressUI('Mengunggah file…', 30);
+
+            try {
+                const res = await fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'Accept':           'application/json',
+                        'X-CSRF-TOKEN':     token,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: new FormData(form),
+                });
+
+                if (res.status === 422) {
+                    const d = await res.json().catch(() => ({}));
+                    fail(d?.errors?.file?.[0] || d?.message || 'File tidak valid.');
+                    return;
+                }
+                if (!res.ok) throw new Error('Server error ' + res.status);
+
+                const data = await res.json();
+                if (!data.import_id || !data.status_url) throw new Error('Respons tidak valid');
+
+                setProgressUI('Memproses di latar belakang… untuk data besar bisa beberapa menit.', 60);
+                startPolling(data.import_id, data.status_url);
+            } catch (err) {
+                fail('Gagal memulai import: ' + err.message);
+            }
+        });
+
+        function startPolling(importId, statusUrl) {
+            let attempts = 0;
+            const MAX = 1200; // ~1200 × 2s = 40 menit batas aman
+
+            poller = setInterval(async () => {
+                if (++attempts > MAX) {
+                    fail('Proses import terlalu lama. Coba periksa lagi di daftar siswa beberapa saat lagi.');
+                    return;
+                }
+                try {
+                    const res = await fetch(statusUrl, {
+                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    });
+                    if (!res.ok) return; // transient (mis. 404 sesaat / 5xx) → tetap polling
+
+                    const d = await res.json();
+                    if (d.status === 'processing') {
+                        setProgressUI('Memproses data siswa…', 75);
+                    } else if (d.status === 'completed') {
+                        clearInterval(poller); poller = null;
+                        setProgressUI('Selesai! Memuat hasil…', 100);
+                        window.location = '/siswa?import_done=' + encodeURIComponent(importId);
+                    } else if (d.status === 'failed') {
+                        fail(d.message || 'Import gagal diproses.');
+                    }
+                } catch (_) { /* keep polling */ }
+            }, 2000);
+        }
+    }
+
     /* ── INIT ALL ─────────────────────────────────────────── */
     document.addEventListener('DOMContentLoaded', () => {
         PSC.initActionDropdowns('.ds-action__btn', '.ds-dropdown');
@@ -627,6 +727,7 @@
         initDetailButtons();
         initDeleteButtons();
         initExcelDropzone();
+        initImportSubmit();
         initRoleCheck();
         initBulkDeactivate();
         PSC.initFormSpinner();

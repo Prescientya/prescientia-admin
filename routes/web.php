@@ -53,6 +53,9 @@ Route::middleware('auth:admin')->group(function () {
     /* ── Data Siswa ──────────────────────────────────── */
     Route::get('/siswa/template', [StudentController::class, 'downloadTemplate'])->name('siswa.template');
     Route::post('/siswa/import', [StudentController::class, 'importExcel'])->name('siswa.import');
+    Route::get('/siswa/import/{importId}/status', [StudentController::class, 'importStatus'])
+        ->whereUuid('importId')
+        ->name('siswa.import.status');
     Route::post('/siswa/check-classes', [StudentController::class, 'checkClasses'])->name('siswa.checkclasses');
     Route::get('/siswa/check-role', [StudentController::class, 'checkRole'])->name('siswa.checkRole');
     Route::post('/siswa/{siswa}/reset-password', [StudentController::class, 'resetPassword'])

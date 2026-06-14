@@ -3,17 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Exports\StudentTemplateExport;
-use App\Imports\StudentsImport;
+use App\Jobs\ProcessStudentImport;
 use App\Models\ClassModel;
 use App\Models\Student;
 use App\Models\StudentClassRole;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 
 class StudentController extends Controller
@@ -22,6 +24,12 @@ class StudentController extends Controller
 
     public function index(Request $request)
     {
+        // Hasil import async di-"klaim" sekali dari cache lalu ditampilkan via flash
+        // (session()->now) agar UI laporan import yang sudah ada terpakai tanpa diubah.
+        if ($request->filled('import_done')) {
+            $this->hydrateImportResult((string) $request->input('import_done'));
+        }
+
         $query = Student::with(['user', 'schoolClass']);
 
         if ($request->filled('search')) {
@@ -396,12 +404,8 @@ class StudentController extends Controller
 
     /* ── IMPORT EXCEL ───────────────────────────────── */
 
-    public function importExcel(Request $request)
+    public function importExcel(Request $request): JsonResponse
     {
-        // Bulk import can be slow on large files — remove PHP time limit for this request
-        set_time_limit(0);
-        ini_set('max_execution_time', '0');
-
         $request->validate([
             'file' => 'required|file|mimes:xlsx,xls,csv|max:5120',
         ], [
@@ -410,67 +414,105 @@ class StudentController extends Controller
             'file.max'      => 'Ukuran file maksimal 5MB.',
         ]);
 
-        try {
-            // Pre-create specific classes that user explicitly selected
-            $classesToCreate  = $request->input('classes_to_create', []);
-            $preCreatedLabels = [];
-            if (!empty($classesToCreate)) {
-                foreach ((array) $classesToCreate as $key) {
-                    $parts   = explode('|', $key, 2);
-                    $tingkat = (int) ($parts[0] ?? 0);
-                    $jurusan = strtoupper(trim($parts[1] ?? ''));
-                    if ($tingkat) {
-                        $cls = ClassModel::firstOrCreate(
-                            ['class' => $tingkat, 'major' => $jurusan ?: null]
-                        );
-                        if ($cls->wasRecentlyCreated) {
-                            $label = "{$tingkat}" . ($jurusan ? " - {$jurusan}" : '');
-                            $preCreatedLabels[$label] = $cls->id;
-                        }
-                    }
-                }
-            }
+        // Import dijalankan async di worker: hashing bcrypt per baris terlalu lambat
+        // untuk request sinkron dan menembus timeout nginx (504) pada file besar.
+        $classesToCreate = array_values(array_filter(
+            (array) $request->input('classes_to_create', []),
+            fn ($v) => is_string($v) && $v !== ''
+        ));
 
-            // autoCreate: true only when old checkbox used & no specific classes sent
-            $autoCreate = $request->boolean('auto_create_classes') && empty($classesToCreate);
-            $import = new StudentsImport($autoCreate);
-            foreach ($this->loadSheetsAsCollections($request->file('file')->getRealPath()) as $sheet) {
-                $import->importSheet($sheet['rows'], $sheet['name']);
-            }
+        // autoCreate hanya bila checkbox lama dipakai & tidak ada kelas spesifik dipilih
+        $autoCreate = $request->boolean('auto_create_classes') && empty($classesToCreate);
 
-            // Hapus file sisa import (chunk reading menyimpan temp di imports/)
-            $this->cleanupImportFiles();
-
-            $count          = $import->getImportedCount();
-            $failed         = $import->getFailedRows();
-            $createdClasses = array_merge($preCreatedLabels, $import->getCreatedClasses());
-
-            if (count($failed) > 0) {
-                return redirect()->route('siswa.index')
-                    ->with('import_failed', $failed)
-                    ->with('import_success_count', $count)
-                    ->with('import_type', 'siswa')
-                    ->with('import_created_classes', $createdClasses)
-                    ->with('success', $count > 0 ? "Berhasil mengimpor {$count} data siswa." : null);
-            }
-
-            if ($count === 0) {
-                return redirect()->route('siswa.index')
-                    ->with('error', 'Tidak ada data siswa baru yang berhasil diimpor. Pastikan format file sesuai template.');
-            }
-
-            $msg = "Berhasil mengimpor {$count} data siswa.";
-            if (!empty($createdClasses)) {
-                $msg .= ' Kelas baru dibuat: ' . implode(', ', array_keys($createdClasses)) . '.';
-            }
-
-            return redirect()->route('siswa.index')
-                ->with('success', $msg)
-                ->with('import_created_classes', $createdClasses);
-        } catch (\Exception $e) {
-            $this->cleanupImportFiles();
-            return back()->with('error', 'Gagal import: ' . $e->getMessage());
+        // Simpan file di disk privat (di luar webroot); job menghapusnya setelah selesai.
+        $storedPath = $request->file('file')->store('imports', 'local');
+        if ($storedPath === false) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menyimpan file sementara. Silakan coba lagi.',
+            ], 500);
         }
+
+        $importId = (string) Str::uuid();
+        $adminId  = auth('admin')->id();
+
+        Cache::put("student_import:{$importId}", [
+            'status'     => 'queued',
+            'admin_id'   => $adminId,
+            'created_at' => now()->toIso8601String(),
+        ], now()->addHour());
+
+        ProcessStudentImport::dispatch($importId, $storedPath, $autoCreate, $classesToCreate, $adminId);
+
+        return response()->json([
+            'success'    => true,
+            'import_id'  => $importId,
+            'status_url' => route('siswa.import.status', $importId),
+        ], 202);
+    }
+
+    /* ── IMPORT STATUS (AJAX polling) ───────────────── */
+
+    public function importStatus(Request $request, string $importId): JsonResponse
+    {
+        $data = Cache::get("student_import:{$importId}");
+
+        // 404 (bukan 403) jika tidak ada / bukan milik admin ini → tidak bocorkan keberadaan.
+        if (!$data || ($data['admin_id'] ?? null) !== auth('admin')->id()) {
+            return response()->json(['status' => 'not_found'], 404);
+        }
+
+        return response()->json([
+            'status'       => $data['status'] ?? 'unknown',
+            'count'        => $data['count'] ?? 0,
+            'failed_count' => isset($data['failed']) ? count($data['failed']) : 0,
+            'message'      => $data['message'] ?? null,
+        ]);
+    }
+
+    /**
+     * Ambil (sekali) hasil import async dari cache dan tampilkan lewat flash
+     * session()->now() agar UI laporan import yang sudah ada (Index.blade) terpakai.
+     */
+    private function hydrateImportResult(string $importId): void
+    {
+        $key  = "student_import:{$importId}";
+        $data = Cache::get($key);
+
+        if (!$data
+            || ($data['admin_id'] ?? null) !== auth('admin')->id()
+            || ($data['status'] ?? null) !== 'completed') {
+            return;
+        }
+
+        Cache::forget($key); // klaim sekali pakai
+
+        $count          = (int) ($data['count'] ?? 0);
+        $failed         = $data['failed'] ?? [];
+        $createdClasses = $data['created_classes'] ?? [];
+
+        if (!empty($failed)) {
+            session()->now('import_failed', $failed);
+            session()->now('import_success_count', $count);
+            session()->now('import_type', 'siswa');
+            session()->now('import_created_classes', $createdClasses);
+            if ($count > 0) {
+                session()->now('success', "Berhasil mengimpor {$count} data siswa.");
+            }
+            return;
+        }
+
+        if ($count === 0) {
+            session()->now('error', 'Tidak ada data siswa baru yang berhasil diimpor. Pastikan format file sesuai template.');
+            return;
+        }
+
+        $msg = "Berhasil mengimpor {$count} data siswa.";
+        if (!empty($createdClasses)) {
+            $msg .= ' Kelas baru dibuat: ' . implode(', ', array_keys($createdClasses)) . '.';
+        }
+        session()->now('success', $msg);
+        session()->now('import_created_classes', $createdClasses);
     }
 
     /* ── DELETE GRADUATES ───────────────────────────── */
@@ -681,57 +723,5 @@ class StudentController extends Controller
             Log::error('[Students] bulkActivate failed: ' . $e->getMessage());
             return back()->with('error', 'Gagal mengaktifkan siswa: ' . $e->getMessage());
         }
-    }
-
-    /**
-     * Hapus file sisa import yang tertinggal di storage/app/private/imports.
-     */
-    private function cleanupImportFiles(): void
-    {
-        $dir = storage_path('app/private/imports');
-        if (is_dir($dir)) {
-            foreach (glob($dir . '/*') as $file) {
-                if (is_file($file)) {
-                    @unlink($file);
-                }
-            }
-        }
-    }
-
-    /**
-     * Baca semua sheet dari file Excel menggunakan PhpSpreadsheet.
-     * Mengembalikan array of ['name' => string, 'rows' => Collection].
-     * Setiap baris adalah Collection dengan kunci nama kolom (lowercase).
-     */
-    private function loadSheetsAsCollections(string $filePath): array
-    {
-        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filePath);
-        $result      = [];
-
-        foreach ($spreadsheet->getAllSheets() as $worksheet) {
-            $data = $worksheet->toArray(null, false, false, false);
-            if (empty($data)) {
-                continue;
-            }
-
-            $headers = array_map(fn($h) => strtolower(trim((string) ($h ?? ''))), $data[0]);
-
-            // Skip sheet kosong (semua header kosong)
-            if (array_filter($headers) === []) {
-                continue;
-            }
-
-            $rows = collect(array_slice($data, 1))->map(function ($rowData) use ($headers) {
-                $padded = array_pad((array) $rowData, count($headers), null);
-                return collect(array_combine($headers, array_slice($padded, 0, count($headers))));
-            });
-
-            $result[] = ['name' => $worksheet->getTitle(), 'rows' => $rows];
-        }
-
-        $spreadsheet->disconnectWorksheets();
-        unset($spreadsheet);
-
-        return $result;
     }
 }
