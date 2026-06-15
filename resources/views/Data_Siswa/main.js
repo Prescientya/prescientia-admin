@@ -24,6 +24,31 @@
         });
     }
 
+    /* ── 6. RESET PASSWORD MODAL ───────────────────────── */
+    function initResetPasswordButtons() {
+        $$('[data-action="reset-password"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.id;
+                const name = btn.dataset.name || '–';
+                const nis = btn.dataset.nis || '–';
+
+                btn.closest('.ds-dropdown')?.classList.remove('open');
+
+                const nameEl = $('#resetStudentName');
+                const nisEl = $('#resetStudentNis');
+                const initEl = $('#resetStudentInitial');
+                const formEl = $('#resetStudentForm');
+
+                if (nameEl) nameEl.textContent = name;
+                if (nisEl) nisEl.textContent = 'NIS: ' + nis;
+                if (initEl) initEl.textContent = name ? name.charAt(0).toUpperCase() : '?';
+                if (formEl) formEl.action = `/siswa/${id}/reset-password`;
+
+                openModal('modalResetPasswordSiswa');
+            });
+        });
+    }
+
     /* ── 2. PASSWORD TOGGLE ───────────────────────────────── */
     function initPasswordToggles() {
         $$('.input-password__toggle').forEach(btn => {
@@ -168,33 +193,8 @@
         function showSection(id)  { const el = $('#' + id); if (el) el.style.display = ''; }
         function hideSection(id)  { const el = $('#' + id); if (el) el.style.display = 'none'; }
 
-    function initResetPasswordButtons() {
-        $$('[data-action="reset-password"]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = btn.dataset.id;
-                const name = btn.dataset.name || '–';
-                const nis = btn.dataset.nis || '–';
-
-                btn.closest('.ds-dropdown')?.classList.remove('open');
-
-                const nameEl = $('#resetStudentName');
-                const nisEl = $('#resetStudentNis');
-                const initEl = $('#resetStudentInitial');
-                const formEl = $('#resetStudentForm');
-
-                if (nameEl) nameEl.textContent = name;
-                if (nisEl) nisEl.textContent = 'NIS: ' + nis;
-                if (initEl) initEl.textContent = name ? name.charAt(0).toUpperCase() : '?';
-                if (formEl) formEl.action = `/siswa/${id}/reset-password`;
-
-                openModal('modalResetPasswordSiswa');
-            });
-        });
-    }
-
         function setProgress(pct, label) {
             const fill  = $('#importProgressFill');
-    initResetPasswordButtons();
             const lbl   = $('#importProgressLabel');
             if (fill) fill.style.width = pct + '%';
             if (lbl)  lbl.textContent  = label;
@@ -726,6 +726,7 @@
         initPhotoPreview();
         initDetailButtons();
         initDeleteButtons();
+        initResetPasswordButtons();
         initExcelDropzone();
         initImportSubmit();
         initRoleCheck();

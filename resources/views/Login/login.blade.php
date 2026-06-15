@@ -168,7 +168,6 @@
                         placeholder="Masukkan email admin"
                         value="{{ old('email') }}"
                         required
-                        maxlength="25"
                         autocomplete="email"
                     >
                 </div>
@@ -190,7 +189,6 @@
                         name="password"
                         placeholder="Masukkan password"
                         required
-                        maxlength="15"
                         autocomplete="current-password"
                     >
                     <button type="button" class="toggle-password" id="togglePassword" aria-label="Tampilkan password">

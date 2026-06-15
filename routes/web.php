@@ -31,7 +31,7 @@ Route::get('/privacy-policy/{type}', [PrivacyPolicyController::class, 'show'])
 
 // Login
 Route::get('/', [LoginController::class, 'showLoginForm'])->name('login');
-Route::post('/login', [LoginController::class, 'Login'])->name('login.post')->middleware('throttle:5,1');
+Route::post('/login', [LoginController::class, 'Login'])->name('login.post')->middleware('throttle:5,15');
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 
@@ -47,7 +47,7 @@ Route::middleware('auth:admin')->group(function () {
     Route::post('/guru/import', [TeacherController::class, 'importExcel'])->name('guru.import');
     Route::post('/guru/check-subjects', [TeacherController::class, 'checkSubjects'])->name('guru.checksubjects');
     Route::post('/guru/{guru}/reset-password', [TeacherController::class, 'resetPassword'])
-        ->middleware('throttle:5,15')
+        ->middleware('throttle:5,5')
         ->name('guru.reset-password');
     Route::resource('/guru', TeacherController::class)->except(['create']);
     /* ── Data Siswa ──────────────────────────────────── */
@@ -59,7 +59,7 @@ Route::middleware('auth:admin')->group(function () {
     Route::post('/siswa/check-classes', [StudentController::class, 'checkClasses'])->name('siswa.checkclasses');
     Route::get('/siswa/check-role', [StudentController::class, 'checkRole'])->name('siswa.checkRole');
     Route::post('/siswa/{siswa}/reset-password', [StudentController::class, 'resetPassword'])
-        ->middleware('throttle:5,15')
+        ->middleware('throttle:5,5')
         ->name('siswa.reset-password');
     Route::delete('/siswa/delete-graduates', [StudentController::class, 'destroyGraduates'])->name('siswa.delete-graduates');
     Route::post('/siswa/bulk-deactivate', [StudentController::class, 'bulkDeactivate'])->name('siswa.bulk-deactivate');
