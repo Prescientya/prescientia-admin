@@ -41,6 +41,7 @@ Route::middleware('auth:admin')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('Dashboard');
 
     /* ── Data Kelas ──────────────────────────────────── */
+    Route::delete('/kelas/delete-all', [KelasController::class, 'destroyAll'])->name('kelas.destroy-all');
     Route::resource('/kelas', KelasController::class)->only(['index', 'store', 'update', 'destroy']);
     /* ── Data Guru ───────────────────────────────────────── */
     Route::get('/guru/template', [TeacherController::class, 'downloadTemplate'])->name('guru.template');
@@ -49,6 +50,7 @@ Route::middleware('auth:admin')->group(function () {
     Route::post('/guru/{guru}/reset-password', [TeacherController::class, 'resetPassword'])
         ->middleware('throttle:5,5')
         ->name('guru.reset-password');
+    Route::delete('/guru/delete-all', [TeacherController::class, 'destroyAll'])->name('guru.destroy-all');
     Route::resource('/guru', TeacherController::class)->except(['create']);
     /* ── Data Siswa ──────────────────────────────────── */
     Route::get('/siswa/template', [StudentController::class, 'downloadTemplate'])->name('siswa.template');
@@ -62,6 +64,7 @@ Route::middleware('auth:admin')->group(function () {
         ->middleware('throttle:5,5')
         ->name('siswa.reset-password');
     Route::delete('/siswa/delete-graduates', [StudentController::class, 'destroyGraduates'])->name('siswa.delete-graduates');
+    Route::delete('/siswa/delete-all', [StudentController::class, 'destroyAll'])->name('siswa.destroy-all');
     Route::post('/siswa/bulk-deactivate', [StudentController::class, 'bulkDeactivate'])->name('siswa.bulk-deactivate');
     Route::post('/siswa/bulk-activate', [StudentController::class, 'bulkActivate'])->name('siswa.bulk-activate');
     Route::get('/siswa/preview-bulk', [StudentController::class, 'previewBulk'])->name('siswa.preview-bulk');

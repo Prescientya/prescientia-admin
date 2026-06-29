@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\VerifiesBulkDelete;
 use App\Exports\StudentTemplateExport;
 use App\Jobs\ProcessStudentImport;
 use App\Models\ClassModel;
@@ -20,6 +21,8 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class StudentController extends Controller
 {
+    use VerifiesBulkDelete;
+
     /* ── INDEX ──────────────────────────────────────── */
 
     public function index(Request $request)
@@ -347,6 +350,42 @@ class StudentController extends Controller
         } catch (\Exception $e) {
             DB::rollback();
             return back()->with('error', 'Gagal menghapus data siswa: ' . $e->getMessage());
+        }
+    }
+
+    public function destroyAll(Request $request)
+    {
+        $this->verifyBulkDelete($request, 'HAPUS SEMUA SISWA');
+
+        $students = Student::with('user')->orderBy('id')->get();
+        if ($students->isEmpty()) {
+            return back()->with('info', 'Tidak ada data siswa untuk dihapus.');
+        }
+
+        DB::beginTransaction();
+        try {
+            $count = 0;
+            foreach ($students as $student) {
+                if ($student->user) {
+                    $student->user->delete();
+                } else {
+                    $student->delete();
+                }
+
+                if ($student->photo_profile) {
+                    Storage::disk('public')->delete($student->photo_profile);
+                }
+
+                $count++;
+            }
+
+            DB::commit();
+            Cache::forget('dashboard.total_siswa');
+
+            return back()->with('success', "Berhasil menghapus semua data siswa ({$count} data).");
+        } catch (\Exception $e) {
+            DB::rollback();
+            return back()->with('error', 'Gagal menghapus semua data siswa: ' . $e->getMessage());
         }
     }
 

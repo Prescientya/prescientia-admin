@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\VerifiesBulkDelete;
 use App\Exports\TeacherTemplateExport;
 use App\Imports\TeachersImport;
 use App\Models\ClassModel;
@@ -17,6 +18,8 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class TeacherController extends Controller
 {
+    use VerifiesBulkDelete;
+
     /* ── INDEX ──────────────────────────────────────── */
 
     public function index(Request $request)
@@ -306,6 +309,42 @@ class TeacherController extends Controller
         } catch (\Exception $e) {
             DB::rollback();
             return back()->with('error', 'Gagal menghapus data guru: ' . $e->getMessage());
+        }
+    }
+
+    public function destroyAll(Request $request)
+    {
+        $this->verifyBulkDelete($request, 'HAPUS SEMUA GURU');
+
+        $teachers = Teacher::with('user')->orderBy('id')->get();
+        if ($teachers->isEmpty()) {
+            return back()->with('info', 'Tidak ada data guru untuk dihapus.');
+        }
+
+        DB::beginTransaction();
+        try {
+            $count = 0;
+            foreach ($teachers as $teacher) {
+                if ($teacher->user) {
+                    $teacher->user->delete();
+                } else {
+                    $teacher->delete();
+                }
+
+                if ($teacher->photo_profile) {
+                    Storage::disk('public')->delete($teacher->photo_profile);
+                }
+
+                $count++;
+            }
+
+            DB::commit();
+            Cache::forget('dashboard.total_guru');
+
+            return back()->with('success', "Berhasil menghapus semua data guru ({$count} data).");
+        } catch (\Exception $e) {
+            DB::rollback();
+            return back()->with('error', 'Gagal menghapus semua data guru: ' . $e->getMessage());
         }
     }
 

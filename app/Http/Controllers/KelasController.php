@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\VerifiesBulkDelete;
 use App\Models\ClassModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
 class KelasController extends Controller
 {
+    use VerifiesBulkDelete;
+
     /* ── INDEX ──────────────────────────────────────── */
 
     public function index(Request $request)
@@ -109,5 +112,20 @@ class KelasController extends Controller
 
         Cache::forget('dashboard.total_kelas');
         return back()->with('success', "Kelas {$name} berhasil dihapus.");
+    }
+
+    public function destroyAll(Request $request)
+    {
+        $this->verifyBulkDelete($request, 'HAPUS SEMUA KELAS');
+
+        $count = ClassModel::count();
+        if ($count < 1) {
+            return back()->with('info', 'Tidak ada data kelas untuk dihapus.');
+        }
+
+        ClassModel::query()->delete();
+        Cache::forget('dashboard.total_kelas');
+
+        return back()->with('success', "Berhasil menghapus semua data kelas ({$count} data).");
     }
 }

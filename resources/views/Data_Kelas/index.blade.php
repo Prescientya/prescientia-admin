@@ -43,13 +43,25 @@
         <div>
             <p class="dk-subtitle">Total <strong>{{ $classes->total() }}</strong> kelas terdaftar</p>
         </div>
-        <button type="button" class="btn btn--primary" data-open-modal="modalTambahKelas">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-                 fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Tambah Kelas
-        </button>
+        <div class="dk-header__actions" style="display:flex;gap:12px;flex-wrap:wrap;">
+            <button type="button" class="btn btn--primary" data-open-modal="modalTambahKelas">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Tambah Kelas
+            </button>
+            <button type="button" class="btn btn--danger" data-open-modal="modalDeleteAllClasses">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14H6L5 6"/>
+                    <path d="M10 11v6"/><path d="M14 11v6"/>
+                    <path d="M9 6V4h6v2"/>
+                </svg>
+                Hapus Semua Kelas
+            </button>
+        </div>
     </div>
 
     {{-- ── Toolbar ─────────────────────────────────────── --}}
@@ -356,8 +368,52 @@
         </div>
     </div>
 </div>
+
+<div class="modal-overlay" id="modalDeleteAllClasses">
+    <div class="modal modal--sm">
+        <div class="modal-header">
+            <h2 class="modal-title modal-title--danger">Hapus Semua Data Kelas</h2>
+            <button type="button" class="modal-close-btn modal-close" aria-label="Tutup">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Anda akan menghapus <strong>{{ $classes->total() }}</strong> data kelas. Siswa tidak ikut terhapus, tetapi kelas mereka akan dikosongkan.</p>
+            <p class="text-danger" style="margin-top:.5rem;font-size:.875rem;">
+                Tindakan ini <strong>tidak bisa dibatalkan</strong>.
+            </p>
+            <div class="form-group" style="margin-top:1rem;">
+                <label class="form-label">Password Admin <span class="req">*</span></label>
+                <input type="password" name="bulk_delete_password" form="deleteAllClassesForm" class="form-control" autocomplete="current-password" required>
+                @error('bulk_delete_password')
+                    <div class="form-error">{{ $message }}</div>
+                @enderror
+            </div>
+            <div class="form-group" style="margin-top:.85rem;">
+                <label class="form-label">Ketik HAPUS SEMUA KELAS <span class="req">*</span></label>
+                <input type="text" name="bulk_delete_confirmation" form="deleteAllClassesForm" class="form-control" placeholder="HAPUS SEMUA KELAS" required>
+                @error('bulk_delete_confirmation')
+                    <div class="form-error">{{ $message }}</div>
+                @enderror
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn--ghost modal-close">Batal</button>
+            <form id="deleteAllClassesForm" method="POST" action="{{ route('kelas.destroy-all') }}" style="display:inline;">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="btn btn--danger">Ya, Hapus Semua Kelas</button>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
+<script>
+@if($errors->has('bulk_delete_password') || $errors->has('bulk_delete_confirmation'))
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.PSC) window.PSC.openModal('modalDeleteAllClasses');
+});
+@endif
+</script>
 <script>{!! file_get_contents(resource_path('views/Data_Kelas/main.js')) !!}</script>
 @endpush
