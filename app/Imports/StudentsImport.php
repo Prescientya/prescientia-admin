@@ -42,40 +42,21 @@ class StudentsImport
 
         // Ambil header dari file
         $fileColumns = $rows->first() ? array_keys($rows->first()->toArray()) : [];
-        $this->headerInfo = [
-            'expected' => $expectedColumns,
-            'found' => $fileColumns,
-        ];
+        
+        // Kolom yang WAJIB ada
+        $requiredColumns = ['nis', 'nama'];
+        $missing = array_diff($requiredColumns, $fileColumns);
 
-        // Cek kolom yang kurang, lebih, dan tidak sesuai
-        $missing = array_diff($expectedColumns, $fileColumns);
-        $extra   = array_diff($fileColumns, $expectedColumns);
-        $wrong   = [];
-        foreach ($fileColumns as $col) {
-            if (!in_array($col, $expectedColumns)) {
-                $wrong[] = $col;
-            }
-        }
-        if ($missing || $extra) {
-            $this->headerErrors = [
-                'sheet' => $sheetName,
-                'missing' => $missing,
-                'extra' => $extra,
-                'wrong' => $wrong,
-            ];
+        if ($missing) {
             $this->failedRows[] = [
                 'rowNumber' => 0,
                 'sheet'     => $sheetName,
-                'reason'    => $sheetLabel . 'Kolom pada sheet ini tidak sesuai template. Kolom yang diharapkan: ' . implode(', ', $expectedColumns) . '. Kolom yang ditemukan: ' . implode(', ', $fileColumns) . '.',
-                'messages'  => array_values(array_filter([
-                    'Kolom pada file tidak sesuai template.',
-                    'Kolom yang diharapkan: ' . implode(', ', $expectedColumns),
-                    'Kolom yang ditemukan: ' . implode(', ', $fileColumns),
-                    $missing ? ('Kolom kurang: ' . implode(', ', $missing)) : null,
-                    $extra ? ('Kolom berlebih/tidak dikenal: ' . implode(', ', $extra)) : null,
-                ])),
+                'reason'    => $sheetLabel . 'Kolom wajib tidak ditemukan: ' . implode(', ', $missing) . '. Pastikan header berisi minimal nis dan nama.',
+                'messages'  => [
+                    'Kolom wajib yang kurang: ' . implode(', ', $missing)
+                ],
             ];
-            // Tidak lanjut proses jika header salah
+            // Tidak lanjut proses jika header wajib tidak ada
             return;
         }
 
@@ -143,7 +124,7 @@ class StudentsImport
 
             $usersToInsert[] = [
                 'email'       => $email,
-                'password'    => Hash::make($nis), // default = NIS, wajib diganti saat login pertama; rounds dari config (BCRYPT_ROUNDS)
+                'password'    => Hash::make($nis, ['rounds' => 4]), // default = NIS, rounds = 4 (sangat cepat), akan di-hash ulang dengan rounds tinggi saat user ganti password pertama kali
                 'role'        => 'student',
                 'is_active'   => true,
                 'first_login' => true, // paksa ganti password saat login pertama via Flutter app
