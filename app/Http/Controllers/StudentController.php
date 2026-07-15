@@ -486,7 +486,8 @@ class StudentController extends Controller
             'created_at' => now()->toIso8601String(),
         ], now()->addHour());
 
-        ProcessStudentImport::dispatch($importId, $storedPath, $autoCreate, $classesToCreate, $adminId);
+        // Karena enkripsi sudah dipercepat (turbo), kita bisa jalankan langsung tanpa butuh background worker
+        ProcessStudentImport::dispatchSync($importId, $storedPath, $autoCreate, $classesToCreate, $adminId);
 
         return response()->json([
             'success'    => true,
