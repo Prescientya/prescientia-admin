@@ -463,8 +463,8 @@ class StudentController extends Controller
         // autoCreate hanya bila checkbox lama dipakai & tidak ada kelas spesifik dipilih
         $autoCreate = $request->boolean('auto_create_classes') && empty($classesToCreate);
 
-        // Simpan file di disk privat (di luar webroot); job menghapusnya setelah selesai.
-        $storedPath = $request->file('file')->store('imports', 'local');
+        // Simpan file dengan visibility 'public' (chmod 0644) agar bisa dibaca oleh worker CLI
+        $storedPath = $request->file('file')->store('imports', ['disk' => 'local', 'visibility' => 'public']);
         if ($storedPath === false) {
             return response()->json([
                 'success' => false,
