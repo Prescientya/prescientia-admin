@@ -42,7 +42,9 @@ Route::middleware('auth:admin')->group(function () {
 
     /* ── Data Kelas ──────────────────────────────────── */
     Route::delete('/kelas/delete-all', [KelasController::class, 'destroyAll'])->name('kelas.destroy-all');
-    Route::resource('/kelas', KelasController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::resource('/kelas', KelasController::class)
+        ->parameters(['kelas' => 'kelas'])
+        ->only(['index', 'store', 'update', 'destroy']);
     /* ── Data Guru ───────────────────────────────────────── */
     Route::get('/guru/template', [TeacherController::class, 'downloadTemplate'])->name('guru.template');
     Route::post('/guru/import', [TeacherController::class, 'importExcel'])->name('guru.import');
