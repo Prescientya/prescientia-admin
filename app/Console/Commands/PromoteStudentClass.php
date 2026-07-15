@@ -14,7 +14,7 @@ class PromoteStudentClass extends Command
      * Ubah nilai di bawah untuk mengatur kapan siswa naik kelas.
      */
     const PROMOTION_MONTH = 7;  // Juli
-    const PROMOTION_DAY   = 1; // Tanggal 19
+    const PROMOTION_DAY   = 1; // Tanggal 1
 
     /**
      * The name and signature of the console command.
@@ -31,7 +31,7 @@ class PromoteStudentClass extends Command
      *
      * @var string
      */
-    protected $description = 'Automatically promote all students to the next class level every July 19. Class 10 → 11, Class 11 → 12, Class 12 → graduated (class_id set to null).';
+    protected $description = 'Automatically promote all students to the next class level every July 1. Class 10 → 11, Class 11 → 12, Class 12 → graduated (class_id set to null).';
 
     /**
      * Get the path for the flag file for a given year.
@@ -104,13 +104,23 @@ class PromoteStudentClass extends Command
             $currentLevel = $currentClass->class; // 10, 11, or 12
 
             if ($currentLevel >= 12) {
-                // Kelas 12 → lulus
+                // Kelas 12 → lulus dan hapus dari database secara otomatis
                 if (!$isDryRun) {
-                    $student->class_id = null;
-                    $student->save();
+                    $photo = $student->photo_profile;
+                    $user  = $student->user;
+                    
+                    if ($user) {
+                        $user->delete(); // Ini otomatis men-cascade hapus ke tabel students berkat FK constraint
+                    } else {
+                        $student->delete();
+                    }
+
+                    if ($photo) {
+                        \Illuminate\Support\Facades\Storage::disk('public')->delete($photo);
+                    }
                 }
                 $graduated++;
-                $this->line("  [LULUS]   {$student->name} (NIS: {$student->nis}) — Kelas 12 {$currentClass->major}");
+                $this->line("  [HAPUS/LULUS] {$student->name} (NIS: {$student->nis}) — Kelas 12 {$currentClass->major}");
             } else {
                 // Cari kelas berikutnya dengan major yang sama
                 $nextLevel = $currentLevel + 1;

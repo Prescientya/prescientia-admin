@@ -37,6 +37,11 @@ class ClassSeeder extends Seeder
             ['class' => 10, 'major' => 'AKL 4'],
             ['class' => 11, 'major' => 'AKL 4'],
             ['class' => 12, 'major' => 'AKL 4'],
+
+            // AKL 5
+            ['class' => 10, 'major' => 'AKL 5'],
+            ['class' => 11, 'major' => 'AKL 5'],
+            ['class' => 12, 'major' => 'AKL 5'],
             
             // HTL 1
             ['class' => 10, 'major' => 'HTL 1'],

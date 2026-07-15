@@ -227,22 +227,14 @@
         <form action="{{ route('kelas.store') }}" method="POST" data-loading>
             @csrf
             <div class="modal-body">
-                <div class="form-grid-2">
-                    <div class="form-group">
-                        <label class="form-label">Tingkat <span class="req">*</span></label>
-                        <select name="class" class="form-control" required>
-                            <option value="">-- Pilih --</option>
-                            <option value="10" {{ old('class') == '10' ? 'selected' : '' }}>10</option>
-                            <option value="11" {{ old('class') == '11' ? 'selected' : '' }}>11</option>
-                            <option value="12" {{ old('class') == '12' ? 'selected' : '' }}>12</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Jurusan <span class="req">*</span></label>
-                        <input type="text" name="major" class="form-control"
-                               placeholder="Contoh: RPL, AKL 1"
-                               value="{{ old('major') }}" required>
-                    </div>
+                <div class="form-group">
+                    <label class="form-label">Nama Kelas / Jurusan <span class="req">*</span></label>
+                    <input type="text" name="major" class="form-control"
+                           placeholder="Contoh: PPLG, AK1, HTL1"
+                           value="{{ old('major') }}" required>
+                    <small style="color:var(--text-muted);display:block;margin-top:6px;">
+                        Sistem akan otomatis membuat 3 kelas sekaligus (Tingkat 10, 11, dan 12) untuk nama kelas ini.
+                    </small>
                 </div>
             </div>
             <div class="modal-footer">

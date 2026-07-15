@@ -39,30 +39,41 @@ class KelasController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'class' => 'required|integer|in:10,11,12',
             'major' => 'required|string|max:100',
         ], [
-            'class.required' => 'Tingkat kelas wajib dipilih.',
-            'class.in'       => 'Tingkat kelas hanya boleh 10, 11, atau 12.',
-            'major.required' => 'Jurusan wajib diisi.',
+            'major.required' => 'Nama Kelas / Jurusan wajib diisi.',
         ]);
 
-        $exists = ClassModel::where('class', $request->class)
-                            ->where('major', $request->major)
-                            ->exists();
+        $major = strtoupper(trim($request->major));
+        $created = 0;
+        $skipped = 0;
 
-        if ($exists) {
-            return back()->withInput()
-                ->with('error', "Kelas {$request->class} - {$request->major} sudah ada.");
+        foreach ([10, 11, 12] as $level) {
+            $exists = ClassModel::where('class', $level)
+                                ->where('major', $major)
+                                ->exists();
+
+            if (!$exists) {
+                ClassModel::create([
+                    'class' => $level,
+                    'major' => $major,
+                ]);
+                $created++;
+            } else {
+                $skipped++;
+            }
         }
 
-        ClassModel::create([
-            'class' => $request->class,
-            'major' => strtoupper(trim($request->major)),
-        ]);
+        if ($created > 0) {
+            Cache::forget('dashboard.total_kelas');
+            $msg = "Berhasil membuat {$created} kelas tingkat 10, 11, 12 untuk jurusan {$major}.";
+            if ($skipped > 0) {
+                $msg .= " ({$skipped} kelas dilewati karena sudah ada).";
+            }
+            return back()->with('success', $msg);
+        }
 
-        Cache::forget('dashboard.total_kelas');
-        return back()->with('success', "Kelas {$request->class} - {$request->major} berhasil ditambahkan.");
+        return back()->withInput()->with('error', "Semua tingkat kelas untuk jurusan {$major} sudah ada di database.");
     }
 
     /* ── UPDATE ─────────────────────────────────────── */
