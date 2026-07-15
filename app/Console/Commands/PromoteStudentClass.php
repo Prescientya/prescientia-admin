@@ -14,7 +14,7 @@ class PromoteStudentClass extends Command
      * Ubah nilai di bawah untuk mengatur kapan siswa naik kelas.
      */
     const PROMOTION_MONTH = 7;  // Juli
-    const PROMOTION_DAY   = 19; // Tanggal 19
+    const PROMOTION_DAY   = 1; // Tanggal 19
 
     /**
      * The name and signature of the console command.
