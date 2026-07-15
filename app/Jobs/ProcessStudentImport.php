@@ -66,8 +66,8 @@ class ProcessStudentImport implements ShouldQueue
     public function handle(): void
     {
         $this->putStatus(['status' => 'processing', 'started_at' => now()->toIso8601String()]);
-
-        $absPath = Storage::disk('local')->path($this->storedPath);
+        
+        $absPath = $this->storedPath; // Sudah path absolut penuh dari controller
 
         try {
             // Buat kelas yang dicentang user secara eksplisit (idempoten via firstOrCreate)
@@ -124,7 +124,7 @@ class ProcessStudentImport implements ShouldQueue
             throw $e; // biarkan tercatat di failed_jobs untuk observability
         } finally {
             // Hapus file upload apa pun hasilnya (sukses/gagal) — jangan tinggalkan PII di disk.
-            Storage::disk('local')->delete($this->storedPath);
+            @unlink($this->storedPath);
         }
     }
 

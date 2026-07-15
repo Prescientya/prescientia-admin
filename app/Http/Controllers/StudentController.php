@@ -463,14 +463,19 @@ class StudentController extends Controller
         // autoCreate hanya bila checkbox lama dipakai & tidak ada kelas spesifik dipilih
         $autoCreate = $request->boolean('auto_create_classes') && empty($classesToCreate);
 
-        // Simpan file dengan visibility 'public' (chmod 0644) agar bisa dibaca oleh worker CLI
-        $storedPath = $request->file('file')->store('imports', ['disk' => 'local', 'visibility' => 'public']);
-        if ($storedPath === false) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal menyimpan file sementara. Silakan coba lagi.',
-            ], 500);
+        // Simpan file ke direktori khusus dengan absolute path agar tidak ada miskomunikasi antar worker & web
+        $filename = Str::random(40) . '.' . $request->file('file')->getClientOriginalExtension();
+        $uploadDir = storage_path('app/imports');
+        
+        if (!file_exists($uploadDir)) {
+            @mkdir($uploadDir, 0777, true);
         }
+        
+        $request->file('file')->move($uploadDir, $filename);
+        $storedPath = $uploadDir . '/' . $filename; // Ini path absolut penuh
+        
+        // Pastikan hak akses file terbuka untuk worker
+        @chmod($storedPath, 0644);
 
         $importId = (string) Str::uuid();
         $adminId  = auth('admin')->id();
