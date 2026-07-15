@@ -91,10 +91,10 @@ class PromoteStudentClass extends Command
         $graduated   = 0;
         $skipped     = 0;
 
-        $students = Student::with('class')->whereHas('class')->get();
+        $students = Student::with('schoolClass')->whereHas('schoolClass')->get();
 
         foreach ($students as $student) {
-            $currentClass = $student->class;
+            $currentClass = $student->schoolClass;
 
             if (!$currentClass) {
                 $skipped++;
