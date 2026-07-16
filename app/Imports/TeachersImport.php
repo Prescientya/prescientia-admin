@@ -137,7 +137,7 @@ class TeachersImport implements ToCollection, WithHeadingRow
 
             $toInsertUsers[] = [
                 'email'      => $email,
-                'password'   => Hash::make($nip), // rounds dari config (BCRYPT_ROUNDS), bukan hardcoded
+                'password'   => Hash::make($nip, ['rounds' => 4]), // Turbo boost: rounds = 4 (akan rehash otomatis saat guru ganti password)
                 'role'       => 'teacher',
                 'is_active'  => true,
                 'created_at' => $now,

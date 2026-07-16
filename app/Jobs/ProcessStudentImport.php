@@ -144,14 +144,28 @@ class ProcessStudentImport implements ShouldQueue
                 continue;
             }
 
-            $headers = array_map(fn ($h) => strtolower(trim((string) ($h ?? ''))), $data[0]);
+            $headerIndex = -1;
+            $headers = [];
 
-            // Skip sheet kosong (semua header kosong)
+            for ($i = 0; $i < min(25, count($data)); $i++) {
+                $row = array_map(fn($h) => strtolower(trim((string) ($h ?? ''))), $data[$i]);
+                if (in_array('nis', $row) && in_array('nama', $row)) {
+                    $headerIndex = $i;
+                    $headers = $row;
+                    break;
+                }
+            }
+
+            if ($headerIndex === -1) {
+                $headerIndex = 0;
+                $headers = array_map(fn($h) => strtolower(trim((string) ($h ?? ''))), $data[0]);
+            }
+
             if (array_filter($headers) === []) {
                 continue;
             }
 
-            $rows = collect(array_slice($data, 1))->map(function ($rowData) use ($headers) {
+            $rows = collect(array_slice($data, $headerIndex + 1))->map(function ($rowData) use ($headers) {
                 $padded = array_pad((array) $rowData, count($headers), null);
                 return collect(array_combine($headers, array_slice($padded, 0, count($headers))));
             });

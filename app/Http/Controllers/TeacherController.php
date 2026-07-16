@@ -486,14 +486,32 @@ class TeacherController extends Controller
                 continue;
             }
 
-            $headers = array_map(fn($h) => strtolower(trim((string) ($h ?? ''))), $data[0]);
+            $headerIndex = -1;
+            $headers = [];
+
+            // Cari baris header (maksimal cek 25 baris pertama)
+            // Baris header yang sah minimal punya kolom 'nip' dan 'nama'
+            for ($i = 0; $i < min(25, count($data)); $i++) {
+                $row = array_map(fn($h) => strtolower(trim((string) ($h ?? ''))), $data[$i]);
+                if (in_array('nip', $row) && in_array('nama', $row)) {
+                    $headerIndex = $i;
+                    $headers = $row;
+                    break;
+                }
+            }
+
+            if ($headerIndex === -1) {
+                // Fallback ke baris pertama jika tidak ketemu
+                $headerIndex = 0;
+                $headers = array_map(fn($h) => strtolower(trim((string) ($h ?? ''))), $data[0]);
+            }
 
             // Skip sheet kosong (semua header kosong)
             if (array_filter($headers) === []) {
                 continue;
             }
 
-            $rows = collect(array_slice($data, 1))->map(function ($rowData) use ($headers) {
+            $rows = collect(array_slice($data, $headerIndex + 1))->map(function ($rowData) use ($headers) {
                 $padded = array_pad((array) $rowData, count($headers), null);
                 return collect(array_combine($headers, array_slice($padded, 0, count($headers))));
             });
